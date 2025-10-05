@@ -1,2 +1,1 @@
-<<<<<<< HEAD
 # MedievAIl - Battle GenerAIl"
