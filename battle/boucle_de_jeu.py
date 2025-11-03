@@ -1,4 +1,30 @@
 from map import SparseMap
+from unités import Unite
+
+class Game :
+    def __init__(self, map, unites, vitesse=1.0) : 
+        self.map = map
+        self.unites = unites #liste des unites
+        self.etat = "running" # "running" ou "pause" ou "terminé"
+        self.horloge = 0
+
+    def input_clavier(self) : # pour mettre pause, play ou changer de vitesse avec touches clavier
+        pass
+
+    def update(self, vitesse=1.0) : # maj unites, deplacements, mort..., verifie victoire, augmente l'horloge
+        pass
+    
+    def sauvegarder(self, filename) :
+        pass
+
+    def charger(self, filename) :
+        pass
+
+    def run(self) :
+        while self.etat != "terminé" :
+            if self.etat == "running" :
+                    self.update()
+                    print(self.map)
 
 maptest = SparseMap(5, 5)
 print()
