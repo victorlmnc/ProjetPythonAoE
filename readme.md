@@ -47,3 +47,6 @@ projet_bataille/
 │   │── test_units.py      # Tests unitaires (dégâts, mouvements…)  
 │   │── test_ai.py         # Tests comportement IA  
 │   │── test_engine.py     # Tests du moteur de jeu  
+
+
+il faut que les unites se deplacent sur toutes la map, pas juste cases par cases, donc il faut pouvoir les deplacer dans la grille avec des flottants pas des entiers. Il faut aussi que les unités aient une hitbox et donc une zone autour d'elles non-accesible.
