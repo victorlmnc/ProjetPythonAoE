@@ -27,8 +27,24 @@ class Building:
         #Set the position and calculate the center coordinates
         self.x = x
         self.y = y
-        self.center_x = x + self.size[0] / 2
-        self.center_y = y + self.size[1] / 2
+        self.center_x = x + self.size[0] / 2.0
+        self.center_y = y + self.size[1] / 2.0
+
+    
+    def world_aabb(self):
+        """Rectangle de collision 'monde' en flottants: (xmin, ymin, xmax, ymax)"""
+        w, h = self.size
+        return float(self.x), float(self.y), float(self.x + w), float(self.y + h)
+
+    def collides_circle(self, cx: float, cy: float, r: float) -> bool:
+        """Test AABB (bâtiment) vs. cercle (unité avec hitbox r)."""
+        xmin, ymin, xmax, ymax = self.world_aabb()
+    # clamp du centre du cercle au rectangle
+        closest_x = min(max(cx, xmin), xmax)
+        closest_y = min(max(cy, ymin), ymax)
+        dx = cx - closest_x
+        dy = cy - closest_y
+        return (dx*dx + dy*dy) <= (r*r)
 
     @property
     def is_alive(self):
@@ -144,4 +160,5 @@ def place_wonders_symmetrically(game_map, owner_left, owner_right, margin: int =
     place_building_on_map(game_map, w_right, x_right, y)
 
     return w_left, w_right
+
 
