@@ -92,3 +92,56 @@ class Wonder(Building):
 class Player:
     def __init__(self, name):
         self.name = name
+
+#place buildings
+
+def _footprint_tiles(x: int, y: int, size):
+    w, h = size
+    return [(i, j) for i in range(x, x + w) for j in range(y, y + h)]
+
+def _in_bounds(game_map, x: int, y: int, size) -> bool:
+    w, h = size
+    return 0 <= x and 0 <= y and x + w <= game_map.largeur and y + h <= game_map.hauteur
+
+def _can_place(game_map, x: int, y: int, size) -> bool:
+    if not _in_bounds(game_map, x, y, size):
+        return False
+    for (i, j) in _footprint_tiles(x, y, size):
+        if not game_map.est_vide(i, j):
+            return False
+    return True
+
+def place_building_on_map(game_map, building, x: int, y: int):
+    if not _can_place(game_map, x, y, building.size):
+        raise ValueError(f"Impossible de placer {building.name} en ({x},{y})")
+
+
+    building.set_position(x, y)
+
+    for (i, j) in _footprint_tiles(x, y, building.size):
+        game_map.ajouter(i, j, building)
+
+    return building
+
+def place_wonders_symmetrically(game_map, owner_left, owner_right, margin: int = 6):
+    w_left = Wonder(owner_left)
+    w_right = Wonder(owner_right)
+
+    w, h = w_left.size
+
+    y = max(0, min(game_map.hauteur - h, game_map.hauteur // 2 - h // 2))
+
+    x_left = margin
+    x_right = game_map.largeur - w - margin
+
+    if not _can_place(game_map, x_left, y, w_left.size):
+        raise ValueError(f"Impossible de placer Wonder gauche en ({x_left},{y})")
+
+    if not _can_place(game_map, x_right, y, w_right.size):
+        raise ValueError(f"Impossible de placer Wonder droit en ({x_right},{y})")
+
+    place_building_on_map(game_map, w_left, x_left, y)
+    place_building_on_map(game_map, w_right, x_right, y)
+
+    return w_left, w_right
+
