@@ -68,12 +68,12 @@ class Unit:
             self.position[0] += self.speed * dx / dist
             self.position[1] += self.speed * dy / dist
 
-# --- Classes enfants ---
+# --- Classes 
 class Infantry(Unit): pass
 class Cavalry(Unit): pass
 class Archer(Unit): pass
 
-# --- Classes spécifiques avec stats originales ---
+# --- sous classes
 class LongSwordsman(Infantry):
     def __init__(self, position=(0,0), team=1):
         super().__init__(
