@@ -1,187 +1,160 @@
-class Unite:
-    """Classe de base représentant une unité militaire du jeu."""
-    def __init__(self, nom, type_unite, hp, attack, armor, pierce_armor, speed, range_):
-        self.nom = nom
-        self.type_unite = type_unite
+import  pygame
+import math
+
+
+class Unit:
+    def __init__(self, hp, attack, armor, pierce_armor, rng, line_of_sight,
+                 speed, attacks, armours, image_path, position, team):
         self.hp = hp
         self.attack = attack
         self.armor = armor
         self.pierce_armor = pierce_armor
+        self.range = rng
+        self.line_of_sight = line_of_sight
         self.speed = speed
-        self.range = range_
-        self.bonus_vs = {}  # bonus contextuels (ex: Pikeman vs Cavalerie)
+        self.attacks = attacks
+        self.armours = armours
+        self.position = list(position)
+        self.team = team
 
-    # --- Formule officielle d’Age of Empires II ---
-    def calcul_degats(self, cible, elevation_factor=1.0):
-        """
-        Damage = max(1, k_elev * Σ_i max(0, Attack_i - Armor_i))
-        """
-        # Type d’armure (mêlée ou perforante)
-        armor = cible.pierce_armor if self.range > 0 else cible.armor
+        try:
+            self.image = pygame.image.load(image_path).convert_alpha()
+            self.image = pygame.transform.scale(self.image, (40, 40))
+        except Exception as e:
+            print(f"Erreur chargement image {image_path}: {e}")
+            self.image = None
 
-        # Base + bonus selon le type de la cible
-        attacks = [self.attack]
-        attacks += [bonus for unit_type, bonus in self.bonus_vs.items()
-                    if cible.type_unite == unit_type or cible.nom == unit_type]
+    def draw(self, screen):
+        if self.image:
+            screen.blit(self.image, self.position)
+        color = (255, 0, 0) if self.team == 1 else (0, 0, 255)
+        pygame.draw.circle(screen, color, (int(self.position[0]+20), int(self.position[1]+20)), 5)
 
-        # Application directe de la formule
-        raw_damage = sum(max(0, atk - armor) for atk in attacks)
-        total_damage = max(1, elevation_factor * raw_damage)
+    def distance_to(self, other):
+        dx = self.position[0] - other.position[0]
+        dy = self.position[1] - other.position[1]
+        return math.sqrt(dx**2 + dy**2)
 
-        return int(total_damage)
+    def get_target_armor(self, target, atk_type):
+        melee_types = ["Base Melee", "Shock Infantry", "Mounted Units", "Camels"]
+        ranged_types = ["Base Pierce", "All Archers", "Stone Defense & Harbors"]
 
-    def subir_degats(self, montant):
-        self.hp -= max(0, montant)
-        if self.hp < 0:
-            self.hp = 0
+        if atk_type in melee_types:
+            return target.armor
+        elif atk_type in ranged_types:
+            return target.pierce_armor
+        else:
+            return target.armours.get(atk_type, 0)
 
-    def attaquer(self, cible, elevation_factor=1.0):
-        degats = self.calcul_degats(cible, elevation_factor)
-        cible.subir_degats(degats)
-        print(f"{self.nom} attaque {cible.nom} et inflige {degats} dégâts !")
-        if cible.hp <= 0:
-            print(f"💀 {cible.nom} est éliminé !")
+    def attack_target(self, target):
+        if self.distance_to(target) > self.range:
+            return
+        total_damage = 0
+        for atk_type, dmg in self.attacks.items():
+            armor = self.get_target_armor(target, atk_type)
+            damage = max(0, dmg - armor)
+            total_damage += damage
+        total_damage = max(1, total_damage)
+        target.hp -= total_damage
 
+    def dead(self):
+        return self.hp <= 0
 
-# --------------------------------------------------------------------
-# 🛡️ INFANTERIE DE BASE
-# --------------------------------------------------------------------
-class Infantry(Unite):
-    def __init__(self):
+    def move_towards(self, target):
+        dx = target.position[0] - self.position[0]
+        dy = target.position[1] - self.position[1]
+        dist = math.sqrt(dx**2 + dy**2)
+        if dist > 0:
+            self.position[0] += self.speed * dx / dist
+            self.position[1] += self.speed * dy / dist
+
+# --- Classes enfants ---
+class Infantry(Unit): pass
+class Cavalry(Unit): pass
+class Archer(Unit): pass
+
+# --- Classes spécifiques avec stats originales ---
+class LongSwordsman(Infantry):
+    def __init__(self, position=(0,0), team=1):
         super().__init__(
-            "Infantry", "Infanterie",
-            hp=40, attack=4, armor=0, pierce_armor=1,
-            speed=0.9, range_=0
+            hp=60,
+            attack=9,
+            armor=1,
+            pierce_armor=1,
+            rng=0,
+            line_of_sight=4,
+            speed=1.0,
+            attacks={
+                "Shock Infantry": 6,
+                "Standard Buildings": 3,
+                "Base Melee": 9,
+                "Mounted Units": 0,
+                "Camels": 0,
+                "All Archers": 0
+            },
+            armours={
+                "Infantry": 0,
+                "Base Melee": 1,
+                "Base Pierce": 1,
+                "Obsolete": 0
+            },
+            image_path="images/long_swordsman.WEBP",
+            position=position,
+            team=team
         )
-        self.line_of_sight = 4
-        self.reload_time = 2
-        self.build_time = 21
-        self.cost = {"food": 50, "gold": 20}
-        self.bonus_vs = {}  # pas de bonus spécifiques
 
-
-# --------------------------------------------------------------------
-# 🏹 ARCHER
-# --------------------------------------------------------------------
-class Archer(Unite):
-    def __init__(self):
+class Pikeman(Infantry):
+    def __init__(self, position=(0,0), team=1):
         super().__init__(
-            "Archer", "Archer",
-            hp=30, attack=4, armor=0, pierce_armor=0,
-            speed=0.96, range_=4
+            hp=55, attack=7, armor=0, pierce_armor=0, rng=0, line_of_sight=4,
+            speed=1.2,
+            attacks={"Shock Infantry": 1, "Standard Buildings": 1, "Elephants": 25,
+                     "Base Melee": 4, "Mounted Units": 22, "Ships": 16, "Camels": 18,
+                     "Mamelukes": 7, "Fishing Ships": 16, "All Archers": 0},
+            armours={"Spear Units": 0, "Infantry": 0, "Base Melee": 0, "Base Pierce": 0, "Obsolete": 0},
+            image_path="images/pikeman.WEBP",
+            position=position,
+            team=team
         )
-        self.line_of_sight = 6
-        self.reload_time = 2
-        self.attack_delay = 0.35
-        self.build_time = 35
-        self.accuracy = 0.8
-        self.cost = {"wood": 25, "gold": 45}
-        self.bonus_vs = {"Infanterie": 2}  # Bonus structurel AoE2
 
-    def calcul_degats(self, cible, elevation_factor=1.0):
-        import random
-        if random.random() > self.accuracy:
-            print(f"{self.nom} rate son tir sur {cible.nom} !")
-            return 0
-        return super().calcul_degats(cible, elevation_factor)
-
-
-# --------------------------------------------------------------------
-# 🪓 PIQUIER
-# --------------------------------------------------------------------
-class Pikeman(Unite):
-    def __init__(self):
+class Knight(Cavalry):
+    def __init__(self, position=(0,0), team=1):
         super().__init__(
-            "Pikeman", "Infanterie",
-            hp=55, attack=4, armor=0, pierce_armor=0,
-            speed=1.0, range_=0
+            hp=100, attack=10, armor=2, pierce_armor=2, rng=0, line_of_sight=4,
+            speed=1.35,
+            attacks={"Base Melee": 10, "All Archers": 0, "All Buildings": 0,
+                     "Standard Buildings": 0, "Skirmishers": 0, "Cavalry Resistance": -3,
+                     "Siege Units": 0, "Obsolete": 0},
+            armours={"Base Melee": 2, "Mounted Units": 0, "Base Pierce": 2, "Obsolete": 0},
+            image_path="images/knight.WEBP",
+            position=position,
+            team=team
         )
-        self.line_of_sight = 4
-        self.reload_time = 3
-        self.build_time = 22
-        self.cost = {"food": 35, "wood": 25}
-        # Bonus officiels AoE2
-        self.bonus_vs = {
-            "Cavalerie": 22,
-            "Elephant": 25,
-            "Camel": 18,
-            "Ship": 16,
-            "Fishing Ship": 16,
-        }
 
-
-# --------------------------------------------------------------------
-# 🏹 TIRAILLEUR (SKIRMISHER)
-# --------------------------------------------------------------------
-class Skirmisher(Unite):
-    def __init__(self):
+class Crossbowman(Archer):
+    def __init__(self, position=(0,0), team=1):
         super().__init__(
-            "Skirmisher", "Archer",
-            hp=30, attack=2, armor=0, pierce_armor=3,
-            speed=0.96, range_=4
+            hp=35,
+            attack=5,
+            armor=0,
+            pierce_armor=0,
+            rng=5,
+            line_of_sight=7,
+            speed=0.96,
+            attacks={
+                "Spear Units": 3,
+                "Standard Buildings": 0,
+                "Base Pierce": 5,
+                "High Pierce Armor Siege Units": 0,
+                "Stone Defense & Harbors": 0
+            },
+            armours={
+                "Base Melee": 0,
+                "All Archers": 0,
+                "Base Pierce": 0,
+                "Obsolete": 0
+            },
+            image_path="images/crossbowman.WEBP",
+            position=position,
+            team=team
         )
-        self.min_range = 1
-        self.line_of_sight = 6
-        self.reload_time = 3
-        self.attack_delay = 0.51
-        self.build_time = 26
-        self.accuracy = 0.9
-        self.cost = {"food": 25, "gold": 35}
-        self.bonus_vs = {"Archer": 4, "Pikeman": 1}
-
-    def calcul_degats(self, cible, elevation_factor=1.0):
-        import random
-        distance = getattr(cible, "distance", 2)
-        if distance < self.min_range:
-            print(f"{self.nom} ne peut pas tirer à bout portant sur {cible.nom} !")
-            return 0
-        if random.random() > self.accuracy:
-            print(f"{self.nom} rate son tir sur {cible.nom} !")
-            return 0
-        return super().calcul_degats(cible, elevation_factor)
-
-
-# --------------------------------------------------------------------
-# 🐎 CHEVALIER
-# --------------------------------------------------------------------
-class Knight(Unite):
-    def __init__(self):
-        super().__init__(
-            "Knight", "Cavalerie",
-            hp=100, attack=10, armor=2, pierce_armor=2,
-            speed=1.35, range_=0
-        )
-        self.line_of_sight = 4
-        self.reload_time = 1.8
-        self.attack_delay = 0.67
-        self.build_time = 30
-        self.cost = {"food": 60, "gold": 75}
-        self.bonus_vs = {}  # pas de bonus spécifiques
-class Cavalry(Unite):
-    def __init__(self):
-        super().__init__(
-            "Scout Cavalry", "Light Cavalry",
-            hp=45, attack=3, armor=0, pierce_armor=2,
-            speed=1.2, range_=0
-        )
-        self.line_of_sight = 4
-        self.reload_time = 2
-        self.attack_delay = 0.6
-        self.build_time = 30
-        self.accuracy = 1.0  # Suppose attaque toujours réussie sauf exceptions
-        self.cost = {"food": 80}
-        self.bonus_vs = {"Monastery Units": 5}  # Fort contre les unités monastiques
-        self.weak_vs = {"Spearman": 5, "Camel Riders": 5}  # Faible contre ces unités
-        self.upgrades = {
-            "Blacksmith": ["attack", "armor"],
-            "Stable": ["speed", "hp", "to Light Cavalry"],
-            "Castle": ["creation_speed"],
-            "Monastery": ["resistance_to_conversion"]
-        }
-
-    def calcul_degats(self, cible, elevation_factor=1.0):
-        import random
-        distance = getattr(cible, "distance", 1)
-        if distance > 1:
-            print(f"{self.nom} attaque au corps à corps {cible.nom} !")
-        return super().calcul_degats(cible, elevation_factor)
