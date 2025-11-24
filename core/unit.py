@@ -156,5 +156,3 @@ class Crossbowman(Unit):
                 "All Archers": 0,      # Pas de bonus contre les archers
             }
         )
-
-
