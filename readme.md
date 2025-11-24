@@ -1,4 +1,7 @@
 # Projet de programmation : MedievAIl BAIttle GenerAIl
+
+Pour lancer une simulation en mode terminal : python main.py --map "maps/small.map" --army1 "armies/armee_test_bleue.txt" --army2 "armies/armee_test_rouge.txt" --max_turns 100
+
 ## But : 
 
 ```
