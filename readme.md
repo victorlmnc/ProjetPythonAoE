@@ -2,6 +2,12 @@
 
 Pour lancer une simulation en mode terminal : python main.py --map "maps/small.map" --army1 "armies/armee_test_bleue.txt" --army2 "armies/armee_test_rouge.txt" --max_turns 100
 
+Pour sauvegarder une partie : Ex : 
+python main.py --map "maps/small.map" --army1 "armies/armee_test_bleue.txt" --army2 "armies/armee_test_rouge.txt" --max_turns 10 --save_path saves/test.sav
+
+Puis :
+python main.py --load_game saves/test.sav --max_turns 20         
+
 ## But : 
 
 ```
