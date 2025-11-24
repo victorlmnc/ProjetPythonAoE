@@ -1,7 +1,6 @@
-# Fichier de l'armée test rouge
-GENERAL: CaptainBRAINDEAD
-
-# 10 Piquiers en ligne
-Pikeman, 39.0, 8.0
-Knight, 39.0, 9.0
-Archer, 39.0, 10.0
+GENERAL: MajorDAFT
+Pikeman, 30.0, 10.0
+Pikeman, 30.0, 12.0
+Pikeman, 30.0, 14.0
+Pikeman, 30.0, 16.0
+Pikeman, 30.0, 18.0

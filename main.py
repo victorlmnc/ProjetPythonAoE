@@ -9,7 +9,7 @@ from core.map import Map
 from core.army import Army
 from core.unit import Unit, Knight, Pikeman, Archer
 from ai.general import General
-from ai.generals_impl import CaptainBRAINDEAD, MajorDAFT
+from ai.generals_impl import CaptainBRAINDEAD, MajorDAFT, ColonelKAISER
 from engine import Engine
 from view.terminal_view import TerminalView
 
@@ -23,6 +23,12 @@ UNIT_CLASS_MAP = {
     "Knight": Knight,
     "Pikeman": Pikeman,
     "Archer": Archer,
+}
+
+GENERAL_CLASS_MAP = {
+    "CaptainBRAINDEAD": CaptainBRAINDEAD,
+    "MajorDAFT": MajorDAFT,
+    "ColonelKAISER": ColonelKAISER, # <-- Elle est maintenant disponible !
 }
 
 def load_map_from_file(filepath: str) -> Map:
