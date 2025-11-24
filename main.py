@@ -7,7 +7,7 @@ from typing import Optional
 # (Nous supposons qu'ils existent et sont prêts)
 from core.map import Map
 from core.army import Army
-from core.unit import Unit, Knight, Pikeman, Archer
+from core.unit import Unit, Knight, Pikeman, Crossbowman
 from ai.general import General
 from ai.generals_impl_IA import CaptainBRAINDEAD, MajorDAFT, ColonelKAISER
 from engine import Engine
@@ -23,7 +23,7 @@ GENERAL_CLASS_MAP = {
 UNIT_CLASS_MAP = {
     "Knight": Knight,
     "Pikeman": Pikeman,
-    "Archer": Archer,
+    "Crossbowman": Crossbowman,
 }
 
 GENERAL_CLASS_MAP = {
