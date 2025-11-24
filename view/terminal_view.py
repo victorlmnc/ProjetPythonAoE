@@ -95,7 +95,7 @@ class TerminalView:
         """Retourne une lettre selon le type d'unité."""
         if isinstance(unit, Knight): return 'K'
         if isinstance(unit, Pikeman): return 'P'
-        if isinstance(unit, Crossbowman): return 'A'
+        if isinstance(unit, Crossbowman): return 'C'
         return '?'
 
     def _count_alive(self, army: Army) -> int:
