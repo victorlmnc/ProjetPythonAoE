@@ -8,6 +8,7 @@ class GameMap:
         self.hauteur = hauteur
     #static grid
         self.static_grid = SparseMap(largeur, hauteur)
+        self.grille = self.static_grid.grille
     #float positions
         self.units = []
     #buildings
@@ -47,4 +48,5 @@ def create_lanchester_scenario(largeur=120, hauteur=120, num_units=20):
         print(f"Placed Wonder of {p2.name} at ({w2.x}, {w2.y})")
     except ValueError as e:
         print(f"CANT PLACE WONDER: {e}")
+
         return None
