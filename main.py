@@ -9,9 +9,10 @@ from core.map import Map
 from core.army import Army
 from core.unit import Unit, Knight, Pikeman, Archer
 from ai.general import General
-from ai.generals_impl import CaptainBRAINDEAD, MajorDAFT, ColonelKAISER
+from ai.generals_impl_IA import CaptainBRAINDEAD, MajorDAFT, ColonelKAISER
 from engine import Engine
 from view.terminal_view import TerminalView
+from utils.serialization import save_game, load_game
 
 GENERAL_CLASS_MAP = {
     "CaptainBRAINDEAD": CaptainBRAINDEAD,
