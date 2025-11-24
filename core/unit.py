@@ -139,21 +139,19 @@ class Pikeman(Unit):
             bonus_damage={"Cavalry": 22, "Elephant": 25} 
         )
 
-class Archer(Unit):
+class Crossbowman(Unit):
     """
-    Archer:
-    Attaque à distance (Type Pierce). Efficace contre l'infanterie lente (Kiting).
+    Arbalétrier: Attaque à distance avec une grande précision.
     """
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
-            hp=30,               # Très fragile
-            speed=0.96,          # Un peu lent
-            attack_power=4, 
-            attack_range=5.0,    # Tire de loin (User avait mis 7.0, AoE base est 4-5)
-            attack_type="pierce",
-            melee_armor=0, 
-            pierce_armor=0,
-            armor_classes=["Archer"],
-            bonus_damage={"Spearman": 2} # Petit bonus
+            hp=35, speed=0.96, attack_power=5, attack_range=5.0,
+            attack_type="ranged", 
+            melee_armor=0, pierce_armor=0, line_of_sight=7.0, reload_time=2.0,
+            bonus_damage={
+                "Base Melee": 4,       # Bonus contre les unités de mêlée de base
+                "Standard Buildings": 1,    # Bonus contre les bâtiments standard
+                "All Archers": 0,      # Pas de bonus contre les archers
+            }
         )
