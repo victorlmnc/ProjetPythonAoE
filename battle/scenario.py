@@ -32,6 +32,10 @@ class GameMap:
         return self.static_grid.est_vide(x, y)
     def ajouter(self, x, y, obj):
         self.static_grid.ajouter(x, y, obj)
+    def retirer(self, x, y):
+        self.static_grid.retirer(x, y)
+    def __str__(self):
+        return str(self.static_grid)
 def create_lanchester_scenario(largeur=120, hauteur=120, num_units=20):
     print("Creating scenario 'Lanchester'...")
     p1 = Player("Player 1 (Blue)")
@@ -50,3 +54,4 @@ def create_lanchester_scenario(largeur=120, hauteur=120, num_units=20):
         print(f"CANT PLACE WONDER: {e}")
 
         return None
+
