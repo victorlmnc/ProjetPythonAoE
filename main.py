@@ -157,12 +157,10 @@ def load_army_from_file(filepath: str, army_id: int) -> Army:
     return Army(army_id=army_id, units=created_units, general=general_instance)
 def load_game_from_save(filepath: str) -> Engine:
     """
-    Placeholder: Charge un moteur de jeu complet depuis une sauvegarde (req 12).
+    Charge un moteur de jeu complet depuis une sauvegarde (req 12).
     """
-    print(f"Chargement de la partie sauvegardée depuis {filepath}...")
-    # Logique de désérialisation (pickle ou json, sec 26) à venir
-    raise NotImplementedError("Le chargement de sauvegarde n'est pas encore implémenté.")
-
+    # On délègue simplement à notre module utilitaire
+    return load_game(filepath)
 
 def main(args: Optional[list[str]] = None):
     """
@@ -208,7 +206,13 @@ def main(args: Optional[list[str]] = None):
         default=5,
         help="Nombre maximum de tours avant de déclarer une égalité."
     )
-
+    
+    parser.add_argument(
+        "--save_path",
+        type=str,
+        help="Chemin pour SAUVEGARDER l'état final de la partie (ex: 'saves/endgame.sav')."
+    )
+    
     # 2. Parsing des arguments
     # Si 'args' est None, argparse utilise automatiquement sys.argv[1:]
     parsed_args = parser.parse_args(args)
@@ -259,6 +263,15 @@ def main(args: Optional[list[str]] = None):
         
         # Lancement du moteur de jeu
         engine.run_game(max_turns=parsed_args.max_turns, view=view)
+        
+        try:
+            engine.run_game(max_turns=parsed_args.max_turns, view=view)
+        except KeyboardInterrupt:
+            print("\nSimulation interrompue par l'utilisateur.")
+
+        # --- AJOUT : Sauvegarde finale ---
+        if parsed_args.save_path:
+            save_game(engine, parsed_args.save_path)
 
 # --- Point d'entrée standard en Python ---
 if __name__ == "__main__":
