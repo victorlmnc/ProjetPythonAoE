@@ -1,7 +1,7 @@
 # ai/generals_impl.py
 from ai.general import General, Action
 from core.map import Map
-from core.unit import Unit, Archer
+from core.unit import Unit, Crossbowman
 import random
 import math
 
@@ -93,7 +93,7 @@ class ColonelKAISER(General):
         for unit in my_units:
             
             # --- STRATÉGIE 1 : KITING (Pour les Archers) ---
-            if isinstance(unit, Archer):
+            if isinstance(unit, Crossbowman):
                 # Cherche l'ennemi le plus proche (très proche)
                 threat = self.find_closest_enemy(unit, enemy_units)
                 if threat:

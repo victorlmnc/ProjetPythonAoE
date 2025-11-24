@@ -2,7 +2,7 @@
 import os
 import time
 from core.map import Map
-from core.unit import Unit, Knight, Pikeman, Archer
+from core.unit import Unit, Knight, Pikeman, Crossbowman
 from core.army import Army
 
 class TerminalView:
@@ -95,7 +95,7 @@ class TerminalView:
         """Retourne une lettre selon le type d'unité."""
         if isinstance(unit, Knight): return 'K'
         if isinstance(unit, Pikeman): return 'P'
-        if isinstance(unit, Archer): return 'A'
+        if isinstance(unit, Crossbowman): return 'A'
         return '?'
 
     def _count_alive(self, army: Army) -> int:
