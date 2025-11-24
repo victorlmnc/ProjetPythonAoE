@@ -147,7 +147,7 @@ class Crossbowman(Unit):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=35, speed=0.96, attack_power=5, attack_range=5.0,
-            attack_type="ranged", 
+            attack_type="pierce", 
             melee_armor=0, pierce_armor=0, line_of_sight=7.0, reload_time=2.0,
             bonus_damage={
                 "Base Melee": 4,       # Bonus contre les unités de mêlée de base
@@ -155,3 +155,4 @@ class Crossbowman(Unit):
                 "All Archers": 0,      # Pas de bonus contre les archers
             }
         )
+
