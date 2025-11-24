@@ -36,12 +36,16 @@ class Engine:
                 # Ajoute l'unité à la matrice creuse
                 self.map.add_unit(unit)
 
-    def run_game(self, max_turns: int = 1000):
+    def run_game(self, max_turns: int = 1000, view: Any = None):
         """Boucle de jeu principale."""
         print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
         
         while not self.game_over and self.turn_count < max_turns:
-            print(f"\n--- TOUR {self.turn_count} ---")
+            
+            if view:
+                view.display(self.armies, self.turn_count)
+            elif self.turn_count % 10 == 0:  
+                print(f"\n--- TOUR {self.turn_count} ---")
             
             # 1. Nettoyer les unités mortes du tour précédent
             self._reap_dead_units()
@@ -74,6 +78,9 @@ class Engine:
             
             self.turn_count += 1
         
+        if view:
+            view.display(self.armies, self.turn_count)
+            
         # --- Fin de la boucle ---
         print("\n--- FIN DE LA PARTIE ---")
         if self.winner is not None:

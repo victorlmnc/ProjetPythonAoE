@@ -11,6 +11,7 @@ from core.unit import Unit, Knight, Pikeman, Archer
 from ai.general import General
 from ai.generals_impl import CaptainBRAINDEAD, MajorDAFT
 from engine import Engine
+from view.terminal_view import TerminalView
 
 GENERAL_CLASS_MAP = {
     "CaptainBRAINDEAD": CaptainBRAINDEAD,
@@ -243,14 +244,14 @@ def main(args: Optional[list[str]] = None):
         print(f"Mode Headless: {parsed_args.headless}")
         print(f"Tours Max: {parsed_args.max_turns}")
         
+        view = None
+        
         if not parsed_args.headless:
-            # Ici, on liera l'affichage (terminal ou Pygame)
-            print("Lancement avec affichage (non implémenté)...")
-            # view = TerminalView(engine)
-            # engine.set_view(view)
+            print("Initialisation de l'affichage Terminal...")
+            view = TerminalView(engine.map)
         
         # Lancement du moteur de jeu
-        engine.run_game(max_turns=parsed_args.max_turns)
+        engine.run_game(max_turns=parsed_args.max_turns, view=view)
 
 # --- Point d'entrée standard en Python ---
 if __name__ == "__main__":
