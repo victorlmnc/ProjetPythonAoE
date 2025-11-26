@@ -39,33 +39,28 @@ class MajorDAFT(General):
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
         actions = []
         if not enemy_units:
-            return [] # Plus d'ennemis
+            return []
 
         for unit in my_units:
-            # Utilise l'optimisation de la 'map' !
-            # "Donne-moi les ennemis dans un rayon de 1000.0"
-            # C'est BEAUCOUP plus rapide que de scanner 'enemy_units'
-            nearby_enemies = current_map.get_nearby_units(unit, 1000.0) 
+            # Recherche optimisée dans la ligne de vue de l'unité
+            nearby_enemies = current_map.get_nearby_units(unit, unit.line_of_sight)
             
-            # (Pour cet exemple, on filtre pour n'avoir que les ennemis réels)
+            # Filtre pour ne garder que les vrais ennemis
             nearby_enemies = [e for e in nearby_enemies if e.army_id != self.army_id]
 
             if not nearby_enemies:
-                # Si personne n'est trouvé par la map, utilise la liste globale
+                # Si personne n'est visible, cherche l'ennemi le plus proche sur toute la carte
                 closest_enemy = self.find_closest_enemy(unit, enemy_units)
             else:
+                # Sinon, se concentre sur l'ennemi visible le plus proche
                 closest_enemy = self.find_closest_enemy(unit, nearby_enemies)
 
             if not closest_enemy:
-                continue # Aucun ennemi vivant
+                continue
 
-            # 1. Tenter d'attaquer
             if unit.can_attack(closest_enemy):
                 actions.append(("attack", unit.unit_id, closest_enemy.unit_id))
-            
-            # 2. Sinon, bouger
             else:
-                # Bouge vers la position de l'ennemi
                 actions.append(("move", unit.unit_id, closest_enemy.pos))
                 
         return actions
@@ -125,8 +120,8 @@ class ColonelKAISER(General):
             # B. Si pas de cible, en trouver une nouvelle
             if not target:
                 # Utilise la matrice creuse pour trouver les voisins (Optimisation)
-                # On cherche large (20.0 unités)
-                nearby = current_map.get_nearby_units(unit, 20.0)
+                # On cherche à l'intérieur de la ligne de vue
+                nearby = current_map.get_nearby_units(unit, unit.line_of_sight)
                 nearby_enemies = [u for u in nearby if u.army_id != self.army_id]
                 
                 if nearby_enemies:
