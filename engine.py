@@ -109,7 +109,7 @@ class Engine:
                 target = self.units_by_id.get(target_id)
 
                 if unit and unit.is_alive and target and target.is_alive:
-                    unit.attack(target)
+                    unit.attack(target, self.map)
 
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float]):
         """Calcule et applique le mouvement d'une unité vers une cible flottante."""

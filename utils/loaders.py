@@ -10,12 +10,13 @@ from core.definitions import GENERAL_CLASS_MAP, UNIT_CLASS_MAP
 
 def load_map_from_file(filepath: str) -> Map:
     """
-    Charge une carte (taille + obstacles) depuis un fichier .map.
+    Charge une carte (taille, élévation, obstacles) depuis un fichier .map.
     """
     print(f"Chargement de la carte depuis {filepath}...")
 
-    width, height = 100.0, 100.0 # Valeurs par défaut de sécurité
-    obstacles_to_add = []
+    width, height = 120, 120  # Valeur par défaut
+    reading_grid = False
+    grid_data = []
 
     try:
         with open(filepath, 'r') as f:
@@ -27,17 +28,19 @@ def load_map_from_file(filepath: str) -> Map:
                 if line.startswith("SIZE:"):
                     parts = line.split(":", 1)[1].strip().split()
                     if len(parts) != 2:
-                        raise ValueError(f"Ligne {line_number}: Format SIZE invalide. Attendu: W H")
-                    width = float(parts[0])
-                    height = float(parts[1])
+                        raise ValueError(f"Ligne {line_number}: Format SIZE invalide.")
+                    width, height = int(parts[0]), int(parts[1])
 
-                else:
-                    parts = line.split(',')
-                    if len(parts) == 3:
-                        obs_type = parts[0].strip()
-                        x = float(parts[1].strip())
-                        y = float(parts[2].strip())
-                        obstacles_to_add.append((obs_type, x, y))
+                elif line.startswith("GRID:"):
+                    reading_grid = True
+                    grid_data = []
+
+                elif reading_grid:
+                    # Lecture des données de la grille d'élévation
+                    row = [int(e) for e in line.split()]
+                    if len(row) != width:
+                        raise ValueError(f"Ligne {line_number}: La largeur de la grille ne correspond pas à la taille attendue de {width}.")
+                    grid_data.append(row)
 
     except FileNotFoundError:
         print(f"Erreur: Fichier carte introuvable '{filepath}'", file=sys.stderr)
@@ -46,12 +49,19 @@ def load_map_from_file(filepath: str) -> Map:
         print(f"Erreur dans le fichier carte '{filepath}': {e}", file=sys.stderr)
         sys.exit(1)
 
+    if len(grid_data) != height:
+        raise ValueError(f"La hauteur de la grille ({len(grid_data)}) ne correspond pas à la taille attendue de {height}.")
+
+    # Créer et peupler la carte
     game_map = Map(width, height)
+    for y in range(height):
+        for x in range(width):
+            elevation = grid_data[y][x]
+            tile = game_map.get_tile(x, y)
+            if tile:
+                tile.elevation = elevation
 
-    for obs in obstacles_to_add:
-        game_map.add_obstacle(*obs)
-
-    print(f"Carte chargée: {width}x{height} avec {len(obstacles_to_add)} obstacles.")
+    print(f"Carte chargée: {width}x{height}.")
     return game_map
 
 def load_army_from_file(filepath: str, army_id: int, general_name: Optional[str] = None) -> Army:

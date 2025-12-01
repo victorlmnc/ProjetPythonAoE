@@ -68,33 +68,42 @@ class Unit:
         # On ajoute une petite tolérance (0.1) pour les erreurs de flottants
         return distance <= (self.attack_range + 0.1)
 
-    def attack(self, target_unit: 'Unit'):
+    def calculate_damage(self, target_unit: 'Unit', game_map=None) -> int:
+        """
+        Calcule les dégâts finaux infligés à une autre unité, en tenant compte
+        des bonus, de l'armure et de l'élévation.
+        """
+        # 1. Calcul des bonus de dégâts
+        total_bonus = sum(self.bonus_damage.get(cls, 0) for cls in target_unit.armor_classes)
+
+        # 2. Récupération de l'armure de la cible
+        target_armor = target_unit.melee_armor if self.attack_type == "melee" else target_unit.pierce_armor
+
+        # 3. Calcul des dégâts de base
+        base_damage = max(1, (self.attack_power + total_bonus) - target_armor)
+
+        # 4. Modificateur d'élévation
+        elevation_modifier = 1.0
+        if game_map:
+            attacker_elevation = game_map.get_elevation_at_pos(self.pos)
+            defender_elevation = game_map.get_elevation_at_pos(target_unit.pos)
+
+            if attacker_elevation > defender_elevation:
+                elevation_modifier = 1.25
+            elif attacker_elevation < defender_elevation:
+                elevation_modifier = 0.75
+
+        return int(base_damage * elevation_modifier)
+
+    def attack(self, target_unit: 'Unit', game_map=None):
         if self.can_attack(target_unit):
-            # 1. Calcul du Bonus
-            total_bonus = 0
-            for armor_class in target_unit.armor_classes:
-                if armor_class in self.bonus_damage:
-                    total_bonus += self.bonus_damage[armor_class]
-
-            # 2. Récupération de l'armure cible
-            target_armor = 0
-            if self.attack_type == "melee":
-                target_armor = target_unit.melee_armor
-            elif self.attack_type == "pierce":
-                target_armor = target_unit.pierce_armor
-
-            # 3. Formule AoE2 : Max(1, (Attaque + Bonus) - Armure)
-            raw_damage = (self.attack_power + total_bonus) - target_armor
-            final_damage = max(1, raw_damage)
+            final_damage = self.calculate_damage(target_unit, game_map)
 
             print(f"COMBAT: {self} attaque {target_unit}")
-            if total_bonus > 0:
-                print(f"   -> BONUS CRITIQUE! (+{total_bonus} dmg)")
+            # Pourrait être amélioré pour montrer les détails du calcul si nécessaire
 
             target_unit.take_damage(final_damage)
         else:
-            # (Optionnel) Trop verbeux pour le mode tournoi, à commenter plus tard
-            # print(f"{self} hors de portée de {target_unit}")
             pass
 
     def take_damage(self, amount: int):

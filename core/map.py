@@ -1,102 +1,105 @@
 # core/map.py
+import math
 from core.unit import Unit
-from collections import defaultdict
 
-# Utilisation de defaultdict (sec 24.4.1.2) pour simplifier
-# la gestion des listes vides.
+class Tile:
+    """
+    Représente une seule tuile sur la grille de la carte.
+    """
+    def __init__(self, terrain_type: str = "plain", elevation: int = 0):
+        if not 0 <= elevation <= 16:
+            raise ValueError("L'élévation doit être comprise entre 0 et 16.")
+        self.terrain_type = terrain_type
+        self.elevation = elevation
+        self.units: list[Unit] = []
 
 class Map:
     """
-    Gère le monde en coordonnées flottantes (continu)
-    et utilise une "matrice creuse" (un dict) pour 
-    indexer spatialement les unités (req Prof + Étudiants).
-    Ceci est basé sur le concept de l'Exercice 42.
+    Gère le monde du jeu sur une grille 2D. Chaque tuile a des propriétés
+    comme le terrain et l'élévation, et contient les unités présentes.
     """
-    
-    # Taille d'une cellule de la grille de hachage
-    CELL_SIZE = 1.0 
+    def __init__(self, width: int, height: int):
+        self.width: int = width
+        self.height: int = height
+        self.grid: list[list[Tile]] = [[Tile() for _ in range(height)] for _ in range(width)]
+        self.obstacles: list[tuple[str, int, int]] = []
 
-    def __init__(self, width: float, height: float):
-        self.width: float = width
-        self.height: float = height
-        
-        # La "Matrice Creuse" / Hachage Spatial
-        # Fait le lien entre une cellule (int, int) et les unités (float, float)
-        # qui s'y trouvent.
-        # defaultdict (sec 24.4.1.2) retourne list() si la clé n'existe pas.
-        self.spatial_hash: dict[tuple[int, int], list[Unit]] = defaultdict(list)
-        
-        # Liste pour stocker les obstacles (simples tuples pour l'instant)
-        # Format: ("Type", x, y)
-        self.obstacles: list[tuple[str, float, float]] = []
-        
-    def add_obstacle(self, type_name: str, x: float, y: float):
-        self.obstacles.append((type_name, x, y))  
-    
-    def _get_hash_key(self, pos: tuple[float, float]) -> tuple[int, int]:
-        """Convertit une position flottante en clé de grille entière."""
-        return (int(pos[0] / self.CELL_SIZE), int(pos[1] / self.CELL_SIZE))
+    def add_obstacle(self, type_name: str, x: int, y: int):
+        """Ajoute un obstacle à la carte."""
+        # Pour l'instant, on se contente de le stocker.
+        # Pourrait modifier la tuile, par ex. la rendre non-traversable.
+        self.obstacles.append((type_name, x, y))
+
+    def get_tile(self, x: int, y: int) -> Tile | None:
+        """Retourne l'objet Tile à une coordonnée de grille donnée."""
+        if 0 <= x < self.width and 0 <= y < self.height:
+            return self.grid[x][y]
+        return None
+
+    def get_elevation_at_pos(self, pos: tuple[float, float]) -> int:
+        """Retourne l'élévation à une coordonnée de position donnée."""
+        x, y = int(pos[0]), int(pos[1])
+        tile = self.get_tile(x, y)
+        return tile.elevation if tile else 0
 
     def add_unit(self, unit: Unit):
-        """Ajoute une unité à sa position flottante dans la grille."""
-        key = self._get_hash_key(unit.pos)
-        self.spatial_hash[key].append(unit)
+        """Ajoute une unité à la grille en se basant sur sa position."""
+        x, y = int(unit.pos[0]), int(unit.pos[1])
+        tile = self.get_tile(x, y)
+        if tile and unit not in tile.units:
+            tile.units.append(unit)
 
     def remove_unit(self, unit: Unit):
-        """Retire une unité de son ancienne position dans la grille."""
-        key = self._get_hash_key(unit.pos)
-        if unit in self.spatial_hash[key]:
-            self.spatial_hash[key].remove(unit)
+        """Retire une unité de la grille."""
+        x, y = int(unit.pos[0]), int(unit.pos[1])
+        tile = self.get_tile(x, y)
+        if tile and unit in tile.units:
+            tile.units.remove(unit)
 
     def update_unit_position(self, unit: Unit, old_pos: tuple[float, float], new_pos: tuple[float, float]):
-        """Met à jour la position d'une unité dans la grille de hachage."""
-        old_key = self._get_hash_key(old_pos)
-        new_key = self._get_hash_key(new_pos)
-        
-        unit.pos = new_pos # Mise à jour de la position flottante réelle
-        
-        if old_key == new_key:
-            # L'unité n'a pas changé de cellule de grille, rien à faire.
-            return
+        """Met à jour la position d'une unité sur la grille."""
+        old_x, old_y = int(old_pos[0]), int(old_pos[1])
+        new_x, new_y = int(new_pos[0]), int(new_pos[1])
 
-        # L'unité a changé de cellule, il faut la "déménager"
-        if unit in self.spatial_hash[old_key]:
-            self.spatial_hash[old_key].remove(unit)
-        
-        self.spatial_hash[new_key].append(unit)
+        unit.pos = new_pos  # Mettre à jour la position flottante de l'unité
 
-    def get_units_in_cell(self, cell_key: tuple[int, int]) -> list[Unit]:
-        """Retourne les unités dans une cellule de grille donnée."""
-        return self.spatial_hash.get(cell_key, [])
+        if old_x == new_x and old_y == new_y:
+            return  # L'unité est restée sur la même tuile
+
+        # Retirer de l'ancienne tuile
+        old_tile = self.get_tile(old_x, old_y)
+        if old_tile and unit in old_tile.units:
+            old_tile.units.remove(unit)
+
+        # Ajouter à la nouvelle tuile
+        new_tile = self.get_tile(new_x, new_y)
+        if new_tile and unit not in new_tile.units:
+            new_tile.units.append(unit)
 
     def get_nearby_units(self, unit: Unit, search_radius: float) -> list[Unit]:
         """
-        Optimisé ! Trouve les unités proches en ne scannant que
-        les cellules de grille adjacentes, pas le monde entier.
+        Trouve les unités proches en scannant les tuiles adjacentes.
         """
         nearby_units = []
-        
-        # Détermine la plage de cellules de grille à scanner
-        radius_in_cells = int(search_radius / self.CELL_SIZE) + 1
-        current_cell = self._get_hash_key(unit.pos)
-        
-        for x in range(current_cell[0] - radius_in_cells, current_cell[0] + radius_in_cells + 1):
-            for y in range(current_cell[1] - radius_in_cells, current_cell[1] + radius_in_cells + 1):
-                
-                for potential_neighbor in self.get_units_in_cell((x, y)):
+        radius_in_cells = int(search_radius) + 1
+        unit_x, unit_y = int(unit.pos[0]), int(unit.pos[1])
+
+        # Itérer sur un carré de tuiles autour de l'unité
+        for x in range(max(0, unit_x - radius_in_cells), min(self.width, unit_x + radius_in_cells + 1)):
+            for y in range(max(0, unit_y - radius_in_cells), min(self.height, unit_y + radius_in_cells + 1)):
+                tile = self.grid[x][y]
+                for potential_neighbor in tile.units:
                     if potential_neighbor == unit:
                         continue
-                    
-                    # Vérification finale de la distance (Euclidienne)
-                    # (car les unités sont en flottant à l'intérieur des cellules)
+
+                    # Vérification finale de la distance flottante exacte
                     dist = self._calculate_distance(unit.pos, potential_neighbor.pos)
                     if dist <= search_radius:
                         nearby_units.append(potential_neighbor)
-                        
+
         return nearby_units
 
     @staticmethod
     def _calculate_distance(pos1: tuple[float, float], pos2: tuple[float, float]) -> float:
-        """Calcule la distance Euclidienne (proche d'AoE)."""
-        # (Nous aurons besoin de 'import math' pour math.sqrt)
-        return ((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)**0.5
+        """Calcule la distance euclidienne."""
+        return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
