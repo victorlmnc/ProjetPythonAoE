@@ -64,3 +64,67 @@ Vous pouvez sauvegarder l'état d'une bataille à la fin de la simulation et le 
     ```bash
     python main.py battle --load_game saves/partie_sauvegardee.sav --max_turns 20
     ```
+
+## La carte : au cœur de la simulation
+
+La carte (ou *Map*) est l’élément central qui représente le champ de bataille. Elle a été conçue pour être à la fois robuste, performante et flexible, conformément aux exigences du projet.
+
+### 1. Une grille 2D robuste et performante
+
+La carte est une grille 2D de `tuiles` (*tiles*).
+- **Dimensions minimales :** 120x120, conformément aux plus petites cartes d'Age of Empires II.
+- **Performance :** La structure de données sous-jacente (une liste de listes en Python) garantit un accès en O(1) à n'importe quelle tuile, ce qui est crucial pour les simulations rapides et les tournois "headless".
+
+### 2. Anatomie d’une tuile
+
+Chaque tuile de la carte est un objet qui contient les informations suivantes :
+- **Élévation :** Un entier de 0 à 16.
+- **Type de terrain :** Une chaîne de caractères (ex: `"plain"`, `"forest"`). Actuellement, seul `"plain"` est utilisé, mais la structure est prête pour des extensions.
+- **Passabilité :** Une propriété implicite. Si une tuile contient un obstacle ou un bâtiment, elle devient non-traversable.
+- **Unités présentes :** Une liste des unités actuellement situées sur cette tuile.
+
+### 3. Gestion des positions : flottantes vs. grille
+
+Le simulateur utilise un système hybride :
+- **Unités :** Leurs positions sont stockées en coordonnées **flottantes** (ex: `(50.3, 75.8)`) pour permettre des mouvements fluides et précis.
+- **Carte :** La carte utilise des coordonnées **entières** pour accéder aux tuiles (ex: `(50, 75)`).
+
+La conversion se fait simplement en tronquant les coordonnées flottantes. Par exemple, une unité à `(50.3, 75.8)` est considérée comme étant sur la tuile `(50, 75)`.
+
+### 4. Obstacles et obstructions
+
+La carte gère les obstacles fixes (rochers, arbres, etc.). Lorsqu'un obstacle est chargé depuis un fichier `.map`, la tuile correspondante peut être marquée comme non-passable. Le moteur de jeu et l'IA peuvent alors interroger la carte pour savoir si un déplacement est valide.
+
+### 5. L'élévation : un avantage tactique
+
+L'élévation est une mécanique de combat essentielle.
+- **Bonus d'attaque :** Si une unité attaque depuis une tuile plus élevée, ses dégâts sont augmentés de **25%**.
+- **Malus d'attaque :** Si une unité attaque depuis une tuile plus basse, ses dégâts sont réduits de **25%** (dégâts x0.75).
+
+Le moteur de jeu accède à l'élévation de l'attaquant et du défenseur via la carte avant de calculer les dégâts finaux.
+
+### 6. Format des fichiers `.map`
+
+Les cartes sont définies dans des fichiers texte simples avec une structure claire.
+
+**Exemple de format :**
+```
+# Définit la taille de la grille (largeur x hauteur)
+SIZE: 120 120
+
+# Débute la définition de la grille d'élévation
+GRID:
+0 0 0 1 1 2 2 1 1 0 0 ... (120 valeurs par ligne)
+0 0 1 2 3 4 3 2 1 0 0 ...
+...
+(120 lignes au total)
+```
+- **`SIZE` :** Définit les dimensions de la carte.
+- **`GRID` :** Chaque ligne qui suit représente une rangée de tuiles, et chaque nombre correspond à l'élévation de cette tuile.
+
+### 7. Extensibilité et intégration
+
+La conception de la carte est modulaire et découplée de l'affichage.
+- **Rendu ASCII et 2.5D :** La carte expose toutes les données nécessaires (élévation, unités, obstacles) pour qu'un moteur de rendu (terminal ou graphique) puisse afficher le champ de bataille. Elle ne gère pas l'affichage elle-même.
+- **Minimap et snapshots HTML :** De la même manière, la carte fournit un accès complet à son état, permettant à des outils externes de générer une minimap ou un rapport de bataille détaillé.
+- **Sauvegarde/Chargement :** Le format texte simple permet de sauvegarder et recharger des cartes facilement.
