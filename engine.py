@@ -1,15 +1,12 @@
 # engine.py
 import math
 from typing import Optional, Any
-from core.map import Map  # Suppose que Map est dans core/map.py
-from core.army import Army  # Suppose que Army est dans core/army.py
+from core.map import Map
+from core.army import Army
 from core.unit import Unit
-from ai.general import General  # Suppose que General est dans ai/general.py
+from ai.general import General
 
 # Type alias pour les actions que l'IA peut retourner
-# Format: ("commande", id_unite, data)
-# ex: ("move", 1, (10.5, 4.2))
-# ex: ("attack", 1, 2)  (unité 1 attaque unité 2)
 Action = tuple[str, int, Any]
 
 class Engine:
@@ -23,19 +20,18 @@ class Engine:
         self.armies: list[Army] = [army1, army2]
         self.turn_count: int = 0
         self.game_over: bool = False
-        self.winner: Optional[int] = None # army_id du vainqueur
+        self.winner: Optional[int] = None 
+        
+        # État de pause pour l'interface
+        self.paused: bool = False 
 
-        self.paused: bool = False
-
-        # Dictionnaire central pour accès O(1) aux unités (sec 24.4)
+        # Dictionnaire central pour accès O(1) aux unités
         self.units_by_id: dict[int, Unit] = {}
         for army in self.armies:
             for unit in army.units:
                 if unit.unit_id in self.units_by_id:
-                    # Gère un ID en double, crucial pour le débogage
                     raise ValueError(f"Erreur: ID d'unité {unit.unit_id} dupliqué.")
                 self.units_by_id[unit.unit_id] = unit
-                # Ajoute l'unité à la matrice creuse
                 self.map.add_unit(unit)
 
     def run_game(self, max_turns: int = 1000, view: Any = None):
@@ -43,8 +39,9 @@ class Engine:
         print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
 
         frame_counter = 0
-        # Vitesse : Plus c'est haut, plus c'est lent.
-        LOGIC_SPEED_DIVIDER = 15
+        # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent.
+        # 5 est un bon équilibre à 60 FPS (12 ticks logique / sec).
+        LOGIC_SPEED_DIVIDER = 5
         step_once = False # Pour le mode pas-à-pas (touche S)
 
         while not self.game_over and self.turn_count < max_turns:
@@ -67,9 +64,6 @@ class Engine:
                 print(f"\n--- TOUR {self.turn_count} ---")
 
             # --- 2. Blocage si en pause ---
-            # On ne continue que si :
-            # - Le jeu n'est PAS en pause
-            # - OU BIEN on a demandé un "step_once" (touche S)
             if self.paused and not step_once:
                 continue
 
@@ -78,8 +72,7 @@ class Engine:
             if not step_once and frame_counter % LOGIC_SPEED_DIVIDER != 0:
                 continue
             
-            # Réinitialiser le flag de pas-à-pas
-            step_once = False
+            step_once = False # Reset du step
 
             # --- DÉBUT DE LA LOGIQUE DU TOUR ---
             self._reap_dead_units()
@@ -102,10 +95,25 @@ class Engine:
             # --- FIN DE LA LOGIQUE ---
 
         if view:
-            # Dernier affichage avant de quitter
             view.display(self.armies, self.turn_count, self.paused)
+
+        print("\n--- FIN DE LA PARTIE ---")
+        if self.winner is not None:
+            print(f"Le vainqueur est l'Armée {self.winner}!")
+        elif self.turn_count >= max_turns:
+            print("Limite de tours atteinte. Égalité.")
+        else:
+            print("Égalité.")
+
     def _execute_actions(self, actions: list[Action]):
-        """Exécute les actions (Mouvements PUIS Attaques)."""
+        """Exécute les actions (Temps, Mouvements, Attaques)."""
+
+        # 0. FAIRE AVANCER LE TEMPS (COOLDOWNS)
+        # On considère qu'un tick logique = 0.5 sec de temps de jeu (arbitraire)
+        TIME_STEP = 0.5 
+        for unit in self.units_by_id.values():
+            if unit.is_alive:
+                unit.tick_cooldown(TIME_STEP)
 
         # 1. Mouvements (Prioritaires)
         for action_type, unit_id, data in actions:
@@ -115,7 +123,7 @@ class Engine:
                 if unit and unit.is_alive:
                     self._handle_movement(unit, target_pos)
 
-        # 2. Attaques (Après tous les mouvements)
+        # 2. Attaques (Après mouvements)
         for action_type, unit_id, data in actions:
             if action_type == "attack":
                 unit = self.units_by_id.get(unit_id)
@@ -123,118 +131,77 @@ class Engine:
                 target = self.units_by_id.get(target_id)
 
                 if unit and unit.is_alive and target and target.is_alive:
+                    # L'unité vérifie son cooldown interne ici
                     unit.attack(target, self.map)
 
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float]):
-        """Calcule et applique le mouvement d'une unité vers une cible flottante."""
-
+        """Calcule et applique le mouvement."""
         old_pos = unit.pos
         vector_x = target_pos[0] - old_pos[0]
         vector_y = target_pos[1] - old_pos[1]
-
         distance = math.sqrt(vector_x**2 + vector_y**2)
 
-        if distance < 0.01:
-            return
+        if distance < 0.01: return
 
         move_dist = min(distance, unit.speed)
+        norm_x = vector_x / distance
+        norm_y = vector_y / distance
+        potential_pos = (old_pos[0] + norm_x * move_dist, old_pos[1] + norm_y * move_dist)
 
-        if distance > 0:
-            norm_x = vector_x / distance
-            norm_y = vector_y / distance
-            potential_pos = (
-                old_pos[0] + norm_x * move_dist,
-                old_pos[1] + norm_y * move_dist
-            )
-        else:
-            potential_pos = old_pos
-
-        # --- Collision Detection ---
+        # --- Collision Detection (Unités) ---
         final_pos = self._resolve_collisions(unit, potential_pos)
 
-        # --- CORRECTION : Collision avec les Bords de la Map ---
-        # On contraint x entre 0 et map.width
-        # On contraint y entre 0 et map.height
-        # On laisse une petite marge (ex: 0.1) pour ne pas être pile sur la ligne
+        # --- Collision avec les Bords de la Map (CORRECTION) ---
         x = max(0.1, min(final_pos[0], self.map.width - 0.1))
         y = max(0.1, min(final_pos[1], self.map.height - 0.1))
-        
         final_pos = (x, y)
 
         self.map.update_unit_position(unit, old_pos, final_pos)
 
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
-        """
-        Vérifie les collisions à la `potential_pos` et ajuste la position finale.
-        """
+        """Gère le chevauchement des unités."""
         final_pos = potential_pos
-
-        # Recherche optimisée des unités proches grâce à la Map
         nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius * 2)
 
         for other_unit in nearby_units:
-            if other_unit == moving_unit:
-                continue
+            if other_unit == moving_unit: continue
 
-            # Calcul de la distance entre les centres
-            dist_centers = math.sqrt(
-                (final_pos[0] - other_unit.pos[0])**2 +
-                (final_pos[1] - other_unit.pos[1])**2
-            )
-
-            # Somme des rayons des hitbox
+            dist_centers = math.sqrt((final_pos[0] - other_unit.pos[0])**2 + (final_pos[1] - other_unit.pos[1])**2)
             sum_radii = moving_unit.hitbox_radius + other_unit.hitbox_radius
 
-            # S'il y a collision (chevauchement)
             if dist_centers < sum_radii:
                 overlap = sum_radii - dist_centers
-
-                if dist_centers == 0: # Éviter la division par zéro si superposés
-                    final_pos = (final_pos[0] + 0.01, final_pos[1])
+                if dist_centers == 0: 
                     dist_centers = 0.01
+                    final_pos = (final_pos[0] + 0.01, final_pos[1])
 
-                # Repousser l'unité en mouvement dans la direction opposée
                 push_x = (final_pos[0] - other_unit.pos[0]) / dist_centers
                 push_y = (final_pos[1] - other_unit.pos[1]) / dist_centers
-
-                final_pos = (
-                    final_pos[0] + push_x * overlap,
-                    final_pos[1] + push_y * overlap
-                )
+                final_pos = (final_pos[0] + push_x * overlap, final_pos[1] + push_y * overlap)
 
         return final_pos
 
     def _reap_dead_units(self):
-        """Retire les unités mortes de la simulation active."""
-        # On itère sur une copie de la liste des clés (sec 24.4)
+        """Retire les unités mortes."""
         for unit_id in list(self.units_by_id.keys()):
             unit = self.units_by_id.get(unit_id)
             if unit and not unit.is_alive:
-                print(f"{unit} est retiré du champ de bataille.")
-                self.map.remove_unit(unit) # Retirer de la matrice creuse
-                del self.units_by_id[unit_id] # Retirer du lookup
+                self.map.remove_unit(unit)
+                del self.units_by_id[unit_id]
 
     def _check_game_over(self) -> bool:
-        """Vérifie si une des armées a été éliminée."""
         army1_defeated = self.armies[0].is_defeated()
         army2_defeated = self.armies[1].is_defeated()
-
         if army1_defeated and army2_defeated:
             self.game_over = True
-            self.winner = None # Égalité
+            self.winner = None
         elif army1_defeated:
             self.game_over = True
             self.winner = self.armies[1].army_id
         elif army2_defeated:
             self.game_over = True
             self.winner = self.armies[0].army_id
-
         return self.game_over
 
     def get_enemy_units(self, my_army_id: int) -> list[Unit]:
-        """Récupère les unités ennemies vivantes."""
-        enemies = []
-        for unit in self.units_by_id.values():
-            if unit.army_id != my_army_id:
-                enemies.append(unit)
-        return enemies
+        return [u for u in self.units_by_id.values() if u.army_id != my_army_id]
