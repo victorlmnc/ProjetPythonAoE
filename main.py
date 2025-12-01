@@ -14,6 +14,13 @@ from tournament import Tournament
 from utils.loaders import load_map_from_file, load_army_from_file
 from core.definitions import GENERAL_CLASS_MAP, UNIT_CLASS_MAP
 from scenarios import lanchester_scenario
+# Import conditionnel pour Ã©viter crash si pygame non installÃ©
+try:
+    from view.gui_view import GUIView
+    HAS_PYGAME = True
+except ImportError:
+    HAS_PYGAME = False
+    GUIView = None
 
 def load_game_from_save(filepath: str) -> Engine:
     """
