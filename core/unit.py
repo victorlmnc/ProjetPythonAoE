@@ -2,10 +2,17 @@
 import math
 from typing import Optional
 
+# Constantes pour les types d'unités (pour éviter les chaînes magiques)
+UC_BUILDING = "building"
+UC_STANDARD_BUILDING = "Standard Buildings"
+UC_STONE_DEFENSE = "Stone Defense"
+UC_UNIQUE_UNIT = "Unique"
+DMG_MELEE = "melee"
+DMG_PIERCE = "pierce"
+
 class Unit:
     """
-    Classe de base pour une unité avec stats AoE2 complètes.
-    Gère les résistances (Armure) et les bonus de dégâts (Contres).
+    Classe de base pour une unité avec stats AoE2 complètes + Gestion Cooldown (RTS).
     """
     def __init__(self,
                  unit_id: int,
@@ -21,7 +28,8 @@ class Unit:
                  armor_classes: list[str], # ex: ["Infantry", "Spearman"]
                  bonus_damage: dict[str, int], # ex: {"Cavalry": 22}
                  pos: tuple[float, float],
-                 hitbox_radius: float = 0.5):
+                 hitbox_radius: float = 0.5,
+                 reload_time: float = 2.0): # NOUVEAU: Temps de rechargement (en secondes/tours logiques)
 
         self.unit_id: int = unit_id
         self.army_id: int = army_id
@@ -41,6 +49,10 @@ class Unit:
 
         self.hitbox_radius: float = hitbox_radius
 
+        # Gestion du Cooldown (Temps Réel)
+        self.reload_time = reload_time
+        self.current_cooldown = 0.0 # Prêt à tirer si <= 0
+
         # Tags pour recevoir des dégâts bonus (ex: Je suis une Cavalerie)
         self.armor_classes: list[str] = armor_classes
         # Dégâts bonus infligés (ex: Je fais +22 contre la Cavalerie)
@@ -52,6 +64,17 @@ class Unit:
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"
         return f"{self.__class__.__name__}({self.unit_id}, HP:{self.current_hp}/{self.max_hp}, Pos:{pos_str})"
+
+    def tick_cooldown(self, delta: float):
+        """Fait avancer le temps de rechargement."""
+        if self.current_cooldown > 0:
+            self.current_cooldown -= delta
+            if self.current_cooldown < 0:
+                self.current_cooldown = 0
+
+    def can_act(self) -> bool:
+        """Vérifie si l'unité est prête à agir (attaque)."""
+        return self.current_cooldown <= 0
 
     def _calculate_distance(self, target_unit: 'Unit') -> float:
         """ Calculates the distance between the edges of two units' hitboxes. """
@@ -77,7 +100,7 @@ class Unit:
         total_bonus = sum(self.bonus_damage.get(cls, 0) for cls in target_unit.armor_classes)
 
         # 2. Récupération de l'armure de la cible
-        target_armor = target_unit.melee_armor if self.attack_type == "melee" else target_unit.pierce_armor
+        target_armor = target_unit.melee_armor if self.attack_type == DMG_MELEE else target_unit.pierce_armor
 
         # 3. Calcul des dégâts de base
         base_damage = max(1, (self.attack_power + total_bonus) - target_armor)
@@ -96,19 +119,21 @@ class Unit:
         return int(base_damage * elevation_modifier)
 
     def attack(self, target_unit: 'Unit', game_map=None):
-        if self.can_attack(target_unit):
+        """Tente d'attaquer la cible si à portée et rechargé."""
+        if self.can_attack(target_unit) and self.can_act():
             final_damage = self.calculate_damage(target_unit, game_map)
 
             print(f"COMBAT: {self} attaque {target_unit}")
-            # Pourrait être amélioré pour montrer les détails du calcul si nécessaire
-
             target_unit.take_damage(final_damage)
+            
+            # Reset du cooldown
+            self.current_cooldown = self.reload_time
         else:
             pass
 
     def take_damage(self, amount: int):
         self.current_hp -= amount
-        print(f"   -> subit {amount} dégâts (HP restants: {self.current_hp})")
+        # print(f"   -> subit {amount} dégâts (HP restants: {self.current_hp})")
         if self.current_hp <= 0:
             self.current_hp = 0
             self.is_alive = False
@@ -121,22 +146,24 @@ class Knight(Unit):
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
-            hp=100, speed=1.35, attack_power=10, attack_range=1.5,
-            attack_type="melee", melee_armor=2, pierce_armor=2, line_of_sight=4,
-            armor_classes=["Cavalry", "Unique"],
+            hp=100, speed=1.35, attack_power=10, attack_range=0.5, # Melee range courte
+            attack_type=DMG_MELEE, melee_armor=2, pierce_armor=2, line_of_sight=4,
+            armor_classes=["Cavalry", UC_UNIQUE_UNIT],
             bonus_damage={},
-            hitbox_radius=0.7
+            hitbox_radius=0.7,
+            reload_time=1.8 # Attaque rapide
         )
 
 class Pikeman(Unit):
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
-            hp=55, speed=1.0, attack_power=4, attack_range=1.5,
-            attack_type="melee", melee_armor=0, pierce_armor=0, line_of_sight=4,
+            hp=55, speed=1.0, attack_power=4, attack_range=0.5,
+            attack_type=DMG_MELEE, melee_armor=0, pierce_armor=0, line_of_sight=4,
             armor_classes=["Infantry", "Spearman"],
             bonus_damage={"Cavalry": 22, "Elephant": 25},
-            hitbox_radius=0.4
+            hitbox_radius=0.4,
+            reload_time=3.0 # Lent (cf PDF)
         )
 
 class Crossbowman(Unit):
@@ -144,25 +171,27 @@ class Crossbowman(Unit):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=35, speed=0.96, attack_power=5, attack_range=5.0,
-            attack_type="pierce", melee_armor=0, pierce_armor=0, line_of_sight=7,
+            attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=0, line_of_sight=7,
             armor_classes=["archer"],
             bonus_damage={
                 "Base Melee": 4,
-                "Standard Buildings": 1,
+                UC_STANDARD_BUILDING: 1,
                 "All Archers": 0,
             },
-            hitbox_radius=0.4
+            hitbox_radius=0.4,
+            reload_time=2.0 # Moyen
         )
 
 class LongSwordsman(Unit):
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
-            hp=60, speed=0.9, attack_power=9, attack_range=1.5,
-            attack_type="melee", melee_armor=1, pierce_armor=1, line_of_sight=4,
+            hp=60, speed=0.9, attack_power=9, attack_range=0.5,
+            attack_type=DMG_MELEE, melee_armor=1, pierce_armor=1, line_of_sight=4,
             armor_classes=["infantry"],
-            bonus_damage={"Standard Buildings": 2},
-            hitbox_radius=0.4
+            bonus_damage={UC_STANDARD_BUILDING: 2},
+            hitbox_radius=0.4,
+            reload_time=2.0
         )
 
 class EliteSkirmisher(Unit):
@@ -170,10 +199,11 @@ class EliteSkirmisher(Unit):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=35, speed=0.96, attack_power=3, attack_range=5.0,
-            attack_type="pierce", melee_armor=0, pierce_armor=4, line_of_sight=7,
+            attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=4, line_of_sight=7,
             armor_classes=["archer"],
             bonus_damage={"All Archers": 3, "Spearman": 3},
-            hitbox_radius=0.4
+            hitbox_radius=0.4,
+            reload_time=3.0 # Lent
         )
 
 class CavalryArcher(Unit):
@@ -181,10 +211,11 @@ class CavalryArcher(Unit):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=50, speed=1.4, attack_power=6, attack_range=4.0,
-            attack_type="pierce", melee_armor=1, pierce_armor=0, line_of_sight=6,
+            attack_type=DMG_PIERCE, melee_armor=1, pierce_armor=0, line_of_sight=6,
             armor_classes=["archer", "cavalry"],
             bonus_damage={"Spearman": 2},
-            hitbox_radius=0.7
+            hitbox_radius=0.7,
+            reload_time=2.0
         )
 
 class Onager(Unit):
@@ -192,21 +223,25 @@ class Onager(Unit):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=50, speed=0.6, attack_power=50, attack_range=8.0,
-            attack_type="melee", melee_armor=0, pierce_armor=2, line_of_sight=10,
+            attack_type=DMG_MELEE, melee_armor=0, pierce_armor=2, line_of_sight=10,
             armor_classes=["siege"],
-            bonus_damage={"Standard Buildings": 10},
-            hitbox_radius=1.0
+            bonus_damage={UC_STANDARD_BUILDING: 10},
+            hitbox_radius=1.0,
+            reload_time=6.0 # Très lent
         )
 
+# Ces classes doivent être ici pour l'instanciation via UNIT_CLASS_MAP, 
+# même si structures.py les redéfinit potentiellement mieux.
 class Castle(Unit):
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=4800, speed=0, attack_power=11, attack_range=8.0,
-            attack_type="pierce", melee_armor=8, pierce_armor=8, line_of_sight=10,
-            armor_classes=["building"],
+            attack_type=DMG_PIERCE, melee_armor=8, pierce_armor=8, line_of_sight=10,
+            armor_classes=[UC_BUILDING, UC_STONE_DEFENSE],
             bonus_damage={},
-            hitbox_radius=2.5
+            hitbox_radius=2.5,
+            reload_time=2.0
         )
 
 class Wonder(Unit):
@@ -214,8 +249,8 @@ class Wonder(Unit):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=4800, speed=0, attack_power=0, attack_range=0,
-            attack_type="melee", melee_armor=0, pierce_armor=0, line_of_sight=6,
-            armor_classes=["building"],
+            attack_type=DMG_MELEE, melee_armor=0, pierce_armor=0, line_of_sight=6,
+            armor_classes=[UC_BUILDING, UC_STANDARD_BUILDING],
             bonus_damage={},
             hitbox_radius=5.0
         )
