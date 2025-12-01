@@ -4,7 +4,7 @@ from core.map import Map
 from core.unit import Unit, Knight, Pikeman, Crossbowman
 from core.army import Army
 
-class GUIView:    
+class PygameView:    
     # Couleurs
     COLOR_BG = (30, 30, 30)
     COLOR_GRID = (50, 50, 50)
