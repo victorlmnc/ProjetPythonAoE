@@ -25,6 +25,8 @@ class Engine:
         self.game_over: bool = False
         self.winner: Optional[int] = None # army_id du vainqueur
 
+        self.paused: bool = False
+
         # Dictionnaire central pour accès O(1) aux unités (sec 24.4)
         self.units_by_id: dict[int, Unit] = {}
         for army in self.armies:
@@ -37,75 +39,71 @@ class Engine:
                 self.map.add_unit(unit)
 
     def run_game(self, max_turns: int = 1000, view: Any = None):
-        """Boucle de jeu principale."""
+        """Boucle de jeu principale avec gestion de la vitesse et de la pause."""
         print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
 
-        # Compteur pour ralentir la logique
         frame_counter = 0
-        # Réglage de la vitesse : Plus ce chiffre est haut, plus le jeu est lent
-        # 1 = Vitesse max (60 tours/sec)
-        # 10 = 6 tours/sec (Combat lisible)
-        # 30 = 2 tours/sec (Très lent)
-        LOGIC_SPEED_DIVIDER = 10
+        # Vitesse : Plus c'est haut, plus c'est lent.
+        LOGIC_SPEED_DIVIDER = 15
+        step_once = False # Pour le mode pas-à-pas (touche S)
 
         while not self.game_over and self.turn_count < max_turns:
-
-            # 1. Affichage (Toujours exécuté pour garder la fluidité 60 FPS)
+            
+            # --- 1. Gestion des Inputs et Affichage ---
             if view:
-                view.display(self.armies, self.turn_count)
+                # La vue nous renvoie des commandes (pause, step, quit)
+                command = view.display(self.armies, self.turn_count, self.paused)
+                
+                if command == "quit":
+                    break
+                elif command == "toggle_pause":
+                    self.paused = not self.paused
+                    print(f"Jeu {'en PAUSE' if self.paused else 'REPRIS'}")
+                elif command == "step":
+                    self.paused = True # Le pas-à-pas force la pause après
+                    step_once = True
+
             elif self.turn_count % 10 == 0:
                 print(f"\n--- TOUR {self.turn_count} ---")
 
-            # 2. Ralentissement de la logique
-            frame_counter += 1
-            if frame_counter % LOGIC_SPEED_DIVIDER != 0:
-                # On saute la logique pour cette frame, mais on a bien dessiné l'écran
+            # --- 2. Blocage si en pause ---
+            # On ne continue que si :
+            # - Le jeu n'est PAS en pause
+            # - OU BIEN on a demandé un "step_once" (touche S)
+            if self.paused and not step_once:
                 continue
 
-            # --- DÉBUT DE LA LOGIQUE DU TOUR (Exécuté seulement 1 fois sur 10) ---
+            # --- 3. Ralentissement de la logique (si pas en mode step) ---
+            frame_counter += 1
+            if not step_once and frame_counter % LOGIC_SPEED_DIVIDER != 0:
+                continue
+            
+            # Réinitialiser le flag de pas-à-pas
+            step_once = False
 
-            # 3. Nettoyer les unités mortes
+            # --- DÉBUT DE LA LOGIQUE DU TOUR ---
             self._reap_dead_units()
 
-            # 4. Vérifier fin de partie
             if self._check_game_over():
                 break
 
-            # 5. Prise de décision (IA)
             all_actions: list[Action] = []
             for army in self.armies:
                 if not army.is_defeated():
                     my_living_units = [u for u in army.units if u.is_alive]
                     enemy_living_units = self.get_enemy_units(army.army_id)
+                    if not enemy_living_units: continue
 
-                    if not enemy_living_units:
-                        continue 
-
-                    actions = army.general.decide_actions(
-                        current_map=self.map,
-                        my_units=my_living_units,
-                        enemy_units=enemy_living_units
-                    )
+                    actions = army.general.decide_actions(self.map, my_living_units, enemy_living_units)
                     all_actions.extend(actions)
 
-            # 6. Exécution des actions
             self._execute_actions(all_actions)
-
             self.turn_count += 1
             # --- FIN DE LA LOGIQUE ---
 
         if view:
-            view.display(self.armies, self.turn_count)
-
-        # --- Fin de la boucle ---
-        print("\n--- FIN DE LA PARTIE ---")
-        if self.winner is not None:
-            print(f"Le vainqueur est l'Armée {self.winner}!")
-        elif self.turn_count >= max_turns:
-            print("Limite de tours atteinte. Égalité.")
-        else:
-            print("Égalité (les deux armées ont perdu en même temps?).")
-
+            # Dernier affichage avant de quitter
+            view.display(self.armies, self.turn_count, self.paused)
     def _execute_actions(self, actions: list[Action]):
         """Exécute les actions (Mouvements PUIS Attaques)."""
 
