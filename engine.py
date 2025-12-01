@@ -40,31 +40,46 @@ class Engine:
         """Boucle de jeu principale."""
         print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
 
+        # Compteur pour ralentir la logique
+        frame_counter = 0
+        # Réglage de la vitesse : Plus ce chiffre est haut, plus le jeu est lent
+        # 1 = Vitesse max (60 tours/sec)
+        # 10 = 6 tours/sec (Combat lisible)
+        # 30 = 2 tours/sec (Très lent)
+        LOGIC_SPEED_DIVIDER = 10
+
         while not self.game_over and self.turn_count < max_turns:
 
+            # 1. Affichage (Toujours exécuté pour garder la fluidité 60 FPS)
             if view:
                 view.display(self.armies, self.turn_count)
             elif self.turn_count % 10 == 0:
                 print(f"\n--- TOUR {self.turn_count} ---")
 
-            # 1. Nettoyer les unités mortes du tour précédent
+            # 2. Ralentissement de la logique
+            frame_counter += 1
+            if frame_counter % LOGIC_SPEED_DIVIDER != 0:
+                # On saute la logique pour cette frame, mais on a bien dessiné l'écran
+                continue
+
+            # --- DÉBUT DE LA LOGIQUE DU TOUR (Exécuté seulement 1 fois sur 10) ---
+
+            # 3. Nettoyer les unités mortes
             self._reap_dead_units()
 
-            # 2. Vérifier si la partie est déjà finie (avant que les IA jouent)
+            # 4. Vérifier fin de partie
             if self._check_game_over():
                 break
 
-            # 3. Prise de décision (IA)
+            # 5. Prise de décision (IA)
             all_actions: list[Action] = []
             for army in self.armies:
-                # L'armée ne joue pas si elle est vaincue
                 if not army.is_defeated():
-                    # Récupère les unités vivantes pour l'IA
                     my_living_units = [u for u in army.units if u.is_alive]
                     enemy_living_units = self.get_enemy_units(army.army_id)
 
                     if not enemy_living_units:
-                        continue # Plus d'ennemis à combattre
+                        continue 
 
                     actions = army.general.decide_actions(
                         current_map=self.map,
@@ -73,10 +88,11 @@ class Engine:
                     )
                     all_actions.extend(actions)
 
-            # 4. Exécution des actions
+            # 6. Exécution des actions
             self._execute_actions(all_actions)
 
             self.turn_count += 1
+            # --- FIN DE LA LOGIQUE ---
 
         if view:
             view.display(self.armies, self.turn_count)
@@ -138,7 +154,15 @@ class Engine:
         # --- Collision Detection ---
         final_pos = self._resolve_collisions(unit, potential_pos)
 
-        # **CRUCIAL**: Notifier la Map (matrice creuse) du changement
+        # --- CORRECTION : Collision avec les Bords de la Map ---
+        # On contraint x entre 0 et map.width
+        # On contraint y entre 0 et map.height
+        # On laisse une petite marge (ex: 0.1) pour ne pas être pile sur la ligne
+        x = max(0.1, min(final_pos[0], self.map.width - 0.1))
+        y = max(0.1, min(final_pos[1], self.map.height - 0.1))
+        
+        final_pos = (x, y)
+
         self.map.update_unit_position(unit, old_pos, final_pos)
 
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
