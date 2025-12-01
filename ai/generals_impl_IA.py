@@ -8,28 +8,15 @@ import math
 # (req 3)
 class CaptainBRAINDEAD(General):
     """
-    IA stupide: bouge aléatoirement, attaque si à portée.
+    IA Niveau 0: Ne fait absolument rien.
+    Les unités ne bougent pas et n'attaquent que si un ennemi entre
+    dans leur champ de vision (comportement géré par le moteur de jeu).
     """
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
-        actions = []
-        for unit in my_units:
-            # 1. Tenter d'attaquer
-            target = None
-            for enemy in enemy_units:
-                if unit.can_attack(enemy):
-                    target = enemy
-                    break # Attaque le premier trouvé
-            
-            if target:
-                actions.append(("attack", unit.unit_id, target.unit_id))
-            else:
-                # 2. Bouger aléatoirement
-                target_pos = (
-                    unit.pos[0] + random.uniform(-unit.speed, unit.speed),
-                    unit.pos[1] + random.uniform(-unit.speed, unit.speed)
-                )
-                actions.append(("move", unit.unit_id, target_pos))
-        return actions
+        # Conformément à la spec, cette IA ne prend AUCUNE décision.
+        # Le moteur de jeu gérera la riposte automatique si une unité
+        # est attaquée ou si un ennemi entre dans sa Line of Sight.
+        return []
 
 # (req 3)
 class MajorDAFT(General):
@@ -39,33 +26,28 @@ class MajorDAFT(General):
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
         actions = []
         if not enemy_units:
-            return [] # Plus d'ennemis
+            return []
 
         for unit in my_units:
-            # Utilise l'optimisation de la 'map' !
-            # "Donne-moi les ennemis dans un rayon de 1000.0"
-            # C'est BEAUCOUP plus rapide que de scanner 'enemy_units'
-            nearby_enemies = current_map.get_nearby_units(unit, 1000.0) 
+            # Recherche optimisée dans la ligne de vue de l'unité
+            nearby_enemies = current_map.get_nearby_units(unit, unit.line_of_sight)
             
-            # (Pour cet exemple, on filtre pour n'avoir que les ennemis réels)
+            # Filtre pour ne garder que les vrais ennemis
             nearby_enemies = [e for e in nearby_enemies if e.army_id != self.army_id]
 
             if not nearby_enemies:
-                # Si personne n'est trouvé par la map, utilise la liste globale
+                # Si personne n'est visible, cherche l'ennemi le plus proche sur toute la carte
                 closest_enemy = self.find_closest_enemy(unit, enemy_units)
             else:
+                # Sinon, se concentre sur l'ennemi visible le plus proche
                 closest_enemy = self.find_closest_enemy(unit, nearby_enemies)
 
             if not closest_enemy:
-                continue # Aucun ennemi vivant
+                continue
 
-            # 1. Tenter d'attaquer
             if unit.can_attack(closest_enemy):
                 actions.append(("attack", unit.unit_id, closest_enemy.unit_id))
-            
-            # 2. Sinon, bouger
             else:
-                # Bouge vers la position de l'ennemi
                 actions.append(("move", unit.unit_id, closest_enemy.pos))
                 
         return actions
@@ -73,91 +55,120 @@ class MajorDAFT(General):
 class ColonelKAISER(General):
     """
     IA Stratégique (Req 3).
-    Concepts:
-    1. Persistance : Garde la même cible pour maximiser le "Focus Fire".
-    2. Kiting : Les archers fuient si un ennemi est trop proche.
-    3. Opportunisme : Utilise la Map pour trouver des cibles locales.
+    - Évaluation des menaces (counters)
+    - Formations (archers derrière)
+    - Kiting pour les unités à distance
+    - Focus fire intelligent
     """
+    # Constantes pour la configuration de l'IA
+    KITING_RANGE_PERCENTAGE = 0.5  # Les unités à distance fuient si un ennemi est à 50% de leur portée
+    MELEE_ATTACK_RANGE = 2  # Portée maximale pour être considéré comme une unité de mêlée
+    RANGED_FORMATION_OFFSET = 2  # Les unités à distance essaient de rester à 2 unités derrière le centre
+    TARGET_EVALUATION_RANGE_MULTIPLIER = 1.5  # Ne considère que les cibles dans 150% de la ligne de vue
+    LOW_HP_BONUS_MULTIPLIER = 1.5  # Bonus de score pour attaquer les cibles qui peuvent être tuées en 2 coups
+    EPSILON = 0.1  # Pour éviter la division par zéro
+
     def __init__(self, army_id: int):
         super().__init__(army_id)
-        # Mémoire : dict[my_unit_id, enemy_unit_id]
         self.target_memory: dict[int, int] = {}
 
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
-        actions: list[Action] = []
-        
-        # Création d'un lookup rapide pour les ennemis (ID -> Unit)
-        # Optimisation sec 24.4 (dict lookup est O(1))
+        actions = []
+        if not enemy_units or not my_units:
+            return []
+
         enemy_lookup = {u.unit_id: u for u in enemy_units}
         
+        melee_units = [u for u in my_units if u.attack_range <= self.MELEE_ATTACK_RANGE]
+        ranged_units = [u for u in my_units if u.attack_range > self.MELEE_ATTACK_RANGE]
+
+        avg_pos_x = sum(u.pos[0] for u in my_units) / len(my_units)
+        avg_pos_y = sum(u.pos[1] for u in my_units) / len(my_units)
+        army_centroid = (avg_pos_x, avg_pos_y)
+
         for unit in my_units:
-            
-            # --- STRATÉGIE 1 : KITING (Pour les Archers) ---
-            if isinstance(unit, Crossbowman):
-                # Cherche l'ennemi le plus proche (très proche)
+            if unit in ranged_units:
                 threat = self.find_closest_enemy(unit, enemy_units)
                 if threat:
                     dist = unit._calculate_distance(threat)
-                    # Si l'ennemi est à moins de 30% de ma portée max, je fuis !
-                    safety_distance = unit.attack_range * 0.3
+                    safety_distance = unit.attack_range * self.KITING_RANGE_PERCENTAGE
                     
-                    if dist < safety_distance:
-                        # Calcule vecteur de fuite (opposé à l'ennemi)
+                    if dist < safety_distance and threat.attack_range <= self.MELEE_ATTACK_RANGE:
                         flee_pos = self._calculate_flee_position(unit, threat)
                         actions.append(("move", unit.unit_id, flee_pos))
-                        continue # L'archer a bougé, il ne peut pas attaquer ce tour-ci (simplification)
+                        continue
 
-            # --- STRATÉGIE 2 : GESTION DE CIBLE (Persistance) ---
-            target: Unit | None = None
-            
-            # A. Vérifier si j'ai déjà une cible en mémoire
-            if unit.unit_id in self.target_memory:
-                target_id = self.target_memory[unit.unit_id]
-                candidate = enemy_lookup.get(target_id)
-                
-                # Si la cible existe encore, est vivante et pas trop loin (ex: 2x portée), je la garde
-                if candidate and candidate.is_alive:
-                     target = candidate
-                else:
-                    # Cible morte ou disparue, on oublie
-                    del self.target_memory[unit.unit_id]
+            target = self._find_best_target(unit, enemy_units, enemy_lookup, current_map)
 
-            # B. Si pas de cible, en trouver une nouvelle
-            if not target:
-                # Utilise la matrice creuse pour trouver les voisins (Optimisation)
-                # On cherche large (20.0 unités)
-                nearby = current_map.get_nearby_units(unit, 20.0)
-                nearby_enemies = [u for u in nearby if u.army_id != self.army_id]
-                
-                if nearby_enemies:
-                    target = self.find_closest_enemy(unit, nearby_enemies)
-                else:
-                    # Personne à côté, on cherche sur toute la carte
-                    target = self.find_closest_enemy(unit, enemy_units)
-                
-                # Mémoriser la nouvelle cible
-                if target:
-                    self.target_memory[unit.unit_id] = target.unit_id
-
-            # --- ACTION ---
             if target:
                 if unit.can_attack(target):
                     actions.append(("attack", unit.unit_id, target.unit_id))
                 else:
-                    actions.append(("move", unit.unit_id, target.pos))
-        
+                    if unit in melee_units:
+                        actions.append(("move", unit.unit_id, target.pos))
+                    elif unit in ranged_units:
+                        move_pos = self._calculate_formation_position(unit, target, army_centroid)
+                        actions.append(("move", unit.unit_id, move_pos))
+            else:
+                 actions.append(("move", unit.unit_id, army_centroid))
+
         return actions
-    
+
+    def _find_best_target(self, unit: Unit, enemy_units: list[Unit], enemy_lookup: dict, current_map: Map) -> Unit | None:
+        best_target = None
+        max_score = -1
+
+        if unit.unit_id in self.target_memory:
+            candidate = enemy_lookup.get(self.target_memory[unit.unit_id])
+            if candidate and candidate.is_alive:
+                return candidate
+            else:
+                del self.target_memory[unit.unit_id]
+
+        for enemy in enemy_units:
+            if not enemy.is_alive:
+                continue
+
+            dist = unit._calculate_distance(enemy)
+            if dist > unit.line_of_sight * self.TARGET_EVALUATION_RANGE_MULTIPLIER:
+                continue
+
+            my_damage = unit.calculate_damage(enemy, current_map)
+            enemy_damage = enemy.calculate_damage(unit, current_map)
+            score = my_damage / (enemy_damage + self.EPSILON)
+
+            proximity_bonus = 1 / (1 + dist)
+            final_score = score * proximity_bonus
+
+            if enemy.current_hp < my_damage * 2:
+                final_score *= self.LOW_HP_BONUS_MULTIPLIER
+
+            if final_score > max_score:
+                max_score = final_score
+                best_target = enemy
+
+        if best_target:
+            self.target_memory[unit.unit_id] = best_target.unit_id
+
+        return best_target
+
     def _calculate_flee_position(self, unit: Unit, threat: Unit) -> tuple[float, float]:
-        """Calcule une position opposée à la menace."""
         dx = unit.pos[0] - threat.pos[0]
         dy = unit.pos[1] - threat.pos[1]
-        
-        # Normalisation
         dist = math.sqrt(dx**2 + dy**2)
-        if dist == 0: dist = 0.01
+        if dist == 0: dist = self.EPSILON
         
-        # Fuir de 'speed' unités dans la direction opposée
         nx = unit.pos[0] + (dx / dist) * unit.speed
         ny = unit.pos[1] + (dy / dist) * unit.speed
         return (nx, ny)
+
+    def _calculate_formation_position(self, unit: Unit, target: Unit, army_centroid: tuple) -> tuple[float, float]:
+        dir_x = target.pos[0] - army_centroid[0]
+        dir_y = target.pos[1] - army_centroid[1]
+        dist = math.sqrt(dir_x**2 + dir_y**2)
+        if dist == 0: dist = self.EPSILON
+
+        pos_x = army_centroid[0] + (dir_x / dist) * (dist - self.RANGED_FORMATION_OFFSET)
+        pos_y = army_centroid[1] + (dir_y / dist) * (dist - self.RANGED_FORMATION_OFFSET)
+
+        return (pos_x, pos_y)
