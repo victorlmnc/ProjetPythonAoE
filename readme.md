@@ -128,3 +128,7 @@ La conception de la carte est modulaire et découplée de l'affichage.
 - **Rendu ASCII et 2.5D :** La carte expose toutes les données nécessaires (élévation, unités, obstacles) pour qu'un moteur de rendu (terminal ou graphique) puisse afficher le champ de bataille. Elle ne gère pas l'affichage elle-même.
 - **Minimap et snapshots HTML :** De la même manière, la carte fournit un accès complet à son état, permettant à des outils externes de générer une minimap ou un rapport de bataille détaillé.
 - **Sauvegarde/Chargement :** Le format texte simple permet de sauvegarder et recharger des cartes facilement.
+
+
+
+pour changer duréé chaque tour : dans fichier engine.py : LOGIC_SPEED_DIVIDER = ... (+ pour plus long)
