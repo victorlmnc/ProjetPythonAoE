@@ -65,6 +65,11 @@ Vous pouvez sauvegarder l'état d'une bataille à la fin de la simulation et le 
     python main.py battle --load_game saves/partie_sauvegardee.sav --max_turns 20
     ```
 
+### 5. menu pour choisir troupes et IA :
+```bash
+python main.py gui
+```
+
 ## La carte : au cœur de la simulation
 
 La carte (ou *Map*) est l’élément central qui représente le champ de bataille. Elle a été conçue pour être à la fois robuste, performante et flexible, conformément aux exigences du projet.
