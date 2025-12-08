@@ -1,11 +1,11 @@
-ColonelKAISER
-Crossbowman 10.0 10.0
-Crossbowman 11.5 10.0
-Crossbowman 13.0 10.0
-Crossbowman 14.5 10.0
-Crossbowman 10.0 11.5
-Crossbowman 11.5 11.5
-Crossbowman 13.0 11.5
-Crossbowman 14.5 11.5
-Crossbowman 10.0 13.0
-Crossbowman 11.5 13.0
+CaptainBRAINDEAD
+Knight 10.0 10.0
+Knight 11.5 10.0
+Knight 13.0 10.0
+Knight 14.5 10.0
+Knight 10.0 11.5
+Knight 11.5 11.5
+Knight 13.0 11.5
+Knight 14.5 11.5
+Knight 10.0 13.0
+Knight 11.5 13.0
