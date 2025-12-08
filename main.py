@@ -1,6 +1,7 @@
 # main.py
 import argparse
 import sys
+import os
 from typing import Optional
 
 # --- Import de nos modules de jeu ---
@@ -8,25 +9,44 @@ from core.map import Map
 from core.army import Army
 from engine import Engine
 from view.terminal_view import TerminalView
-from view.gui_view import PygameView # Importer la nouvelle vue
+from view.gui_view import PygameView 
 from utils.serialization import save_game, load_game
 from tournament import Tournament
 from utils.loaders import load_map_from_file, load_army_from_file
 from core.definitions import GENERAL_CLASS_MAP, UNIT_CLASS_MAP
-from scenarios import lanchester_scenario
-# Import conditionnel pour Ã©viter crash si pygame non installÃ©
+from scenarios import lanchester_scenario, custom_battle_scenario
+
+# Import du Menu
 try:
-    from view.gui_view import GUIView
-    HAS_PYGAME = True
+    from view.menu_view import MenuView
+    HAS_MENU = True
 except ImportError:
-    HAS_PYGAME = False
-    GUIView = None
+    HAS_MENU = False
 
 def load_game_from_save(filepath: str) -> Engine:
     """
-    Charge un moteur de jeu complet depuis une sauvegarde (req 12).
+    Charge un moteur de jeu complet depuis une sauvegarde.
     """
     return load_game(filepath)
+
+def save_army_to_text_file(army: Army, filepath: str):
+    """
+    Saves an Army object to a text file compatible with load_army_from_file.
+    """
+    try:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, "w") as f:
+            # Write General Class Name
+            f.write(f"{type(army.general).__name__}\n")
+            
+            # Write Units
+            for unit in army.units:
+                # Assuming unit.pos is a tuple (x, y)
+                x, y = unit.pos
+                f.write(f"{type(unit).__name__} {x} {y}\n")
+        print(f"Army saved to: {filepath}")
+    except Exception as e:
+        print(f"Error saving army to {filepath}: {e}")
 
 def main(args: Optional[list[str]] = None):
     """
@@ -45,6 +65,9 @@ def main(args: Optional[list[str]] = None):
     battle_parser.add_argument("--view", type=str, default="terminal", choices=["terminal", "pygame"], help="Choose the view mode")
     battle_parser.add_argument("--max_turns", type=int, default=1000, help="Maximum number of turns")
     battle_parser.add_argument("--save_path", type=str, help="Path to save the final game state")
+
+    # --- GUI Command ---
+    gui_parser = subparsers.add_parser("gui", help="Run the configuration GUI")
 
     # --- Tournament Command ---
     tournament_parser = subparsers.add_parser("tournament", help="Run a tournament")
@@ -65,12 +88,59 @@ def main(args: Optional[list[str]] = None):
 
     if parsed_args.command == "battle":
         run_battle(parsed_args)
+    elif parsed_args.command == "gui":
+        run_gui()
     elif parsed_args.command == "tournament":
         run_tournament(parsed_args)
     elif parsed_args.command == "lanchester":
         run_lanchester(parsed_args)
     else:
+        # Default behavior
         parser.print_help()
+
+def run_gui():
+    """
+    Runs the graphical configuration menu.
+    """
+    if not HAS_MENU:
+        print("Erreur: Impossible de charger le module de menu (Pygame manquant?).")
+        return
+
+    print("Lancement du Menu de Configuration...")
+    menu = MenuView()
+    config = menu.run()
+
+    if config:
+        print("\n--- Lancement de la Bataille Personnalisée ---")
+        print(f"Map: {config['map']}")
+        print(f"General 1: {config['general1']} - Units: {config['comp1']}")
+        print(f"General 2: {config['general2']} - Units: {config['comp2']}")
+
+        # Loading resources
+        game_map = load_map_from_file(config['map'])
+        gen1_class = GENERAL_CLASS_MAP[config['general1']]
+        gen2_class = GENERAL_CLASS_MAP[config['general2']]
+
+        # Create armies using the dictionary compositions
+        army1, army2 = custom_battle_scenario(
+            config['comp1'],
+            config['comp2'],
+            gen1_class, gen2_class,
+            (game_map.width, game_map.height)
+        )
+
+        # Save to file for debug/replay
+        save_army_to_text_file(army1, "armies/gui_generated_p1.txt")
+        save_army_to_text_file(army2, "armies/gui_generated_p2.txt")
+
+        # Run Engine
+        engine = Engine(game_map, army1, army2)
+        view = PygameView(engine.map) # Force Pygame view for GUI mode
+        
+        try:
+            engine.run_game(max_turns=1000, view=view)
+        except KeyboardInterrupt:
+            print("\nArrêt.")
 
 def run_battle(args):
     """

@@ -1,5 +1,5 @@
 # core/army.py
-from core.unit import Unit
+from core.unit import Unit, UC_BUILDING
 from ai.general import General
 
 class Army:
@@ -11,7 +11,7 @@ class Army:
         self.army_id: int = army_id
         self.units: list[Unit] = units
         self.general: General = general
-        
+
         # S'assure que le général est bien lié à cette armée
         self.general.army_id = army_id
 
@@ -20,11 +20,17 @@ class Army:
 
     def is_defeated(self) -> bool:
         """
-Vérifie si toutes les unités de l'armée sont mortes.
-        Utilise une expression de générateur (sec 29.3).
+        Vérifie si l'armée est vaincue.
+        Une armée est vaincue si elle n'a plus d'unités mobiles (non-bâtiments) en vie.
+        (Exclut les bâtiments pour éviter les parties infinies contre des murs/châteaux)
         """
         if not self.units:
             return True # Une armée sans unité est vaincue
-            
-        # all() est une réduction (sec 24.5.3.4)
-        return all(not unit.is_alive for unit in self.units)
+
+        # On cherche s'il reste au moins une unité vivante qui n'est PAS un bâtiment
+        has_living_mobile_unit = any(
+            unit.is_alive and UC_BUILDING not in unit.armor_classes
+            for unit in self.units
+        )
+
+        return not has_living_mobile_unit
