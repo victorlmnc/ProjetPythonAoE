@@ -27,7 +27,7 @@ class Unit:
                  line_of_sight: int,
                  armor_classes: list[str], # ex: ["Infantry", "Spearman"]
                  bonus_damage: dict[str, int], # ex: {"Cavalry": 22}
-                 statut="walk"
+                 statut :str,
                  pos: tuple[float, float],
                  hitbox_radius: float = 0.5,
                  reload_time: float = 2.0): # NOUVEAU: Temps de rechargement (en secondes/tours logiques)
