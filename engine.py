@@ -27,6 +27,10 @@ class Engine:
 
         # Dictionnaire central pour accès O(1) aux unités
         self.units_by_id: dict[int, Unit] = {}
+
+        # Optimisation : Set des obstacles pour recherche O(1)
+        self.obstacle_set = set((x, y) for _, x, y in self.map.obstacles)
+
         for army in self.armies:
             for unit in army.units:
                 if unit.unit_id in self.units_by_id:
@@ -148,6 +152,30 @@ class Engine:
         norm_y = vector_y / distance
         potential_pos = (old_pos[0] + norm_x * move_dist, old_pos[1] + norm_y * move_dist)
 
+        # --- Gestion des Obstacles (Sliding) ---
+        if self._is_colliding_with_obstacle(potential_pos, unit.hitbox_radius):
+            # Tentative de glissement en X
+            test_pos_x = (potential_pos[0], old_pos[1])
+            can_move_x = not self._is_colliding_with_obstacle(test_pos_x, unit.hitbox_radius)
+
+            # Tentative de glissement en Y
+            test_pos_y = (old_pos[0], potential_pos[1])
+            can_move_y = not self._is_colliding_with_obstacle(test_pos_y, unit.hitbox_radius)
+
+            if can_move_x and can_move_y:
+                # Si on peut glisser des deux côtés, on prend celui qui conserve le plus de mouvement
+                if abs(vector_x) > abs(vector_y):
+                     potential_pos = test_pos_x
+                else:
+                     potential_pos = test_pos_y
+            elif can_move_x:
+                potential_pos = test_pos_x
+            elif can_move_y:
+                potential_pos = test_pos_y
+            else:
+                # Bloqué complètement
+                potential_pos = old_pos
+
         # --- Collision Detection (Unités) ---
         final_pos = self._resolve_collisions(unit, potential_pos)
 
@@ -157,6 +185,19 @@ class Engine:
         final_pos = (x, y)
 
         self.map.update_unit_position(unit, old_pos, final_pos)
+
+    def _is_colliding_with_obstacle(self, pos: tuple[float, float], radius: float) -> bool:
+        """Vérifie si une position chevauche un obstacle de la carte."""
+        min_x = int(pos[0] - radius)
+        max_x = int(pos[0] + radius)
+        min_y = int(pos[1] - radius)
+        max_y = int(pos[1] + radius)
+
+        for x in range(min_x, max_x + 1):
+            for y in range(min_y, max_y + 1):
+                if (x, y) in self.obstacle_set:
+                    return True
+        return False
 
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
         """Gère le chevauchement des unités."""
