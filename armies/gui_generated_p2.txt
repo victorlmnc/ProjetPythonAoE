@@ -1,11 +1,11 @@
 MajorDAFT
-Pikeman 10.0 15.0
-Pikeman 11.5 15.0
-Pikeman 13.0 15.0
-Pikeman 14.5 15.0
-Pikeman 10.0 16.5
-Pikeman 11.5 16.5
-Pikeman 13.0 16.5
-Pikeman 14.5 16.5
-Pikeman 10.0 18
-Pikeman 11.5 18
+Knight 10.0 99.0
+Knight 11.5 99.0
+Knight 13.0 99.0
+Knight 14.5 99.0
+Knight 10.0 100.5
+Knight 11.5 100.5
+Knight 13.0 100.5
+Knight 14.5 100.5
+Knight 10.0 102.0
+Knight 11.5 102.0
