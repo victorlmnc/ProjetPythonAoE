@@ -27,6 +27,7 @@ class Unit:
                  line_of_sight: int,
                  armor_classes: list[str], # ex: ["Infantry", "Spearman"]
                  bonus_damage: dict[str, int], # ex: {"Cavalry": 22}
+                 statut="walk"
                  pos: tuple[float, float],
                  hitbox_radius: float = 0.5,
                  reload_time: float = 2.0): # NOUVEAU: Temps de rechargement (en secondes/tours logiques)
@@ -64,14 +65,7 @@ class Unit:
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"
         return f"{self.__class__.__name__}({self.unit_id}, HP:{self.current_hp}/{self.max_hp}, Pos:{pos_str})"
-    def statut (self,other):
-        if can_attack(self,other):
-            self.statut="attack"
-        if not is_alive:
-            self.statut = "death"
-        else:
-            self.statut = "walk"
-        
+
     def tick_cooldown(self, delta: float):
         """Fait avancer le temps de rechargement."""
         if self.current_cooldown > 0:
@@ -97,6 +91,15 @@ class Unit:
         distance = self._calculate_distance(target_unit)
         # On ajoute une petite tolérance (0.1) pour les erreurs de flottants
         return distance <= (self.attack_range + 0.1)
+    def status(self, target_unit=None):
+        if not self.is_alive:
+            self.statut = "death"
+        return
+
+        if target_unit and self.can_attack(target_unit):
+            self.statut = "attack"
+        else:
+            self.statut = "walk"
 
     def calculate_damage(self, target_unit: 'Unit', game_map=None) -> int:
         """
