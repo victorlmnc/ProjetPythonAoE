@@ -1,4 +1,5 @@
 import pygame
+import os
 from core.map import Map
 from core.army import Army
 
@@ -44,6 +45,10 @@ class PygameView:
         self.font = pygame.font.SysFont('Arial', 16, bold=True)
         self.ui_font = pygame.font.SysFont('Arial', 24, bold=True)
 
+        # --- Assets ---
+        self.textures = {}
+        self.load_assets()
+
         # --- Caméra ---
         self.scroll_x = 0
         self.scroll_y = 0
@@ -57,8 +62,47 @@ class PygameView:
         self.offset_x = SCREEN_WIDTH / 2 - iso_center_x
         self.offset_y = SCREEN_HEIGHT / 2 - iso_center_y
 
+    def load_assets(self):
+        """Loads graphical assets from the assets directory."""
+        # Mapping: Unit Class Name -> File Path
+        mapping = {
+            "Knight": "assets/units/knight/walk/hosreman_walk.webp", # Typo in filename 'hosreman'
+            "Crossbowman": "assets/units/crossbowman/walk/crossbowman_walk.webp",
+            "LongSwordsman": "assets/units/longswordman/walk/swordsman_walk.webp",
+            "Archer": "assets/units/archer/walk/archer_walk.webp"
+        }
+
+        # Fallbacks for other unit types
+        mapping["Pikeman"] = mapping["LongSwordsman"]
+        mapping["EliteSkirmisher"] = mapping["Archer"]
+        mapping["CavalryArcher"] = mapping["Archer"]
+
+        for class_name, path in mapping.items():
+            if os.path.exists(path):
+                try:
+                    img = pygame.image.load(path)
+                    # Scale down since original sprites might be large
+                    # Adjust size as needed. Let's try 48x48 centered.
+                    img = pygame.transform.scale(img, (48, 48))
+                    self.textures[class_name] = img
+                    print(f"Loaded asset for {class_name}: {path}")
+                except Exception as e:
+                    print(f"Failed to load asset for {class_name} at {path}: {e}")
+            else:
+                # Only warn if it was an explicit path, not a fallback logic that might fail silently
+                pass
+
     def cart_to_iso(self, x: float, y: float) -> tuple[int, int]:
-        """Convertit grille -> isométrique."""
+        """
+        Convertit les coordonnées cartésiennes (grille) en coordonnées d'écran isométriques.
+
+        Maths:
+        - On effectue une rotation de 45 degrés et un écrasement vertical (projection dimétrique 2:1).
+        - x_iso = (x_cart - y_cart) * largeur_tuile / 2
+        - y_iso = (x_cart + y_cart) * hauteur_tuile / 2
+
+        On ajoute ensuite les offsets de centrage et de défilement caméra.
+        """
         iso_x = (x - y) * TILE_HALF_W
         iso_y = (x + y) * TILE_HALF_H
         final_x = iso_x + self.offset_x - self.scroll_x
@@ -68,12 +112,12 @@ class PygameView:
     def check_events(self) -> str | None:
         """Gère clavier/souris."""
         keys = pygame.key.get_pressed()
-        
+
         # Déplacement Caméra
         if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.scroll_x -= self.scroll_speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.scroll_x += self.scroll_speed
         if keys[pygame.K_UP] or keys[pygame.K_w]: self.scroll_y -= self.scroll_speed
-        if keys[pygame.K_DOWN] or keys[pygame.K_s] and not (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]): 
+        if keys[pygame.K_DOWN] or keys[pygame.K_s] and not (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]):
             self.scroll_y += self.scroll_speed
 
         for event in pygame.event.get():
@@ -86,16 +130,16 @@ class PygameView:
 
     def draw_map(self):
         """Dessine le sol et les obstacles."""
-        
+
         obstacles_dict = {(int(x), int(y)): type_name for type_name, x, y in self.map.obstacles}
 
         for y in range(self.map.height):
             for x in range(self.map.width):
                 # CORRECTION 1 : grid[x][y] et non [y][x]
                 tile = self.map.grid[x][y]
-                
+
                 screen_x, screen_y = self.cart_to_iso(x, y)
-                
+
                 # Optimisation : ne pas dessiner hors écran
                 if not (-200 < screen_x < SCREEN_WIDTH + 200 and -200 < screen_y < SCREEN_HEIGHT + 200):
                    continue
@@ -103,7 +147,7 @@ class PygameView:
                 # Couleur Terrain
                 if tile.terrain_type == 'water':
                     color = WATER_COLOR
-                    height_offset = 0 
+                    height_offset = 0
                 else:
                     elev_idx = min(int(tile.elevation / 4), 4)
                     color = TERRAIN_COLORS.get(elev_idx, TERRAIN_COLORS[0])
@@ -112,7 +156,7 @@ class PygameView:
                 # Obstacles
                 if (x, y) in obstacles_dict:
                     color = OBSTACLE_COLOR
-                    height_offset += 15 
+                    height_offset += 15
 
                 # Dessin du losange
                 base_y = screen_y - height_offset
@@ -148,7 +192,7 @@ class PygameView:
             for unit in army.units:
                 if unit.is_alive:
                     all_units.append((army.army_id, unit))
-        
+
         all_units.sort(key=lambda p: (round(p[1].pos[1]), round(p[1].pos[0])))
 
         for army_id, unit in all_units:
@@ -168,20 +212,38 @@ class PygameView:
             screen_x, screen_y = self.cart_to_iso(x, y)
             unit_draw_y = screen_y - height_offset
 
-            color = BLUE if army_id == 0 else RED
-            
-            pygame.draw.circle(self.screen, color, (screen_x, unit_draw_y - 10), 6)
-            
-            hp_ratio = unit.current_hp / unit.max_hp
-            pygame.draw.rect(self.screen, RED, (screen_x - 10, unit_draw_y - 25, 20, 3))
-            pygame.draw.rect(self.screen, GREEN, (screen_x - 10, unit_draw_y - 25, 20 * hp_ratio, 3))
+            unit_class_name = unit.__class__.__name__
+
+            if unit_class_name in self.textures:
+                img = self.textures[unit_class_name]
+                # Center the image
+                rect = img.get_rect(center=(screen_x, unit_draw_y - 16))
+                self.screen.blit(img, rect)
+
+                # Health bar
+                hp_ratio = unit.current_hp / unit.max_hp
+                pygame.draw.rect(self.screen, RED, (screen_x - 10, unit_draw_y - 45, 20, 3))
+                pygame.draw.rect(self.screen, GREEN, (screen_x - 10, unit_draw_y - 45, 20 * hp_ratio, 3))
+
+                # Army indicator (small circle)
+                color = BLUE if army_id == 0 else RED
+                pygame.draw.circle(self.screen, color, (screen_x + 10, unit_draw_y - 5), 4)
+
+            else:
+                # Fallback to circle
+                color = BLUE if army_id == 0 else RED
+                pygame.draw.circle(self.screen, color, (screen_x, unit_draw_y - 10), 6)
+
+                hp_ratio = unit.current_hp / unit.max_hp
+                pygame.draw.rect(self.screen, RED, (screen_x - 10, unit_draw_y - 25, 20, 3))
+                pygame.draw.rect(self.screen, GREEN, (screen_x - 10, unit_draw_y - 25, 20 * hp_ratio, 3))
 
     def draw_ui(self, turn_count, paused, armies):
         """Interface Utilisateur."""
         if paused:
             txt = self.ui_font.render("PAUSE (Espace pour reprendre)", True, WHITE, RED)
             self.screen.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 20))
-        
+
         turn_txt = self.ui_font.render(f"Tour: {turn_count}", True, WHITE)
         self.screen.blit(turn_txt, (20, 20))
 
@@ -195,7 +257,7 @@ class PygameView:
         # Minimap
         mm_x, mm_y = SCREEN_WIDTH - MINIMAP_SIZE - 20, SCREEN_HEIGHT - MINIMAP_SIZE - 20
         pygame.draw.rect(self.screen, BLACK, (mm_x, mm_y, MINIMAP_SIZE, MINIMAP_SIZE))
-        
+
         scale_x = MINIMAP_SIZE / self.map.width
         scale_y = MINIMAP_SIZE / self.map.height
 
