@@ -33,10 +33,9 @@ class Unit:
 
         self.unit_id: int = unit_id
         self.army_id: int = army_id
-        self.statue="walk"
+        self.statut="walk"
         self.max_hp: int = hp
         self.current_hp: int = hp
-        self.statut =statut
         self.speed: float = speed
         self.attack_power: int = attack_power
         self.attack_range: float = attack_range
