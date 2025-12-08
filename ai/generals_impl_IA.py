@@ -115,6 +115,10 @@ class ColonelKAISER(General):
         return actions
 
     def _find_best_target(self, unit: Unit, enemy_units: list[Unit], enemy_lookup: dict, current_map: Map) -> Unit | None:
+        """
+        Sélectionne la meilleure cible selon une heuristique de 'valeur'.
+        Score = (Dégâts infligés / Dégâts reçus) * Bonus de proximité * Bonus Kill
+        """
         best_target = None
         max_score = -1
 
