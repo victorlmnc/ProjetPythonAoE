@@ -1,0 +1,80 @@
+import pygame
+import os
+
+SPRITE_FRAME_WIDTH  = 48
+SPRITE_FRAME_HEIGHT = 72
+ANIM_COLS = 30      # colonnes
+ANIM_ROWS = 16      # lignes dans chaque sheet
+FRAME_TIME_MS = 100
+
+class AnimatedUnit:
+    def __init__(self, unit_class, sheet_paths: dict[str,str], pos, zoom=1.0):
+        """
+        sheet_paths : dict state_name -> chemin du spritesheet
+                      ex: {"walk": ".../walk.webp",
+                           "attack": ".../attack.webp",
+                           "death": ".../death.webp"}
+        pos : (x, y)
+        """
+        self.unit_class = unit_class
+        self.pos = pos
+        self.zoom = zoom
+
+        self.animations = {}
+
+        for state, path in sheet_paths.items():
+            # charger la sheet correspondante
+            sheet = pygame.image.load(path).convert_alpha()
+            sheet_w, sheet_h = sheet.get_size()
+
+            frames = []
+            for row in range(ANIM_ROWS):
+                for col in range(ANIM_COLS):
+                    x = col * SPRITE_FRAME_WIDTH
+                    y = row * SPRITE_FRAME_HEIGHT
+                    if x + SPRITE_FRAME_WIDTH > sheet_w or y + SPRITE_FRAME_HEIGHT > sheet_h:
+                        raise ValueError(f"Frame hors bornes dans {path}, row {row}, col {col}")
+                    rect = pygame.Rect(x, y, SPRITE_FRAME_WIDTH, SPRITE_FRAME_HEIGHT)
+                    surf = sheet.subsurface(rect).copy()
+                    if zoom != 1.0:
+                        surf = pygame.transform.scale(surf,
+                            (int(SPRITE_FRAME_WIDTH * zoom),
+                             int(SPRITE_FRAME_HEIGHT * zoom)))
+                    frames.append(surf)
+
+            self.animations[state] = frames
+
+        # Etat initial
+        self.statut = "walk"
+        self.frame_index = 0
+        self.time_since_last = 0
+
+    def set_state(self, new_state: str):
+        if new_state in self.animations and new_state != self.statut:
+            self.statut = new_state
+            self.frame_index = 0
+            self.time_since_last = 0
+
+    def update(self, dt_ms: int):
+        self.time_since_last += dt_ms
+        if self.time_since_last >= FRAME_TIME_MS:
+            self.time_since_last = 0
+            self.frame_index = (self.frame_index + 1) % len(self.animations[self.statut])
+
+    def draw(self, screen, draw_pos):
+        frames = self.animations.get(self.statut)
+        if not frames:
+            return
+    img = frames[self.frame_index]
+    screen.blit(img, draw_pos)
+unit = AnimatedUnit(                                                   
+   unit_class = Knight,
+   sheet_paths = {
+       "walk":   "assets/units/knight/walk.webp",
+       "attack": "assets/units/knight/attack.webp",
+       "death":  "assets/units/knight/death.webp"
+    },
+    pos = (100, 100),
+    zoom = 1.5
+)
+

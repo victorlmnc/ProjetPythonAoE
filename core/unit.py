@@ -33,10 +33,9 @@ class Unit:
 
         self.unit_id: int = unit_id
         self.army_id: int = army_id
-
+        self.statut="walk"
         self.max_hp: int = hp
         self.current_hp: int = hp
-
         self.speed: float = speed
         self.attack_power: int = attack_power
         self.attack_range: float = attack_range
@@ -90,6 +89,15 @@ class Unit:
         distance = self._calculate_distance(target_unit)
         # On ajoute une petite tolérance (0.1) pour les erreurs de flottants
         return distance <= (self.attack_range + 0.1)
+    def status(self, target_unit=None):
+        if not self.is_alive:
+            self.statut = "death"
+        return
+
+        if target_unit and self.can_attack(target_unit):
+            self.statut = "attack"
+        else:
+            self.statut = "walk"
 
     def calculate_damage(self, target_unit: 'Unit', game_map=None) -> int:
         """
