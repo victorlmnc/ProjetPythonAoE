@@ -41,7 +41,7 @@ class TerminalView:
         self.height = int(map_instance.height)
         # Limiter l'affichage pour les grandes cartes
         self.max_display_width = min(80, self.width)
-        self.max_display_height = min(40, self.height)
+        self.max_display_height = min(25, self.height)
         # Offset pour le scroll (ZQSD)
         self.scroll_x = 0
         self.scroll_y = 0
@@ -152,8 +152,11 @@ class TerminalView:
         output_lines.append("+" + "-" * visible_width + "+")
         
         # Affichage des stats rapides
-        stats = f"Armée 0 (Bleu): {self._count_alive(armies[0])} vivants | "
-        stats += f"Armée 1 (Rouge): {self._count_alive(armies[1])} vivants"
+        # Affichage des stats rapides avec Nom du Général
+        gen1 = armies[0].general.__class__.__name__
+        gen2 = armies[1].general.__class__.__name__
+        stats = f"Armée 1 [{gen1}] (Bleu): {self._count_alive(armies[0])} | "
+        stats += f"Armée 2 [{gen2}] (Rouge): {self._count_alive(armies[1])}"
         output_lines.append(stats)
         
         print("\n".join(output_lines))
@@ -198,7 +201,7 @@ class TerminalView:
             alive_count = self._count_alive(army)
             total_count = len(army.units)
             
-            html.append(f"<h2 class='{color_class}'>Armée {i} - {army.general.__class__.__name__}</h2>")
+            html.append(f"<h2 class='{color_class}'>Armée {i+1} - {army.general.__class__.__name__}</h2>")
             html.append(f"<p>Unités: {alive_count}/{total_count} en vie</p>")
             html.append("<table>")
             html.append("<tr><th>Type</th><th>ID</th><th>HP</th><th>Position</th><th>Attaque</th><th>Armure</th><th>Statut</th></tr>")

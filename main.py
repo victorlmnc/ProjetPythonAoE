@@ -57,8 +57,8 @@ Exemples d'utilisation:
     play_parser = subparsers.add_parser("play", help="🎮 Lancer une partie rapidement (raccourci)")
     play_parser.add_argument("-t", "--terminal", action="store_true",
                             help="Mode terminal ASCII")
-    play_parser.add_argument("-u", "--units", type=str, default="Knight",
-                            help="Type d'unité (défaut: Knight)")
+    play_parser.add_argument("-u", "--units", nargs='+', default=["Knight"],
+                            help="Type d'unité ou liste d'unités (ex: Knight Pikeman)")
     play_parser.add_argument("-n", "--count", type=int, default=10,
                             help="Nombre d'unités par camp (défaut: 10)")
     play_parser.add_argument("-ai", "--generals", nargs=2, default=["MajorDAFT", "MajorDAFT"],
@@ -440,12 +440,13 @@ def run_play(args):
     print(f"Mode     : {'Terminal' if args.terminal else 'Pygame 2.5D'}")
     print("=" * 50)
     
-    # Vérifier le type d'unité
-    unit_class = UNIT_CLASS_MAP.get(args.units)
-    if unit_class is None:
-        print(f"Erreur: Type d'unité inconnu '{args.units}'")
-        print(f"Disponibles: {list(UNIT_CLASS_MAP.keys())}")
-        sys.exit(1)
+    # Vérifier tous les types d'unités
+    units_list = args.units if isinstance(args.units, list) else [args.units]
+    for u_type in units_list:
+        if u_type not in UNIT_CLASS_MAP:
+            print(f"Erreur: Type d'unité inconnu '{u_type}'")
+            print(f"Disponibles: {list(UNIT_CLASS_MAP.keys())}")
+            sys.exit(1)
     
     # Vérifier les généraux
     gen1_class = GENERAL_CLASS_MAP.get(args.generals[0])
@@ -458,8 +459,13 @@ def run_play(args):
     # Créer une carte par défaut
     game_map = Map(60, 60)
     
-    # Créer les armées avec les unités choisies
-    composition = {args.units: args.count}
+    # Créer les armées avec les unités choisies (composition mixte)
+    # Si plusieurs types, on divise le nombre total par le nombre de types
+    # ou on met args.count de chaque type (plus simple pour le test)
+    composition = {}
+    for u_type in units_list:
+        composition[u_type] = args.count  # args.count de CHAQUE type
+        
     army1, army2 = custom_battle_scenario(
         composition, composition,
         gen1_class, gen2_class,
