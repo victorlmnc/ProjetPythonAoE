@@ -107,7 +107,7 @@ class TerminalView:
         # 3. Afficher le header
         status = f"{self.RED}[PAUSE]{self.RESET}" if paused else f"{self.GREEN}[EN COURS]{self.RESET}"
         print(f"--- TOUR {turn} --- {status}")
-        print(f"Contrôles: [P] Pause | [TAB] Snapshot HTML | [ZQSD] Scroll | [Q] Quitter")
+        print(f"Contrôles: [P] Pause | [TAB] Snapshot HTML | [ZS] Scroll (haut-bas) | [Q] Quitter")
         print(f"Scroll: ({self.scroll_x}, {self.scroll_y})\n")
         
         # 4. Créer une grille vide (buffer)

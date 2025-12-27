@@ -321,8 +321,8 @@ def run_plot(args):
         game_map = Map(60, 60)
         engine = Engine(game_map, army1, army2)
         
-        # Exécuter sans vue (headless)
-        engine.run_game(max_turns=2000, view=None)
+        # Exécuter sans vue (headless) -> Vitesse maximale
+        engine.run_game(max_turns=2000, view=None, logic_speed=1)
         
         # Calculer les pertes
         army1_alive = sum(1 for u in army1.units if u.is_alive)
@@ -392,7 +392,8 @@ def run_lanchester(args):
     else:
         view = PygameView(engine.map)
     
-    engine.run_game(max_turns=args.max_turns, view=view)
+    speed = 1 if args.terminal else 15
+    engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
 
 
 def run_legacy_battle(args):
@@ -419,7 +420,8 @@ def run_legacy_battle(args):
         view = PygameView(engine.map)
     
     try:
-        engine.run_game(max_turns=args.max_turns, view=view)
+        speed = 1 if args.view == "terminal" else 15
+        engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
     except KeyboardInterrupt:
         print("\nSimulation interrompue.")
     
@@ -481,7 +483,8 @@ def run_play(args):
         view = PygameView(engine.map)
     
     try:
-        engine.run_game(max_turns=args.max_turns, view=view)
+        speed = 1 if args.terminal else 15
+        engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
     except KeyboardInterrupt:
         print("\nPartie interrompue.")
 
