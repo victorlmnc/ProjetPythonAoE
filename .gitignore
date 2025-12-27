@@ -25,3 +25,6 @@ saves/
 tournament_report.html
 lanchester_*.png
 *.sav
+test_output.txt
+test_results.txt
+requirements_text.txt
