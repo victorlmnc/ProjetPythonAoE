@@ -42,14 +42,16 @@ class Engine:
                 self.units_by_id[unit.unit_id] = unit
                 self.map.add_unit(unit)
 
-    def run_game(self, max_turns: int = 1000, view: Any = None):
-        """Boucle de jeu principale avec gestion de la vitesse et de la pause."""
+    def run_game(self, max_turns: int = 1000, view: Optional[Any] = None, logic_speed: int = 15):
+        """
+        Boucle principale du jeu.
+        """
         print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
 
         frame_counter = 0
         # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent.
         # 15 donne un bon rythme visible à 60 FPS (4 ticks logique / sec).
-        LOGIC_SPEED_DIVIDER = 15
+        LOGIC_SPEED_DIVIDER = logic_speed
         step_once = False # Pour le mode pas-à-pas (touche S)
 
         while not self.game_over and self.turn_count < max_turns:
