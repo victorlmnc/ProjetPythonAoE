@@ -1,5 +1,6 @@
 import pygame
 import os
+import math
 from io import BytesIO
 from PIL import Image
 
@@ -13,11 +14,9 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 BG_COLOR = (30, 30, 30)
 
-# Dimensions isométriques (Ratio 2:1)
-TILE_WIDTH = 64
-TILE_HEIGHT = 32
-TILE_HALF_W = TILE_WIDTH // 2
-TILE_HALF_H = TILE_HEIGHT // 2
+# Dimensions isométriques de BASE (Ratio 2:1)
+BASE_TILE_WIDTH = 64
+BASE_TILE_HEIGHT = 32
 
 # Couleurs
 WHITE = (255, 255, 255)
@@ -54,18 +53,30 @@ class PygameView:
         self.font = pygame.font.SysFont('Arial', 16, bold=True)
         self.ui_font = pygame.font.SysFont('Arial', 24, bold=True)
 
+        # --- Zoom Settings ---
+        self.zoom = 1.0
+        self.min_zoom = 0.5
+        self.max_zoom = 2.0
+
+        # Dimensions actuelles (seront calculées via update_zoom_metrics)
+        self.tile_width = BASE_TILE_WIDTH
+        self.tile_height = BASE_TILE_HEIGHT
+        self.tile_half_w = self.tile_width // 2
+        self.tile_half_h = self.tile_height // 2
+        
+        # Offsets d'affichage
+        self.offset_x = 0
+        self.offset_y = 0
+        self.update_zoom_metrics()
+
         # --- Caméra ---
         self.scroll_x = 0
         self.scroll_y = 0
         self.scroll_speed = 15
 
         # Centrage initial
-        center_map_x = self.map.width / 2
-        center_map_y = self.map.height / 2
-        iso_center_x = (center_map_x - center_map_y) * TILE_HALF_W
-        iso_center_y = (center_map_x + center_map_y) * TILE_HALF_H
-        self.offset_x = SCREEN_WIDTH / 2 - iso_center_x
-        self.offset_y = SCREEN_HEIGHT / 2 - iso_center_y
+        self.scroll_x = 0
+        self.scroll_y = 0
         
         # --- LIGNES DE DÉBOGAGE POUR LES ARBRES ---
         # Ajout de plusieurs arbres à des positions fixes pour test
@@ -75,18 +86,38 @@ class PygameView:
         self.map.add_obstacle("Tree", 20, 15) 
         # ----------------------------------------
 
-        # --- Sprites (Assets unifiés) ---
+        # --- Assets Originaux (Chargés une fois à taille de base) ---
+        self.orig_grass: pygame.Surface | None = None
+        self.orig_tree: pygame.Surface | None = None
+        self.orig_units: dict = {}
+
+        # --- Sprites Actuels (Redimensionnés selon zoom) ---
         self.unit_sprites: dict = {}
         self.tree_sprite: pygame.Surface | None = None
         self.grass_sprite: pygame.Surface | None = None
+        
         self._load_sprites()
         print("Chargement des assets de fond terminé.")
 
+    def update_zoom_metrics(self):
+        """Recalcule les dimensions des tuiles et l'offset de base selon le zoom."""
+        self.tile_width = int(BASE_TILE_WIDTH * self.zoom)
+        self.tile_height = int(BASE_TILE_HEIGHT * self.zoom)
+        self.tile_half_w = self.tile_width // 2
+        self.tile_half_h = self.tile_height // 2
+
+        # Recalcul de l'offset pour centrer la map (0,0 au centre théorique)
+        center_map_x = self.map.width / 2
+        center_map_y = self.map.height / 2
+        iso_center_x = (center_map_x - center_map_y) * self.tile_half_w
+        iso_center_y = (center_map_x + center_map_y) * self.tile_half_h
+        self.offset_x = SCREEN_WIDTH / 2 - iso_center_x
+        self.offset_y = SCREEN_HEIGHT / 2 - iso_center_y
 
     def _load_webp_asset(self, path: str, target_size: tuple[int, int], is_spritesheet: bool) -> pygame.Surface | None:
         """
         Charge un fichier WEBP via Pillow, le convertit en PNG in-memory,
-        le charge dans Pygame, et le met à l'échelle.
+        le charge dans Pygame, et le met à l'échelle vers la taille CIBLE.
         """
         try:
             pil_img = Image.open(path)
@@ -115,33 +146,67 @@ class PygameView:
 
     def _load_sprites(self):
         """
-        Charge tous les assets graphiques nécessaires.
+        Charge tous les assets graphiques nécessaires dans self.orig_*.
+        Ensuite, génère les versions scalées.
         """
         BASE_PATH = "assets" 
         
-        # --- Ressources (Gazon et Arbre) ---
+        # 1. Chargement des Originaux (Taille Zoom = 1.0)
+        # Gazon
         grass_path = os.path.join(BASE_PATH, "resources/grass/grass.webp")
-        self.grass_sprite = self._load_webp_asset(grass_path, target_size=(TILE_WIDTH, TILE_WIDTH // 2 + 16), is_spritesheet=False) 
+        self.orig_grass = self._load_webp_asset(
+            grass_path, 
+            target_size=(BASE_TILE_WIDTH, BASE_TILE_WIDTH // 2 + 16), 
+            is_spritesheet=False
+        ) 
 
+        # Arbre
         tree_path = os.path.join(BASE_PATH, "resources/tree/Tree.webp")
-        self.tree_sprite = self._load_webp_asset(tree_path, target_size=(60, 90), is_spritesheet=False) 
+        self.orig_tree = self._load_webp_asset(
+            tree_path, 
+            target_size=(60, 90), 
+            is_spritesheet=False
+        ) 
         
-        # --- Unités ---
+        # Unités
         unit_configs = {
-            Knight: (os.path.join(BASE_PATH, "units/knight/walk/hosreman_walk.webp"), (SPRITE_FRAME_WIDTH * 1.5, SPRITE_FRAME_HEIGHT * 1.5)),
-            Crossbowman: (os.path.join(BASE_PATH, "units/crossbowman/walk/crossbowman_walk.webp"), (SPRITE_FRAME_WIDTH * 1.5, SPRITE_FRAME_HEIGHT * 1.5)),
-            Pikeman: (os.path.join(BASE_PATH, "units/longswordman/walk/swordsman_walk.webp"), (SPRITE_FRAME_WIDTH * 1.5, SPRITE_FRAME_HEIGHT * 1.5)),
-            LongSwordsman: (os.path.join(BASE_PATH, "units/longswordman/walk/swordsman_walk.webp"), (SPRITE_FRAME_WIDTH * 1.5, SPRITE_FRAME_HEIGHT * 1.5)),
+            Knight: (os.path.join(BASE_PATH, "units/knight/walk/hosreman_walk.webp"), 
+                     (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
+            Crossbowman: (os.path.join(BASE_PATH, "units/crossbowman/walk/crossbowman_walk.webp"), 
+                          (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
+            Pikeman: (os.path.join(BASE_PATH, "units/longswordman/walk/swordsman_walk.webp"), 
+                      (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
+            LongSwordsman: (os.path.join(BASE_PATH, "units/longswordman/walk/swordsman_walk.webp"), 
+                            (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
         }
         
+        self.orig_units = {}
         for unit_class, (path, size) in unit_configs.items():
-            self.unit_sprites[unit_class] = self._load_webp_asset(path, size, is_spritesheet=True)
+            self.orig_units[unit_class] = self._load_webp_asset(path, size, is_spritesheet=True)
 
+        # 2. Génération des sprites à la taille actuelle
+        self._rescale_assets()
+
+    def _rescale_assets(self):
+        """Redimensionne les assets originaux selon self.zoom."""
+        if self.orig_grass:
+            w, h = self.orig_grass.get_size()
+            self.grass_sprite = pygame.transform.scale(self.orig_grass, (int(w * self.zoom), int(h * self.zoom)))
+        
+        if self.orig_tree:
+            w, h = self.orig_tree.get_size()
+            self.tree_sprite = pygame.transform.scale(self.orig_tree, (int(w * self.zoom), int(h * self.zoom)))
+
+        self.unit_sprites = {}
+        for u_class, surface in self.orig_units.items():
+            if surface:
+                w, h = surface.get_size()
+                self.unit_sprites[u_class] = pygame.transform.scale(surface, (int(w * self.zoom), int(h * self.zoom)))
 
     def cart_to_iso(self, x: float, y: float) -> tuple[int, int]:
-        """Convertit grille -> isométrique."""
-        iso_x = (x - y) * TILE_HALF_W
-        iso_y = (x + y) * TILE_HALF_H
+        """Convertit grille -> isométrique en tenant compte du zoom."""
+        iso_x = (x - y) * self.tile_half_w
+        iso_y = (x + y) * self.tile_half_h
         final_x = iso_x + self.offset_x - self.scroll_x
         final_y = iso_y + self.offset_y - self.scroll_y
         return int(final_x), int(final_y)
@@ -159,6 +224,19 @@ class PygameView:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT: return "quit"
+            
+            # --- GESTION DU ZOOM (MOUSEWHEEL) ---
+            if event.type == pygame.MOUSEWHEEL:
+                old_zoom = self.zoom
+                if event.y > 0: # Scroll UP -> Zoom IN
+                    self.zoom = min(self.zoom + 0.1, self.max_zoom)
+                elif event.y < 0: # Scroll DOWN -> Zoom OUT
+                    self.zoom = max(self.zoom - 0.1, self.min_zoom)
+                
+                if self.zoom != old_zoom:
+                    self.update_zoom_metrics()
+                    self._rescale_assets()
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE: return "quit"
                 if event.key == pygame.K_SPACE: return "toggle_pause"
@@ -176,14 +254,16 @@ class PygameView:
                 
                 screen_x, screen_y = self.cart_to_iso(x, y)
                 
-                # Optimisation : ne pas dessiner hors écran
-                if not (-100 < screen_x < SCREEN_WIDTH + 100 and -100 < screen_y < SCREEN_HEIGHT + 100):
+                # Optimisation : ne pas dessiner hors écran (ajusté avec zoom)
+                margin = 100 * self.zoom
+                if not (-margin < screen_x < SCREEN_WIDTH + margin and -margin < screen_y < SCREEN_HEIGHT + margin):
                    continue
 
-                # 1. Calcul de l'élévation et de la position d'ancrage Y
+                # 1. Calcul de l'élévation (mise à l'échelle)
                 height_offset = 0
                 if tile.terrain_type != 'water':
-                    height_offset = int(tile.elevation) * 2
+                    # Hauteur standard * zoom
+                    height_offset = int(tile.elevation * 2 * self.zoom)
                     
                 base_y = screen_y - height_offset
 
@@ -191,8 +271,8 @@ class PygameView:
                 if self.grass_sprite and tile.terrain_type != 'water' and tile.elevation == 0:
                     sprite = self.grass_sprite
                     # Ancrer le sprite au coin supérieur de la tuile
-                    draw_x = screen_x - TILE_HALF_W
-                    draw_y = screen_y - TILE_HALF_H
+                    draw_x = screen_x - self.tile_half_w
+                    draw_y = screen_y - self.tile_half_h
                     
                     self.screen.blit(sprite, (draw_x, draw_y))
                 else:
@@ -200,10 +280,10 @@ class PygameView:
                     elev_idx = min(int(tile.elevation / 4), 4)
                     color = TERRAIN_COLORS.get(elev_idx, TERRAIN_COLORS[0])
                     points = [
-                        (screen_x, base_y - TILE_HALF_H),
-                        (screen_x + TILE_HALF_W, base_y),
-                        (screen_x, base_y + TILE_HALF_H),
-                        (screen_x - TILE_HALF_W, base_y)
+                        (screen_x, base_y - self.tile_half_h),
+                        (screen_x + self.tile_half_w, base_y),
+                        (screen_x, base_y + self.tile_half_h),
+                        (screen_x - self.tile_half_w, base_y)
                     ]
                     pygame.draw.polygon(self.screen, color, points)
 
@@ -212,10 +292,10 @@ class PygameView:
                      color = TERRAIN_COLORS.get(min(int(tile.elevation / 4), 4), TERRAIN_COLORS[0])
                      darker = (max(0, color[0]-40), max(0, color[1]-40), max(0, color[2]-40))
                      pygame.draw.polygon(self.screen, darker, [
-                         (screen_x - TILE_HALF_W, base_y),
-                         (screen_x, base_y + TILE_HALF_H),
-                         (screen_x, screen_y + TILE_HALF_H),
-                         (screen_x - TILE_HALF_W, screen_y)
+                         (screen_x - self.tile_half_w, base_y),
+                         (screen_x, base_y + self.tile_half_h),
+                         (screen_x, screen_y + self.tile_half_h),
+                         (screen_x - self.tile_half_w, screen_y)
                      ])
 
                 # 4. DESSIN DU SPRITE D'ARBRE (après le sol pour qu'il soit par-dessus)
@@ -251,7 +331,7 @@ class PygameView:
 
             height_offset = 0
             if tile.terrain_type != 'water':
-                 height_offset = int(tile.elevation) * 2
+                 height_offset = int(tile.elevation * 2 * self.zoom)
 
             screen_x, screen_y = self.cart_to_iso(x, y)
             # Position de dessin Y avec l'offset d'élévation
@@ -284,13 +364,18 @@ class PygameView:
             else:
                  # Fallback au dessin de cercle
                  color = BLUE if army_id == 0 else RED
-                 pygame.draw.circle(self.screen, color, (screen_x, unit_draw_y - 10), 6)
-                 hp_y = unit_draw_y - 25
+                 radius = int(6 * self.zoom)
+                 pygame.draw.circle(self.screen, color, (screen_x, unit_draw_y - int(10 * self.zoom)), radius)
+                 hp_y = unit_draw_y - int(25 * self.zoom)
 
             # Barres de vie
             hp_ratio = unit.current_hp / unit.max_hp
-            pygame.draw.rect(self.screen, RED, (screen_x - 10, hp_y, 20, 3))
-            pygame.draw.rect(self.screen, GREEN, (screen_x - 10, hp_y, 20 * hp_ratio, 3))
+            
+            bar_width = int(20 * self.zoom)
+            bar_height = int(3 * self.zoom)
+            
+            pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, hp_y, bar_width, bar_height))
+            pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, bar_width * hp_ratio, bar_height))
 
 
     def draw_ui(self, turn_count, paused, armies):
