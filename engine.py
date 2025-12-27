@@ -1,5 +1,6 @@
 # engine.py
 import math
+import os
 from typing import Optional, Any
 from core.map import Map
 from core.army import Army
@@ -8,6 +9,9 @@ from ai.general import General
 
 # Type alias pour les actions que l'IA peut retourner
 Action = tuple[str, int, Any]
+
+# Chemin par défaut pour les sauvegardes rapides (F11/F12)
+QUICK_SAVE_PATH = "saves/quicksave.sav"
 
 class Engine:
     """
@@ -44,8 +48,8 @@ class Engine:
 
         frame_counter = 0
         # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent.
-        # 5 est un bon équilibre à 60 FPS (12 ticks logique / sec).
-        LOGIC_SPEED_DIVIDER = 5
+        # 15 donne un bon rythme visible à 60 FPS (4 ticks logique / sec).
+        LOGIC_SPEED_DIVIDER = 15
         step_once = False # Pour le mode pas-à-pas (touche S)
 
         while not self.game_over and self.turn_count < max_turns:
@@ -63,6 +67,20 @@ class Engine:
                 elif command == "step":
                     self.paused = True # Le pas-à-pas force la pause après
                     step_once = True
+                elif command == "quick_save":
+                    # F11 - Sauvegarde rapide (Requis par le PDF)
+                    # Import local pour éviter l'import circulaire
+                    from utils.serialization import save_game
+                    os.makedirs("saves", exist_ok=True)
+                    save_game(self, QUICK_SAVE_PATH)
+                    print("Sauvegarde rapide effectuée !")
+                elif command == "quick_load":
+                    # F12 - Chargement rapide (Requis par le PDF)
+                    # Note: Le chargement complet nécessite une refonte de la boucle
+                    print("Quick Load: Utilisez 'battle --load_game saves/quicksave.sav' pour charger.")
+                elif command == "switch_view":
+                    # F9 - Basculer entre vues (pour info, nécessiterait une refonte)
+                    print("Switch View: Non implémenté (nécessite de relancer avec -t)")
 
             elif self.turn_count % 10 == 0:
                 print(f"\n--- TOUR {self.turn_count} ---")
@@ -136,7 +154,63 @@ class Engine:
 
                 if unit and unit.is_alive and target and target.is_alive:
                     # L'unité vérifie son cooldown interne ici
-                    unit.attack(target, self.map)
+                    if unit.can_attack(target) and unit.can_act():
+                        final_damage = unit.calculate_damage(target, self.map)
+                        target.take_damage(final_damage)
+                        unit.current_cooldown = unit.reload_time
+                        
+                        # --- Splash Damage (Onager, Trebuchet) ---
+                        if hasattr(unit, 'splash_radius') and unit.splash_radius > 0:
+                            splash_damage = int(final_damage * 0.5)  # 50% des dégâts
+                            for other in self.units_by_id.values():
+                                if other.is_alive and other != target and other.army_id != unit.army_id:
+                                    dist = math.sqrt((other.pos[0] - target.pos[0])**2 + 
+                                                    (other.pos[1] - target.pos[1])**2)
+                                    if dist <= unit.splash_radius:
+                                        other.take_damage(splash_damage)
+                        
+                        # --- Trample Damage (Elite War Elephant) ---
+                        if hasattr(unit, 'trample_radius') and unit.trample_radius > 0:
+                            trample_dmg = int(final_damage * getattr(unit, 'trample_damage_ratio', 0.5))
+                            for other in self.units_by_id.values():
+                                if other.is_alive and other != target and other.army_id != unit.army_id:
+                                    dist = math.sqrt((other.pos[0] - unit.pos[0])**2 + 
+                                                    (other.pos[1] - unit.pos[1])**2)
+                                    if dist <= unit.trample_radius:
+                                        other.take_damage(trample_dmg)
+        
+        # 3. Actions spéciales des Moines (Heal / Conversion) - PDF Req 6
+        for action_type, unit_id, data in actions:
+            unit = self.units_by_id.get(unit_id)
+            if not unit or not unit.is_alive:
+                continue
+            
+            # Le Monk a des attributs spéciaux
+            if not hasattr(unit, 'heal_rate'):
+                continue
+            
+            if action_type == "heal":
+                # Soigner une unité alliée
+                target = self.units_by_id.get(data)
+                if target and target.is_alive and target.army_id == unit.army_id:
+                    if unit.can_act():
+                        heal_amount = unit.heal_rate
+                        target.current_hp = min(target.max_hp, target.current_hp + heal_amount)
+                        unit.current_cooldown = unit.reload_time
+            
+            elif action_type == "convert":
+                # Tenter de convertir une unité ennemie
+                target = self.units_by_id.get(data)
+                if target and target.is_alive and target.army_id != unit.army_id:
+                    distance = math.sqrt((unit.pos[0] - target.pos[0])**2 + 
+                                        (unit.pos[1] - target.pos[1])**2)
+                    if distance <= getattr(unit, 'conversion_range', 9.0) and unit.can_act():
+                        # Conversion réussie (simplifié : toujours réussie après cooldown)
+                        # Changer l'armée de l'unité convertie
+                        old_army_id = target.army_id
+                        target.army_id = unit.army_id
+                        unit.current_cooldown = getattr(unit, 'conversion_time', 4.0)
+                        print(f"CONVERSION: {unit} a converti {target}!")
 
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float]):
         """Calcule et applique le mouvement."""
@@ -231,8 +305,32 @@ class Engine:
                 del self.units_by_id[unit_id]
 
     def _check_game_over(self) -> bool:
+        """
+        Vérifie les conditions de fin de partie.
+        Conditions de victoire (PDF):
+        1. Destruction de la Merveille (Wonder) ennemie = Victoire immédiate
+        2. Élimination de toutes les unités ennemies
+        """
+        # Import local pour éviter les imports circulaires
+        from core.unit import Wonder
+        
+        # Vérification de la destruction des Wonders (Condition prioritaire selon PDF)
+        for army_idx, army in enumerate(self.armies):
+            enemy_idx = 1 - army_idx  # L'autre armée
+            
+            # Vérifier si l'armée ennemie avait une Wonder et si elle est morte
+            for unit in self.armies[enemy_idx].units:
+                if isinstance(unit, Wonder) and not unit.is_alive:
+                    # La Wonder ennemie est détruite -> Victoire !
+                    self.game_over = True
+                    self.winner = army.army_id
+                    print(f"La Wonder de l'Armée {enemy_idx} a été détruite !")
+                    return True
+        
+        # Vérification standard: élimination de toutes les unités
         army1_defeated = self.armies[0].is_defeated()
         army2_defeated = self.armies[1].is_defeated()
+        
         if army1_defeated and army2_defeated:
             self.game_over = True
             self.winner = None
@@ -242,6 +340,7 @@ class Engine:
         elif army2_defeated:
             self.game_over = True
             self.winner = self.armies[0].army_id
+        
         return self.game_over
 
     def get_enemy_units(self, my_army_id: int) -> list[Unit]:
