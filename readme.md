@@ -61,20 +61,85 @@ python main.py play -u Pikeman -n 20 -ai MajorDAFT ColonelKAISER
 
 ---
 
-## 📋 Commandes CLI
+## 🛠️ Génération Procédurale (Nouveau)
+
+Plus besoin de créer les fichiers à la main ! Utilisez la commande `create`.
+
+### 1. Créer une Carte
+```bash
+python main.py create map maps/ma_carte.map --width 80 --height 80 --noise 0.2
+```
+
+### 2. Créer une Armée
+```bash
+# Générer une armée avec 20 Chevaliers et 15 Piquiers
+python main.py create army armies/mon_armee.txt --general MajorDAFT --units "Knight:20,Pikeman:15" --id 0
+```
+
+---
+
+## � Référence Complète des Commandes
+
+### 🌟 La Ligne de Commande Ultime (Mode Expert)
+Pour définir **chaque aspect** de la bataille manuellement, utilisez `run` avec tous les paramètres :
 
 ```bash
-# Partie rapide
-python main.py play [options]
+python main.py run <MAP> <GENERAL_1> <GENERAL_2> --army1 <FICHIER_ARMEE_1> --army2 <FICHIER_ARMEE_2> --max_turns <TOURS> [-t] [-d <SAVE_FILE>]
+```
 
-# Test Lanchester (N vs 2N)
-python main.py lanchester Knight 10
+**Exemple concret ultra-complet :**
+```bash
+python main.py run maps/terrain_accidenté.map ColonelKAISER MajorDAFT --army1 armies/ma_super_armee.txt --army2 armies/ennemi_base.txt --max_turns 5000
+```
 
-# Graphique Lanchester (matplotlib)
-python main.py plot MajorDAFT lanchester Knight "range(5, 25, 5)"
+| Paramètre | Description |
+|-----------|-------------|
+| `run` | Commande principale pour lancer un scénario précis. |
+| `<MAP>` | Fichier map (`.map`) ou script scénario (`.py`). |
+| `<GENERAL_1/2>` | IA des généraux (ex: `ColonelKAISER`, `MajorDAFT`, `CaptainBRAINDEAD`). |
+| `--army1/2` | Chemins vers les fichiers de composition d'armée (requis si fichier `.map`). |
+| `--max_turns` | Limite de tours avant fin forcée (défaut: 1000). |
+| `-t` | (Optionnel) Force le mode **Terminal ASCII** (pas de fenêtre graphique). |
+| `-d` | (Optionnel) Fichier de sauvegarde où enregistrer l'état final. |
 
-# Tournoi automatique
-python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map -N 10
+---
+
+### 🚀 Partie Rapide (`play`)
+Le moyen le plus simple de lancer une bataille sans fichiers de config.
+
+```bash
+python main.py play -u Knight Pikeman -n 50 -ai ColonelKAISER CaptainBRAINDEAD
+```
+
+*   `-u`, `--units` : Types d'unités (ex: `Knight`, `Pikeman`, `Crossbowman`, `Monk`, `EliteWarElephant`).
+*   `-n`, `--count` : Nombre d'unités **par type** pour chaque armée.
+*   `-ai`, `--generals` : Les deux IA qui s'affrontent.
+
+---
+
+### 🏆 Tournoi Automatique (`tourney`)
+Faire s'affronter plusieurs IA sur plusieurs cartes en boucle.
+
+```bash
+python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map maps/large.map -N 10 --na
+```
+
+*   `-G` : Liste des Généraux participants.
+*   `-S` : Liste des cartes/scénarios à jouer.
+*   `-N` : Nombre de rounds par match-up.
+*   `--na` : "No Animation" (mode super-rapide sans rendu graphique).
+
+---
+
+### 📊 Analyse & Graphiques (`plot` & `lanchester`)
+Pour vérifier l'équilibrage et la loi de Lanchester.
+
+```bash
+# Vérifier la loi carrée de Lanchester (N vs 2N)
+python main.py lanchester Knight 20 -t
+
+# Générer un graphique de performance (nécessite matplotlib)
+python main.py plot MajorDAFT win_rate scenarios/1v1.py "range(10, 100, 10)" --opponent CaptainBRAINDEAD
 ```
 
 ---
@@ -115,3 +180,18 @@ pytest tests/test_unit.py -v
 - **Formule dégâts** : `max(1, Attaque + Bonus - Armure)`
 - **Élévation** : +25% dégâts depuis hauteur
 - **Victoire** : Destruction armée ou Wonder ennemie
+
+---
+
+## 📜 Vérification de Conformité (PDF)
+
+Pour vérifier que le projet respecte chaque point du cahier des charges (Req 1 à 15), consultez le guide détaillé :
+
+👉 **[Voir le Guide de Test complet (testing_guide.md)](testing_guide.md)**
+
+### Résumé des vérifications clés :
+1.  **Sprites** : Lancez `python main.py play` et zoomez.
+2.  **Scénarios Python** : Lancez `python main.py run scenarios/test_scenario.py MajorDAFT MajorDAFT`.
+3.  **Vitesse** : Appuyez sur `+` ou `-` en jeu.
+4.  **Lanchester** : Lancez `python main.py lanchester Knight 50 -t`.
+5.  **Tournoi** : Lancez `python main.py tourney -G MajorDAFT CaptainBRAINDEAD -S scenarios/test_scenario.py`.

@@ -83,6 +83,12 @@ class Engine:
                 elif command == "switch_view":
                     # F9 - Basculer entre vues (pour info, nécessiterait une refonte)
                     print("Switch View: Non implémenté (nécessite de relancer avec -t)")
+                elif command == "speed_up":
+                    LOGIC_SPEED_DIVIDER = max(1, LOGIC_SPEED_DIVIDER - 2)
+                    print(f"Vitesse++ (Divider: {LOGIC_SPEED_DIVIDER})")
+                elif command == "speed_down":
+                    LOGIC_SPEED_DIVIDER = min(60, LOGIC_SPEED_DIVIDER + 2)
+                    print(f"Vitesse-- (Divider: {LOGIC_SPEED_DIVIDER})")
 
             elif self.turn_count % 10 == 0:
                 print(f"\n--- TOUR {self.turn_count} ---")

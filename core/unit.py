@@ -180,11 +180,11 @@ class Crossbowman(Unit):
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=35, speed=0.96, attack_power=5, attack_range=5.0,
             attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=0, line_of_sight=7,
-            armor_classes=["archer"],
+            armor_classes=["Archer"], # Fixed case
             bonus_damage={
                 "Base Melee": 4,
                 UC_STANDARD_BUILDING: 1,
-                "All Archers": 0,
+                "Archer": 0, # Fixed key
             },
             hitbox_radius=0.4,
             reload_time=2.0 # Moyen
@@ -196,7 +196,7 @@ class LongSwordsman(Unit):
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=60, speed=0.9, attack_power=9, attack_range=0.5,
             attack_type=DMG_MELEE, melee_armor=1, pierce_armor=1, line_of_sight=4,
-            armor_classes=["infantry"],
+            armor_classes=["Infantry"], # Fixed case
             bonus_damage={UC_STANDARD_BUILDING: 2},
             hitbox_radius=0.4,
             reload_time=2.0
@@ -208,8 +208,8 @@ class EliteSkirmisher(Unit):
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=35, speed=0.96, attack_power=3, attack_range=5.0,
             attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=4, line_of_sight=7,
-            armor_classes=["archer"],
-            bonus_damage={"All Archers": 3, "Spearman": 3},
+            armor_classes=["Archer"], # Fixed case
+            bonus_damage={"Archer": 3, "Spearman": 3}, # Fixed key "All Archers" -> "Archer"
             hitbox_radius=0.4,
             reload_time=3.0 # Lent
         )
@@ -220,7 +220,7 @@ class CavalryArcher(Unit):
             unit_id=unit_id, army_id=army_id, pos=pos,
             hp=50, speed=1.4, attack_power=6, attack_range=4.0,
             attack_type=DMG_PIERCE, melee_armor=1, pierce_armor=0, line_of_sight=6,
-            armor_classes=["archer", "cavalry"],
+            armor_classes=["Archer", "Cavalry"], # Fixed case
             bonus_damage={"Spearman": 2},
             hitbox_radius=0.7,
             reload_time=2.0

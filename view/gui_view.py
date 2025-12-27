@@ -305,6 +305,10 @@ class PygameView:
                 if event.key == pygame.K_F9: return "switch_view"  # Basculer Terminal/Pygame
                 if event.key == pygame.K_F11: return "quick_save"  # Sauvegarde rapide
                 if event.key == pygame.K_F12: return "quick_load"  # Chargement rapide
+
+                # --- Req 10 (Variable Speed L.422) ---
+                if event.key == pygame.K_KP_PLUS or event.key == pygame.K_PLUS: return "speed_up"
+                if event.key == pygame.K_KP_MINUS or event.key == pygame.K_MINUS: return "speed_down"
         return None
 
     def draw_map(self):
@@ -405,9 +409,7 @@ class PygameView:
             unit_class = unit.__class__
             sprite_surface = self.unit_sprites.get(unit_class)
 
-            # TEMPORAIREMENT désactivé - utiliser cercles colorés
-            # TODO: Fixer le découpage des spritesheets
-            sprite_surface = None  # Force l'affichage des cercles
+            # Sprite is now enabled
 
 
             if sprite_surface:

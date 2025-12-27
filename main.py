@@ -13,6 +13,7 @@ import argparse
 import sys
 import os
 from typing import Optional
+import importlib.util
 
 # --- Import de nos modules de jeu ---
 from core.map import Map
@@ -25,6 +26,7 @@ from tournament import Tournament
 from utils.loaders import load_map_from_file, load_army_from_file
 from core.definitions import GENERAL_CLASS_MAP, UNIT_CLASS_MAP
 from scenarios import lanchester_scenario, custom_battle_scenario
+from utils.generators import generate_map_file, generate_army_file
 
 
 def load_game_from_save(filepath: str) -> Engine:
@@ -145,6 +147,27 @@ Exemples d'utilisation:
     legacy_parser.add_argument("--max_turns", type=int, default=1000)
     legacy_parser.add_argument("--save_path", type=str, default=None)
 
+    # =========================================================================
+    # Commande: battle create <type> <filename> [options]
+    # =========================================================================
+    create_parser = subparsers.add_parser("create", help="Créer des fichiers de carte ou d'armée")
+    create_subparsers = create_parser.add_subparsers(dest="create_type", help="Type de fichier à créer")
+
+    # battle create map
+    map_parser = create_subparsers.add_parser("map", help="Créer une carte")
+    map_parser.add_argument("filename", type=str, help="Nom du fichier .map")
+    map_parser.add_argument("--width", type=int, default=60, help="Largeur de la carte")
+    map_parser.add_argument("--height", type=int, default=60, help="Hauteur de la carte")
+    map_parser.add_argument("--noise", type=float, default=0.1, help="Niveau de bruit (0.0 - 1.0)")
+
+    # battle create army
+    army_parser = create_subparsers.add_parser("army", help="Créer une armée")
+    army_parser.add_argument("filename", type=str, help="Nom du fichier armée (.txt)")
+    army_parser.add_argument("--general", type=str, default="MajorDAFT", help="Nom du général")
+    army_parser.add_argument("--units", type=str, default="Knight:10", help="Unités (ex: 'Knight:10,Pikeman:5')")
+    army_parser.add_argument("--map_size", type=str, default="60x60", help="Taille de la carte (ex: '60x60')")
+    army_parser.add_argument("--id", type=int, default=0, help="ID de l'armée (0=Haut/Gauche, 1=Bas/Droite)")
+
     # Parse arguments
     parsed_args = parser.parse_args(args)
 
@@ -159,6 +182,8 @@ Exemples d'utilisation:
         run_plot(parsed_args)
     elif parsed_args.command == "lanchester":
         run_lanchester(parsed_args)
+    elif parsed_args.command == "create":
+        run_create(parsed_args)
     elif parsed_args.command == "legacy":
         run_legacy_battle(parsed_args)
     else:
@@ -205,10 +230,41 @@ def run_battle(args):
             army1 = load_army_from_file(args.army1, army_id=0, general_name=args.AI1)
             army2 = load_army_from_file(args.army2, army_id=1, general_name=args.AI2)
     else:
-        # Scénario Python (.py) - à implémenter via import dynamique
-        print(f"Erreur: Les scénarios .py ne sont pas encore supportés.")
-        print(f"Utilisez un fichier .map avec --army1 et --army2")
-        sys.exit(1)
+        # Scénario Python (.py) - Implémentation Req 3
+        print(f"Chargement du scénario Python: {args.scenario}")
+        try:
+            # Chargement dynamique du module
+            spec = importlib.util.spec_from_file_location("scenario_module", args.scenario)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Impossible de charger le fichier {args.scenario}")
+            
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            
+            # Vérifier la présence de la fonction 'create_scenario'
+            if not hasattr(module, "create_scenario"):
+                raise AttributeError("Le fichier .py doit contenir une fonction 'create_scenario(gen1_class, gen2_class)'.")
+            
+            # Exécuter la fonction
+            result = module.create_scenario(gen1_class, gen2_class)
+            
+            # Gestion des retours (Army1, Army2) ou (Army1, Army2, Map)
+            if len(result) == 3:
+                army1, army2, game_map = result
+            elif len(result) == 2:
+                army1, army2 = result
+                # Créer une map par défaut si non fournie (taille basée sur positions max ?)
+                game_map = Map(120, 120) 
+            else:
+                 raise ValueError("create_scenario doit renvoyer (army1, army2) ou (army1, army2, map)")
+
+            # Réassigner la map aux armées et au moteur
+            # (Au cas où le scénario ne l'a pas fait explicitement)
+            # Pas nécessaire car Engine prend Map + Armies
+            
+        except Exception as e:
+            print(f"Erreur lors du chargement du scénario Python: {e}")
+            sys.exit(1)
     
     engine = Engine(game_map, army1, army2)
     
@@ -487,6 +543,43 @@ def run_play(args):
         engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
     except KeyboardInterrupt:
         print("\nPartie interrompue.")
+
+
+def run_create(args):
+    """
+    Gère la commande 'battle create'.
+    """
+    if args.create_type == "map":
+        generate_map_file(args.filename, args.width, args.height, args.noise)
+    
+    elif args.create_type == "army":
+        # Parse map size "WxH"
+        try:
+            w, h = map(int, args.map_size.lower().split('x'))
+        except ValueError:
+            print("Erreur: Format map_size incorrect (utiliser '60x60')")
+            sys.exit(1)
+            
+        # Parse units "Type:Count,Type:Count"
+        units_config = {}
+        try:
+            parts = args.units.split(',')
+            for p in parts:
+                u_type, count = p.split(':')
+                units_config[u_type.strip()] = int(count)
+        except ValueError:
+             print("Erreur: Format units incorrect (utiliser 'Knight:10,Pikeman:5')")
+             sys.exit(1)
+             
+        # Verify general
+        if args.general not in GENERAL_CLASS_MAP:
+             print(f"Erreur: Général '{args.general}' inconnu. Disponibles: {list(GENERAL_CLASS_MAP.keys())}")
+             sys.exit(1)
+             
+        generate_army_file(args.filename, args.general, units_config, (w, h), args.id)
+    
+    else:
+        print("Spécifiez 'map' ou 'army'.")
 
 
 if __name__ == "__main__":
