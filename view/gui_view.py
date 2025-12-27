@@ -54,9 +54,9 @@ class PygameView:
         self.ui_font = pygame.font.SysFont('Arial', 24, bold=True)
 
         # --- Zoom Settings ---
-        self.zoom = 1.0
-        self.min_zoom = 0.5
+        self.min_zoom = 0.4
         self.max_zoom = 2.0
+        self.zoom = self.min_zoom  # Démarrer dézoomé au max
 
         # Dimensions actuelles (seront calculées via update_zoom_metrics)
         self.tile_width = BASE_TILE_WIDTH
@@ -70,13 +70,25 @@ class PygameView:
         self.update_zoom_metrics()
 
         # --- Caméra ---
-        self.scroll_x = 0
-        self.scroll_y = 0
         self.scroll_speed = 15
-
-        # Centrage initial
+        self.scroll_speed_fast = 45  # Vitesse avec Maj
+        
+        # Scroll initial au centre (0,0)
         self.scroll_x = 0
         self.scroll_y = 0
+        
+        # --- Toggles UI (Req 12 PDF: F1-F4) ---
+        self.show_army_info = True      # F1: Infos générales
+        self.show_hp_bars = True        # F2: Barres de vie
+        self.show_minimap = True        # F3/M: Minimap
+        self.show_unit_details = False  # F4: Détails unités
+        
+        # --- Drag souris pour scroll ---
+        self.is_dragging = False
+        self.drag_start_x = 0
+        self.drag_start_y = 0
+        self.drag_scroll_start_x = 0
+        self.drag_scroll_start_y = 0
         
         # --- LIGNES DE DÉBOGAGE POUR LES ARBRES ---
         # Ajout de plusieurs arbres à des positions fixes pour test
@@ -168,9 +180,9 @@ class PygameView:
             is_spritesheet=False
         ) 
         
-        # Unités
+        # Unités - Chemins corrigés pour correspondre aux fichiers réels
         unit_configs = {
-            Knight: (os.path.join(BASE_PATH, "units/knight/walk/hosreman_walk.webp"), 
+            Knight: (os.path.join(BASE_PATH, "units/knight/walk/knight_walk.webp"), 
                      (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
             Crossbowman: (os.path.join(BASE_PATH, "units/crossbowman/walk/crossbowman_walk.webp"), 
                           (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
@@ -182,7 +194,8 @@ class PygameView:
         
         self.orig_units = {}
         for unit_class, (path, size) in unit_configs.items():
-            self.orig_units[unit_class] = self._load_webp_asset(path, size, is_spritesheet=True)
+            loaded = self._load_webp_asset(path, size, is_spritesheet=True)
+            self.orig_units[unit_class] = loaded
 
         # 2. Génération des sprites à la taille actuelle
         self._rescale_assets()
@@ -211,19 +224,50 @@ class PygameView:
         final_y = iso_y + self.offset_y - self.scroll_y
         return int(final_x), int(final_y)
 
+    def _clamp_camera(self):
+        """Limite la caméra - plus de liberté quand zoomé pour atteindre les coins."""
+        # Base: 300px | Zoomé max: ~1500px
+        margin = int(300 + 750 * (self.zoom / self.min_zoom - 1))
+        
+        self.scroll_x = max(-margin, min(self.scroll_x, margin))
+        self.scroll_y = max(-margin, min(self.scroll_y, margin))
+
     def check_events(self) -> str | None:
         """Gère clavier/souris."""
         keys = pygame.key.get_pressed()
         
+        # Vitesse de scroll (Maj = rapide, Req 9 PDF)
+        current_speed = self.scroll_speed_fast if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) else self.scroll_speed
+        
         # Déplacement Caméra
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.scroll_x -= self.scroll_speed
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.scroll_x += self.scroll_speed
-        if keys[pygame.K_UP] or keys[pygame.K_w]: self.scroll_y -= self.scroll_speed
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.scroll_x -= current_speed
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.scroll_x += current_speed
+        if keys[pygame.K_UP] or keys[pygame.K_w]: self.scroll_y -= current_speed
         if keys[pygame.K_DOWN] or keys[pygame.K_s] and not (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]): 
-            self.scroll_y += self.scroll_speed
+            self.scroll_y += current_speed
+        
+        # Limiter la caméra aux bords de la carte
+        self._clamp_camera()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT: return "quit"
+            
+            # --- DRAG SOURIS pour scroll (Clic droit + glisser) ---
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:  # Clic droit
+                self.is_dragging = True
+                self.drag_start_x, self.drag_start_y = event.pos
+                self.drag_scroll_start_x = self.scroll_x
+                self.drag_scroll_start_y = self.scroll_y
+            
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+                self.is_dragging = False
+            
+            if event.type == pygame.MOUSEMOTION and self.is_dragging:
+                dx = event.pos[0] - self.drag_start_x
+                dy = event.pos[1] - self.drag_start_y
+                self.scroll_x = self.drag_scroll_start_x - dx
+                self.scroll_y = self.drag_scroll_start_y - dy
+                self._clamp_camera()
             
             # --- GESTION DU ZOOM (MOUSEWHEEL) ---
             if event.type == pygame.MOUSEWHEEL:
@@ -241,6 +285,26 @@ class PygameView:
                 if event.key == pygame.K_ESCAPE: return "quit"
                 if event.key == pygame.K_SPACE: return "toggle_pause"
                 if event.key == pygame.K_s: return "step"
+                
+                # --- Req 12 PDF: F1-F4 Toggle info armée ---
+                # F1/F2 capturées par Windows -> alternatives: touches 1 et 2
+                if event.key == pygame.K_F1 or event.key == pygame.K_1: 
+                    self.show_army_info = not self.show_army_info
+                if event.key == pygame.K_F2 or event.key == pygame.K_2: 
+                    self.show_hp_bars = not self.show_hp_bars
+                if event.key == pygame.K_F3 or event.key == pygame.K_3: 
+                    self.show_minimap = not self.show_minimap
+                if event.key == pygame.K_F4 or event.key == pygame.K_4: 
+                    self.show_unit_details = not self.show_unit_details
+                
+                # --- Req 11 PDF: M = toggle minimap ---
+                if event.key == pygame.K_m:
+                    self.show_minimap = not self.show_minimap
+                
+                # --- Raccourcis F9, F11, F12 (Requis par le PDF) ---
+                if event.key == pygame.K_F9: return "switch_view"  # Basculer Terminal/Pygame
+                if event.key == pygame.K_F11: return "quick_save"  # Sauvegarde rapide
+                if event.key == pygame.K_F12: return "quick_load"  # Chargement rapide
         return None
 
     def draw_map(self):
@@ -341,6 +405,10 @@ class PygameView:
             unit_class = unit.__class__
             sprite_surface = self.unit_sprites.get(unit_class)
 
+            # TEMPORAIREMENT désactivé - utiliser cercles colorés
+            # TODO: Fixer le découpage des spritesheets
+            sprite_surface = None  # Force l'affichage des cercles
+
 
             if sprite_surface:
                  # Copie de la surface pour la teinter
@@ -362,24 +430,28 @@ class PygameView:
                  hp_y = unit_draw_y - final_surface.get_height() + 5 
 
             else:
-                 # Fallback au dessin de cercle
+                 # Fallback au dessin de cercle (TOUJOURS visible)
                  color = BLUE if army_id == 0 else RED
-                 radius = int(6 * self.zoom)
-                 pygame.draw.circle(self.screen, color, (screen_x, unit_draw_y - int(10 * self.zoom)), radius)
-                 hp_y = unit_draw_y - int(25 * self.zoom)
+                 radius = max(8, int(10 * self.zoom))  # Minimum 8 pixels
+                 circle_y = unit_draw_y - int(15 * self.zoom)
+                 pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
+                 # Ajouter un contour blanc pour la visibilité
+                 pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
+                 hp_y = circle_y - radius - 5
 
-            # Barres de vie
-            hp_ratio = unit.current_hp / unit.max_hp
-            
-            bar_width = int(20 * self.zoom)
-            bar_height = int(3 * self.zoom)
-            
-            pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, hp_y, bar_width, bar_height))
-            pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, bar_width * hp_ratio, bar_height))
+            # Barres de vie (F2 toggle)
+            if self.show_hp_bars:
+                hp_ratio = unit.current_hp / unit.max_hp
+                
+                bar_width = int(20 * self.zoom)
+                bar_height = int(3 * self.zoom)
+                
+                pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, hp_y, bar_width, bar_height))
+                pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, bar_width * hp_ratio, bar_height))
 
 
     def draw_ui(self, turn_count, paused, armies):
-        """Interface Utilisateur."""
+        """Interface Utilisateur avec toggles F1-F4."""
         if paused:
             txt = self.ui_font.render("PAUSE (Espace pour reprendre)", True, WHITE, RED)
             self.screen.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 20))
@@ -387,31 +459,59 @@ class PygameView:
         turn_txt = self.ui_font.render(f"Tour: {turn_count}", True, WHITE)
         self.screen.blit(turn_txt, (20, 20))
 
-        y = 60
-        for i, army in enumerate(armies):
-             alive = sum(1 for u in army.units if u.is_alive)
-             text_color = BLUE if i == 0 else RED
-             txt = self.font.render(f"Armée {i}: {alive} unités", True, text_color)
-             self.screen.blit(txt, (20, y))
-             y += 25
-
-        # Minimap
-        mm_x, mm_y = SCREEN_WIDTH - MINIMAP_SIZE - 20, SCREEN_HEIGHT - MINIMAP_SIZE - 20
-        pygame.draw.rect(self.screen, BLACK, (mm_x, mm_y, MINIMAP_SIZE, MINIMAP_SIZE))
+        # F1: Infos générales armée
+        if self.show_army_info:
+            y = 60
+            for i, army in enumerate(armies):
+                alive = sum(1 for u in army.units if u.is_alive)
+                total_hp = sum(u.current_hp for u in army.units if u.is_alive)
+                text_color = BLUE if i == 0 else RED
+                txt = self.font.render(f"Armée {i}: {alive} unités | HP: {total_hp}", True, text_color)
+                self.screen.blit(txt, (20, y))
+                y += 25
         
-        scale_x = MINIMAP_SIZE / self.map.width
-        scale_y = MINIMAP_SIZE / self.map.height
+        # F4: Détails unités (types et nombres)
+        if self.show_unit_details:
+            y = 130
+            for i, army in enumerate(armies):
+                text_color = BLUE if i == 0 else RED
+                unit_counts = {}
+                for u in army.units:
+                    if u.is_alive:
+                        name = u.__class__.__name__
+                        unit_counts[name] = unit_counts.get(name, 0) + 1
+                
+                header = self.font.render(f"Armée {i} détail:", True, text_color)
+                self.screen.blit(header, (20, y))
+                y += 20
+                for unit_type, count in unit_counts.items():
+                    txt = self.font.render(f"  {unit_type}: {count}", True, text_color)
+                    self.screen.blit(txt, (20, y))
+                    y += 18
+                y += 10
+        
+        # Afficher les raccourcis actifs
+        shortcuts = f"F1:Info F2:HP F3/M:Map F4:Détails"
+        shortcut_txt = self.font.render(shortcuts, True, (150, 150, 150))
+        self.screen.blit(shortcut_txt, (SCREEN_WIDTH - shortcut_txt.get_width() - 20, 20))
 
-        for _, ox, oy in self.map.obstacles:
-            # Dessine un petit carré de 2x2 pixels à la position de l'obstacle.
-            rect_coords = (int(mm_x + ox*scale_x), int(mm_y + oy*scale_y), 2, 2)
-            pygame.draw.rect(self.screen, (100,100,100), rect_coords) 
+        # Minimap (F3/M toggle)
+        if self.show_minimap:
+            mm_x, mm_y = SCREEN_WIDTH - MINIMAP_SIZE - 20, SCREEN_HEIGHT - MINIMAP_SIZE - 20
+            pygame.draw.rect(self.screen, BLACK, (mm_x, mm_y, MINIMAP_SIZE, MINIMAP_SIZE))
             
-        for army in armies:
-            c = BLUE if army.army_id == 0 else RED
-            for u in army.units:
-                if u.is_alive:
-                    pygame.draw.circle(self.screen, c, (mm_x + int(u.pos[0]*scale_x), mm_y + int(u.pos[1]*scale_y)), 2)
+            scale_x = MINIMAP_SIZE / self.map.width
+            scale_y = MINIMAP_SIZE / self.map.height
+
+            for _, ox, oy in self.map.obstacles:
+                rect_coords = (int(mm_x + ox*scale_x), int(mm_y + oy*scale_y), 2, 2)
+                pygame.draw.rect(self.screen, (100,100,100), rect_coords) 
+                
+            for army in armies:
+                c = BLUE if army.army_id == 0 else RED
+                for u in army.units:
+                    if u.is_alive:
+                        pygame.draw.circle(self.screen, c, (mm_x + int(u.pos[0]*scale_x), mm_y + int(u.pos[1]*scale_y)), 2)
 
     def display(self, armies: list[Army], turn_count: int, paused: bool) -> str | None:
         cmd = self.check_events()
