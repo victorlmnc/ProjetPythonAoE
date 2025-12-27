@@ -18,3 +18,10 @@ venv/
 
 # macOS
 .DS_Store
+
+# Fichiers générés par le projet
+pdf_content.txt
+saves/
+tournament_report.html
+lanchester_*.png
+*.sav
