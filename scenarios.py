@@ -2,7 +2,7 @@
 import math
 from core.army import Army
 from core.unit import Unit
-from ai.generals_impl_IA import MajorDAFT
+from ai.generals import MajorDAFT
 from core.definitions import GENERAL_CLASS_MAP, UNIT_CLASS_MAP
 
 def lanchester_scenario(unit_class: type[Unit], n: int, general_class=MajorDAFT):
