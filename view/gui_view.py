@@ -466,7 +466,8 @@ class PygameView:
                 alive = sum(1 for u in army.units if u.is_alive)
                 total_hp = sum(u.current_hp for u in army.units if u.is_alive)
                 text_color = BLUE if i == 0 else RED
-                txt = self.font.render(f"Armée {i}: {alive} unités | HP: {total_hp}", True, text_color)
+                general_name = army.general.__class__.__name__
+                txt = self.font.render(f"Armée {i+1} [{general_name}]: {alive} unités | HP: {total_hp}", True, text_color)
                 self.screen.blit(txt, (20, y))
                 y += 25
         
@@ -481,7 +482,7 @@ class PygameView:
                         name = u.__class__.__name__
                         unit_counts[name] = unit_counts.get(name, 0) + 1
                 
-                header = self.font.render(f"Armée {i} détail:", True, text_color)
+                header = self.font.render(f"Armée {i+1} détail:", True, text_color)
                 self.screen.blit(header, (20, y))
                 y += 20
                 for unit_type, count in unit_counts.items():
@@ -491,7 +492,7 @@ class PygameView:
                 y += 10
         
         # Afficher les raccourcis actifs
-        shortcuts = f"F1:Info F2:HP F3/M:Map F4:Détails"
+        shortcuts = f"1:Info 2:HP 3/M:Minimap 4:Détails"
         shortcut_txt = self.font.render(shortcuts, True, (150, 150, 150))
         self.screen.blit(shortcut_txt, (SCREEN_WIDTH - shortcut_txt.get_width() - 20, 20))
 
