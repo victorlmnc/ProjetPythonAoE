@@ -237,9 +237,113 @@ class Onager(Unit):
             hitbox_radius=1.0,
             reload_time=6.0 # Très lent
         )
+        # L'Onager fait des dégâts de zone (rayon de splash)
+        self.splash_radius = 1.5
 
-# Ces classes doivent être ici pour l'instanciation via UNIT_CLASS_MAP, 
-# même si structures.py les redéfinit potentiellement mieux.
+# --- Unités Manquantes (Requises par le PDF) ---
+
+class LightCavalry(Unit):
+    """Cavalerie légère - Rapide mais fragile, bon pour le harcèlement."""
+    def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
+        super().__init__(
+            unit_id=unit_id, army_id=army_id, pos=pos,
+            hp=60, speed=1.5, attack_power=7, attack_range=0.5,
+            attack_type=DMG_MELEE, melee_armor=0, pierce_armor=2, line_of_sight=6,
+            armor_classes=["Cavalry"],
+            bonus_damage={"Monk": 10},  # Bonus contre les moines
+            hitbox_radius=0.6,
+            reload_time=2.0
+        )
+
+class Scorpion(Unit):
+    """Machine de siège à projectiles perforants - Dégâts en ligne."""
+    def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
+        super().__init__(
+            unit_id=unit_id, army_id=army_id, pos=pos,
+            hp=40, speed=0.65, attack_power=12, attack_range=7.0,
+            attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=5, line_of_sight=9,
+            armor_classes=["siege"],
+            bonus_damage={"Elephant": 6, "Infantry": 0},  # Les projectiles traversent
+            hitbox_radius=0.9,
+            reload_time=3.6
+        )
+        # Le Scorpion fait des dégâts en ligne (bolt traverse les unités)
+        self.pierce_targets = 3  # Nombre max de cibles traversées
+
+class CappedRam(Unit):
+    """Bélier amélioré - Très résistant aux projectiles, anti-bâtiment."""
+    def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
+        super().__init__(
+            unit_id=unit_id, army_id=army_id, pos=pos,
+            hp=200, speed=0.5, attack_power=4, attack_range=0.5,
+            attack_type=DMG_MELEE, melee_armor=-3, pierce_armor=195, line_of_sight=3,
+            armor_classes=["siege", "Ram"],
+            bonus_damage={UC_STANDARD_BUILDING: 200, UC_STONE_DEFENSE: 65},
+            hitbox_radius=1.2,
+            reload_time=5.0
+        )
+
+class Trebuchet(Unit):
+    """
+    Machine de siège à très longue portée - Doit se déployer pour attaquer.
+    Stats en mode déployé (packed = mobilité, unpacked = attaque).
+    """
+    def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
+        super().__init__(
+            unit_id=unit_id, army_id=army_id, pos=pos,
+            hp=150, speed=0.0, attack_power=200, attack_range=16.0,  # Mode déployé
+            attack_type=DMG_MELEE, melee_armor=1, pierce_armor=150, line_of_sight=19,
+            armor_classes=["siege"],
+            bonus_damage={UC_STANDARD_BUILDING: 250, UC_STONE_DEFENSE: 250},
+            hitbox_radius=1.5,
+            reload_time=10.0  # Très lent
+        )
+        self.is_deployed = True  # True = peut tirer, False = peut bouger
+        self.packed_speed = 0.8  # Vitesse quand plié
+        self.splash_radius = 0.5
+
+class EliteWarElephant(Unit):
+    """
+    Éléphant de guerre d'élite - Énorme, lent, dégâts de zone (piétinement).
+    Bonus contre les bâtiments.
+    """
+    def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
+        super().__init__(
+            unit_id=unit_id, army_id=army_id, pos=pos,
+            hp=620, speed=0.6, attack_power=20, attack_range=0.5,
+            attack_type=DMG_MELEE, melee_armor=1, pierce_armor=3, line_of_sight=5,
+            armor_classes=["Cavalry", "Elephant", UC_UNIQUE_UNIT],
+            bonus_damage={UC_STANDARD_BUILDING: 7},
+            hitbox_radius=1.2,
+            reload_time=2.0
+        )
+        # Dégâts de zone (piétinement) - Inflige des dégâts aux unités proches
+        self.trample_radius = 0.8
+        self.trample_damage_ratio = 0.5  # 50% des dégâts aux unités adjacentes
+
+class Monk(Unit):
+    """
+    Moine - Peut soigner les unités alliées et convertir les ennemis.
+    Ne fait pas de dégâts directs.
+    """
+    def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
+        super().__init__(
+            unit_id=unit_id, army_id=army_id, pos=pos,
+            hp=30, speed=0.7, attack_power=0, attack_range=9.0,  # Portée de conversion
+            attack_type=DMG_MELEE, melee_armor=0, pierce_armor=0, line_of_sight=11,
+            armor_classes=["Monk"],
+            bonus_damage={},
+            hitbox_radius=0.4,
+            reload_time=1.0
+        )
+        # Capacités spéciales du Moine
+        self.heal_rate = 2  # HP soignés par tick
+        self.conversion_range = 9.0
+        self.conversion_time = 4.0  # Temps requis pour convertir
+        self.has_relic = False  # Peut porter une relique
+
+# --- Bâtiments ---
+
 class Castle(Unit):
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
@@ -253,6 +357,9 @@ class Castle(Unit):
         )
 
 class Wonder(Unit):
+    """
+    Merveille - Condition de victoire. Sa destruction = défaite immédiate.
+    """
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,

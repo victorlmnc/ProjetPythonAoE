@@ -1,8 +1,9 @@
 # core/definitions.py
-from ai.generals_impl_IA import CaptainBRAINDEAD, MajorDAFT, ColonelKAISER
+from ai.generals import CaptainBRAINDEAD, MajorDAFT, ColonelKAISER
 from core.unit import (
     Knight, Pikeman, Crossbowman, LongSwordsman,
-    EliteSkirmisher, CavalryArcher, Onager, Castle, Wonder
+    EliteSkirmisher, CavalryArcher, Onager, Castle, Wonder,
+    LightCavalry, Scorpion, CappedRam, Trebuchet, EliteWarElephant, Monk
 )
 
 GENERAL_CLASS_MAP = {
@@ -12,6 +13,7 @@ GENERAL_CLASS_MAP = {
 }
 
 UNIT_CLASS_MAP = {
+    # Unités de base
     "Knight": Knight,
     "Pikeman": Pikeman,
     "Crossbowman": Crossbowman,
@@ -19,6 +21,14 @@ UNIT_CLASS_MAP = {
     "EliteSkirmisher": EliteSkirmisher,
     "CavalryArcher": CavalryArcher,
     "Onager": Onager,
+    # Nouvelles unités (Req PDF)
+    "LightCavalry": LightCavalry,
+    "Scorpion": Scorpion,
+    "CappedRam": CappedRam,
+    "Trebuchet": Trebuchet,
+    "EliteWarElephant": EliteWarElephant,
+    "Monk": Monk,
+    # Bâtiments
     "Castle": Castle,
     "Wonder": Wonder,
 }
