@@ -90,6 +90,8 @@ python main.py run <MAP> <GENERAL_1> <GENERAL_2> --army1 <FICHIER_ARMEE_1> --arm
 **Exemple concret ultra-complet :**
 ```bash
 python main.py run maps/terrain_accidenté.map ColonelKAISER MajorDAFT --army1 armies/ma_super_armee.txt --army2 armies/ennemi_base.txt --max_turns 5000
+
+python main.py run maps/forest.map MajorDAFT MajorDAFT --army1 armies/armee_rouge.txt --army2 armies/armee_bleue.txt --max_turns 5000
 ```
 
 | Paramètre | Description |
