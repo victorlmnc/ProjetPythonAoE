@@ -228,6 +228,11 @@ class Engine:
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float]):
         """Calcule et applique le mouvement."""
         old_pos = unit.pos
+        # Conserver last_pos pour l'orientation des sprites
+        try:
+            unit.last_pos = old_pos
+        except Exception:
+            pass
         vector_x = target_pos[0] - old_pos[0]
         vector_y = target_pos[1] - old_pos[1]
         distance = math.sqrt(vector_x**2 + vector_y**2)
