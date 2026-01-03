@@ -144,6 +144,11 @@ class Engine:
         for unit in self.units_by_id.values():
             if unit.is_alive:
                 unit.tick_cooldown(TIME_STEP)
+                # Mettre à jour l'animation par unité (ms)
+                try:
+                    unit.tick_animation(int(TIME_STEP * 1000))
+                except Exception:
+                    pass
 
         # 1. Mouvements (Prioritaires)
         for action_type, unit_id, data in actions:
