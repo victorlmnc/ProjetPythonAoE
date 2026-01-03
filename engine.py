@@ -210,21 +210,19 @@ class Engine:
                         # --- Splash Damage (Onager, Trebuchet) ---
                         if hasattr(unit, 'splash_radius') and unit.splash_radius > 0:
                             splash_damage = int(final_damage * 0.5)  # 50% des dégâts
-                            for other in self.units_by_id.values():
+                            # Recherche locale via la map pour éviter un scan global
+                            nearby = self.map.get_units_in_radius(target.pos, unit.splash_radius)
+                            for other in nearby:
                                 if other.is_alive and other != target and other.army_id != unit.army_id:
-                                    dist = math.sqrt((other.pos[0] - target.pos[0])**2 + 
-                                                    (other.pos[1] - target.pos[1])**2)
-                                    if dist <= unit.splash_radius:
-                                        other.take_damage(splash_damage)
+                                    other.take_damage(splash_damage)
 
                         # --- Trample Damage (Elite War Elephant) ---
                         if hasattr(unit, 'trample_radius') and unit.trample_radius > 0:
                             trample_dmg = int(final_damage * getattr(unit, 'trample_damage_ratio', 0.5))
-                            for other in self.units_by_id.values():
+                            nearby = self.map.get_units_in_radius(unit.pos, unit.trample_radius)
+                            for other in nearby:
                                 if other.is_alive and other != target and other.army_id != unit.army_id:
-                                    dist = math.sqrt((other.pos[0] - unit.pos[0])**2 + (other.pos[1] - unit.pos[1])**2)
-                                    if dist <= unit.trample_radius:
-                                        other.take_damage(trample_dmg)
+                                    other.take_damage(trample_dmg)
         
         # 3. Actions spéciales des Moines (Heal / Conversion) - PDF Req 6
         for action_type, unit_id, data in actions:
@@ -475,3 +473,12 @@ class Engine:
 
     def get_enemy_units(self, my_army_id: int) -> list[Unit]:
         return [u for u in self.units_by_id.values() if u.army_id != my_army_id]
+
+    def get_enemy_units_near(self, my_army_id: int, pos: tuple[float, float], radius: float) -> list[Unit]:
+        """Retourne la liste des unités ennemies proches d'une position donnée.
+
+        Utilise la grille de la `Map` pour limiter la recherche aux tuiles pertinentes
+        et éviter de scanner l'ensemble de `units_by_id`.
+        """
+        nearby = self.map.get_units_in_radius(pos, radius)
+        return [u for u in nearby if u.army_id != my_army_id]
