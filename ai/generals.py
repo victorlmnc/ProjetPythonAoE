@@ -129,13 +129,14 @@ class ColonelKAISER(General):
             else:
                 del self.target_memory[unit.unit_id]
 
-        for enemy in enemy_units:
-            if not enemy.is_alive:
+        # Limiter la recherche aux unités proches (spatial partition via la map)
+        search_radius = unit.line_of_sight * self.TARGET_EVALUATION_RANGE_MULTIPLIER
+        nearby_candidates = current_map.get_nearby_units(unit, search_radius)
+        for enemy in nearby_candidates:
+            if not enemy.is_alive or enemy.army_id == unit.army_id:
                 continue
 
             dist = unit._calculate_distance(enemy)
-            if dist > unit.line_of_sight * self.TARGET_EVALUATION_RANGE_MULTIPLIER:
-                continue
 
             my_damage = unit.calculate_damage(enemy, current_map)
             enemy_damage = enemy.calculate_damage(unit, current_map)
