@@ -63,6 +63,19 @@ class Unit:
         self.anim_index: int = 0
         self.anim_speed: int = 150  # milliseconds per frame (lower = faster)
         self.anim_elapsed: int = 0  # accumulated milliseconds
+        # Nombre de frames par état (colonnes). Valeur par défaut = 30.
+        self.anim_frames_per_state: dict[str, int] = {
+            'attack': 30,
+            'walk': 30,
+            'idle': 30,
+            'death': 30,
+        }
+        # Si >0 : nombre de frames restantes à jouer sans changer d'état
+        self.anim_play_once_remaining: int = 0
+        # Verrou empêchant l'avancement (après lecture d'une animation 'play once')
+        self.anim_hold: bool = False
+        # Indique que l'unité a fini sa lecture 'play once' et peut être supprimée
+        self.ready_to_remove: bool = False
         # Last position (used to estimate facing/orientation)
         self.last_pos: tuple[float, float] = pos
 
@@ -75,9 +88,35 @@ class Unit:
         if not hasattr(self, 'anim_speed') or self.anim_speed <= 0:
             return
         self.anim_elapsed += ms
+        # Ne pas avancer l'animation si un hold est actif
+        if self.anim_hold:
+            return
+
         if self.anim_elapsed >= self.anim_speed:
             advance = self.anim_elapsed // self.anim_speed
-            self.anim_index = (self.anim_index + int(advance))
+            advance = int(advance)
+            self.anim_index = self.anim_index + advance
+
+            # Si on joue une animation en mode "play once", décrémenter le compteur
+            if getattr(self, 'anim_play_once_remaining', 0) > 0:
+                self.anim_play_once_remaining = max(0, self.anim_play_once_remaining - advance)
+                # Empêcher le wrap : clamp à la dernière frame attendue
+                frames = self.anim_frames_per_state.get(getattr(self, 'statut', 'idle'), 30)
+                if self.anim_index >= frames:
+                    self.anim_index = frames - 1
+                # Si on a fini la lecture, activer le hold pour ne plus avancer
+                if self.anim_play_once_remaining == 0:
+                    self.anim_hold = True
+                    try:
+                        self.ready_to_remove = True
+                    except Exception:
+                        pass
+            else:
+                # Boucler normalement selon le nombre de frames connu
+                frames = self.anim_frames_per_state.get(getattr(self, 'statut', 'idle'), 30)
+                if frames > 0:
+                    self.anim_index = self.anim_index % frames
+
             self.anim_elapsed = self.anim_elapsed % self.anim_speed
 
     def __repr__(self) -> str:
@@ -164,7 +203,20 @@ class Unit:
         # print(f"   -> subit {amount} dégâts (HP restants: {self.current_hp})")
         if self.current_hp <= 0:
             self.current_hp = 0
+            # Marquer l'unité comme morte et demander suppression immédiate
             self.is_alive = False
+            self.statut = 'death'
+            # Demander la suppression dès que possible (l'engine la retirera)
+            try:
+                self.ready_to_remove = True
+            except Exception:
+                pass
+            # clear cible
+            if hasattr(self, 'target_id'):
+                try:
+                    del self.target_id
+                except Exception:
+                    pass
             print(f"   -> {self} EST MORT!")
 
 

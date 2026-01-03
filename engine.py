@@ -54,6 +54,9 @@ class Engine:
         LOGIC_SPEED_DIVIDER = logic_speed
         step_once = False # Pour le mode pas-à-pas (touche S)
 
+        # Indiquer la présence d'une vue externe (pour déléguer l'animation au rendu)
+        self.view_present = bool(view)
+
         while not self.game_over and self.turn_count < max_turns:
             
             # --- 1. Gestion des Inputs et Affichage ---
@@ -142,20 +145,37 @@ class Engine:
         # On considère qu'un tick logique = 0.5 sec de temps de jeu (arbitraire)
         TIME_STEP = 0.5 
         for unit in self.units_by_id.values():
+            # cooldown uniquement si vivant
             if unit.is_alive:
                 unit.tick_cooldown(TIME_STEP)
-                # Mettre à jour l'animation par unité (ms)
+
+            # Si on n'a pas de vue externe, faire avancer les animations ici.
+            if not getattr(self, 'view_present', False):
                 try:
                     unit.tick_animation(int(TIME_STEP * 1000))
                 except Exception:
                     pass
 
+            # Avancer le timer de la mort si l'unité est en état 'death'
+            try:
+                if getattr(unit, 'statut', None) == 'death':
+                    unit.death_elapsed = getattr(unit, 'death_elapsed', 0) + int(TIME_STEP * 1000)
+            except Exception:
+                pass
+
         # 1. Mouvements (Prioritaires)
+        acted_units: set[int] = set()
         for action_type, unit_id, data in actions:
             if action_type == "move":
                 unit = self.units_by_id.get(unit_id)
                 target_pos = data
                 if unit and unit.is_alive:
+                    acted_units.add(unit_id)
+                    unit.statut = 'walk'
+                    try:
+                        unit.target_id = None
+                    except Exception:
+                        pass
                     self._handle_movement(unit, target_pos)
 
         # 2. Attaques (Après mouvements)
@@ -166,12 +186,27 @@ class Engine:
                 target = self.units_by_id.get(target_id)
 
                 if unit and unit.is_alive and target and target.is_alive:
+                    # Marquer action et orientation vers la cible pour la vue
+                    try:
+                        acted_units.add(unit_id)
+                    except Exception:
+                        pass
+                    unit.statut = 'attack'
+                    unit.target_id = target_id
+
                     # L'unité vérifie son cooldown interne ici
                     if unit.can_attack(target) and unit.can_act():
                         final_damage = unit.calculate_damage(target, self.map)
                         target.take_damage(final_damage)
                         unit.current_cooldown = unit.reload_time
-                        
+                        # Déclencher l'animation d'attaque (jouer la ligne complète)
+                        try:
+                            frames = getattr(unit, 'anim_frames_per_state', {}).get('attack', 30)
+                            unit.anim_play_once_remaining = frames
+                            unit.anim_index = 0
+                        except Exception:
+                            pass
+
                         # --- Splash Damage (Onager, Trebuchet) ---
                         if hasattr(unit, 'splash_radius') and unit.splash_radius > 0:
                             splash_damage = int(final_damage * 0.5)  # 50% des dégâts
@@ -181,14 +216,13 @@ class Engine:
                                                     (other.pos[1] - target.pos[1])**2)
                                     if dist <= unit.splash_radius:
                                         other.take_damage(splash_damage)
-                        
+
                         # --- Trample Damage (Elite War Elephant) ---
                         if hasattr(unit, 'trample_radius') and unit.trample_radius > 0:
                             trample_dmg = int(final_damage * getattr(unit, 'trample_damage_ratio', 0.5))
                             for other in self.units_by_id.values():
                                 if other.is_alive and other != target and other.army_id != unit.army_id:
-                                    dist = math.sqrt((other.pos[0] - unit.pos[0])**2 + 
-                                                    (other.pos[1] - unit.pos[1])**2)
+                                    dist = math.sqrt((other.pos[0] - unit.pos[0])**2 + (other.pos[1] - unit.pos[1])**2)
                                     if dist <= unit.trample_radius:
                                         other.take_damage(trample_dmg)
         
@@ -224,6 +258,77 @@ class Engine:
                         target.army_id = unit.army_id
                         unit.current_cooldown = getattr(unit, 'conversion_time', 4.0)
                         print(f"CONVERSION: {unit} a converti {target}!")
+
+        # 4. Déterminer le statut exact de chaque unité selon vos règles:
+        # - Si hp==0 -> 'death'
+        # - Si a une target vivante: si à portée -> 'attack' sinon -> 'walk'
+        # - Si pas de target et en mouvement -> 'walk'
+        # - Sinon -> 'idle'
+        try:
+            for uid, unit in self.units_by_id.items():
+                if not getattr(unit, 'is_alive', True):
+                    unit.statut = 'death'
+                    continue
+
+                prev = getattr(unit, 'statut', None)
+
+                # vérifier la cible
+                new_stat = prev
+                target_id = getattr(unit, 'target_id', None)
+                target = self.units_by_id.get(target_id) if target_id is not None else None
+                if target is not None and getattr(target, 'is_alive', False):
+                    # distance aux bords des hitboxes
+                    dist_centers = math.hypot(unit.pos[0] - target.pos[0], unit.pos[1] - target.pos[1])
+                    edge_dist = max(0.0, dist_centers - unit.hitbox_radius - target.hitbox_radius)
+                    if edge_dist <= (unit.attack_range + 0.1):
+                        new_stat = 'attack'
+                    else:
+                        new_stat = 'walk'
+                else:
+                    # pas de cible vivante
+                    # détecter mouvement via last_pos (déjà mis dans _handle_movement)
+                    lx, ly = getattr(unit, 'last_pos', unit.pos)
+                    mv_dx = unit.pos[0] - lx
+                    mv_dy = unit.pos[1] - ly
+                    if math.hypot(mv_dx, mv_dy) > 1e-3:
+                        new_stat = 'walk'
+                    else:
+                        new_stat = 'idle'
+
+                # si la cible a été tuée, effacer target_id
+                if target is not None and not getattr(target, 'is_alive', True):
+                    try:
+                        unit.target_id = None
+                    except Exception:
+                        pass
+
+                # si on est en mode "play once", empêcher de changer d'état
+                if getattr(unit, 'anim_play_once_remaining', 0) > 0:
+                    # laisser le statut courant jusqu'à la fin de l'animation
+                    continue
+
+                # appliquer changement d'état si nécessaire
+                if new_stat != prev:
+                    # ne toucher pas la mort ici
+                    if prev != 'death':
+                        unit.statut = new_stat
+                        try:
+                            unit.anim_index = 0
+                        except Exception:
+                            pass
+                        # Clear hold and ensure play-once counter is reset unless we explicitly set it
+                        try:
+                            unit.anim_hold = False
+                        except Exception:
+                            pass
+                        if new_stat not in ('attack', 'death'):
+                            try:
+                                unit.anim_play_once_remaining = 0
+                            except Exception:
+                                pass
+                # sinon laisser l'animation continuer
+        except Exception:
+            pass
 
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float]):
         """Calcule et applique le mouvement."""
@@ -319,8 +424,28 @@ class Engine:
         for unit_id in list(self.units_by_id.keys()):
             unit = self.units_by_id.get(unit_id)
             if unit and not unit.is_alive:
-                self.map.remove_unit(unit)
-                del self.units_by_id[unit_id]
+                # Si l'animation de mort a été jouée (anim_hold True) -> supprimer
+                try:
+                    if getattr(unit, 'ready_to_remove', False):
+                        self.map.remove_unit(unit)
+                        del self.units_by_id[unit_id]
+                        continue
+                except Exception:
+                    pass
+
+                # Sinon, si un timer de mort est présent, attendre qu'il soit écoulé (fallback)
+                death_elapsed = getattr(unit, 'death_elapsed', None)
+                death_duration = getattr(unit, 'death_duration_ms', None)
+                if death_elapsed is None:
+                    # Pas de timer -> suppression immédiate (fallback)
+                    self.map.remove_unit(unit)
+                    del self.units_by_id[unit_id]
+                else:
+                    # Attendre la fin de l'animation (ou durée par défaut)
+                    threshold = death_duration if death_duration is not None else 2000
+                    if death_elapsed >= threshold:
+                        self.map.remove_unit(unit)
+                        del self.units_by_id[unit_id]
 
     def _check_game_over(self) -> bool:
         """

@@ -110,6 +110,10 @@ class PygameView:
         
         self._load_sprites()
         print("Chargement des assets de fond terminé.")
+        # timing pour les animations côté vue (ms)
+        self._last_anim_tick = pygame.time.get_ticks()
+        # Facteur pour ralentir l'animation côté vue (>1 = plus lent)
+        self.anim_time_scale = 0.5
 
     def update_zoom_metrics(self):
         """Recalcule les dimensions des tuiles et l'offset de base selon le zoom."""
@@ -487,8 +491,8 @@ class PygameView:
         visible_units = []
         for army in armies:
             for unit in army.units:
-                if unit.is_alive:
-                    visible_units.append((army.army_id, unit))
+                # Inclure aussi les unités mortes récentes pour afficher l'animation de mort
+                visible_units.append((army.army_id, unit))
 
         visible_units.sort(key=lambda p: (round(p[1].pos[1]), round(p[1].pos[0])))
 
@@ -520,14 +524,34 @@ class PygameView:
                 frames_for_color = sprites_for_unit.get(color_key, {})
                 frames_orient = frames_for_color.get(state)
                 if frames_orient:
-                    # estimer orientation via last_pos -> pos
-                    lx, ly = getattr(unit, 'last_pos', unit.pos)
-                    dx = unit.pos[0] - lx
-                    dy = unit.pos[1] - ly
-                    if abs(dx) < 1e-3 and abs(dy) < 1e-3:
+                    # estimer orientation : privilégier la cible si présente, sinon last_pos
+                    # calculer l'angle en espace écran (isométrique) pour correspondre à l'orientation des sprites
+                    tgt = None
+                    target_id = getattr(unit, 'target_id', None)
+                    if target_id is not None:
+                        for a in armies:
+                            for uu in a.units:
+                                if uu.unit_id == target_id:
+                                    tgt = uu
+                                    break
+                            if tgt: break
+
+                    if tgt is not None:
+                        u_xs, u_ys = self.cart_to_iso(unit.pos[0], unit.pos[1])
+                        t_xs, t_ys = self.cart_to_iso(tgt.pos[0], tgt.pos[1])
+                        vx = t_xs - u_xs
+                        vy = t_ys - u_ys
+                    else:
+                        lx, ly = getattr(unit, 'last_pos', unit.pos)
+                        u_xs, u_ys = self.cart_to_iso(unit.pos[0], unit.pos[1])
+                        l_xs, l_ys = self.cart_to_iso(lx, ly)
+                        vx = u_xs - l_xs
+                        vy = u_ys - l_ys
+
+                    if abs(vx) < 1e-3 and abs(vy) < 1e-3:
                         orient_idx = 0
                     else:
-                        angle = math.degrees(math.atan2(-dy, dx)) % 360
+                        angle = math.degrees(math.atan2(vy, vx)) % 360
                         rows = len(frames_orient)
                         sector = 360.0 / max(1, rows)
                         orient_idx = int((angle + sector/2) // sector) % rows
@@ -550,15 +574,19 @@ class PygameView:
                 self.screen.blit(surf, (draw_x, draw_y))
                 hp_y = unit_draw_y - surf.get_height() + 5
             else:
-                # fallback minimal
-                color = BLUE if army_id == 0 else RED
-                radius = max(8, int(10 * self.zoom))
-                circle_y = unit_draw_y - int(15 * self.zoom)
-                pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
-                pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
-                hp_y = circle_y - radius - 5
+                # fallback minimal: dessiner seulement si l'unité est vivante
+                if unit.is_alive:
+                    color = BLUE if army_id == 0 else RED
+                    radius = max(8, int(10 * self.zoom))
+                    circle_y = unit_draw_y - int(15 * self.zoom)
+                    pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
+                    pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
+                    hp_y = circle_y - radius - 5
+                else:
+                    # unité morte et pas de sprite: ne rien dessiner
+                    hp_y = unit_draw_y
 
-            if self.show_hp_bars:
+            if self.show_hp_bars and unit.is_alive:
                 hp_ratio = unit.current_hp / unit.max_hp if unit.max_hp > 0 else 0
                 bar_width = int(20 * self.zoom)
                 bar_height = int(3 * self.zoom)
@@ -632,6 +660,28 @@ class PygameView:
 
     def display(self, armies: list[Army], turn_count: int, paused: bool) -> str | None:
         cmd = self.check_events()
+
+        # Avancer les animations par frame (déléguer à la vue pour fluidité)
+        now = pygame.time.get_ticks()
+        delta = now - getattr(self, '_last_anim_tick', now)
+        self._last_anim_tick = now
+        # Appliquer le facteur de ralentissement (diviser le delta pour ralentir)
+        try:
+            scaled_delta = max(1, int(delta / max(0.001, self.anim_time_scale)))
+        except Exception:
+            scaled_delta = max(1, int(delta))
+        # Si le jeu est en pause, ne pas avancer les animations
+        if not paused:
+            try:
+                for army in armies:
+                    for unit in army.units:
+                        try:
+                            unit.tick_animation(int(scaled_delta))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
         self.screen.fill(BG_COLOR)
         self.draw_map()
         self.draw_units(armies)
