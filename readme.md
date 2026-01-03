@@ -6,11 +6,12 @@
 
 ## 🚀 Installation
 
-```bash
-pip install pygame pillow matplotlib pytest
-```
+Pour installer les dépendances de développement, exécutez depuis la racine du projet :
 
----
+```bash
+cd ProjetPythonAoE
+python -m pip install -r requirements.txt
+```
 
 ## 🎮 Lancer le Jeu
 
