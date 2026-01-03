@@ -78,7 +78,7 @@ python main.py create army armies/mon_armee.txt --general MajorDAFT --units "Kni
 
 ---
 
-## � Référence Complète des Commandes
+## Référence Complète des Commandes
 
 ### 🌟 La Ligne de Commande Ultime (Mode Expert)
 Pour définir **chaque aspect** de la bataille manuellement, utilisez `run` avec tous les paramètres :

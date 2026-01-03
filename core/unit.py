@@ -59,6 +59,24 @@ class Unit:
 
         self.pos: tuple[float, float] = pos
         self.is_alive: bool = True
+        # Animation control (index + speed in ms per frame)
+        self.anim_index: int = 0
+        self.anim_speed: int = 150  # milliseconds per frame (lower = faster)
+        self.anim_elapsed: int = 0  # accumulated milliseconds
+
+    def tick_animation(self, delta_ms: int):
+        """Avance l'animation interne de l'unité de delta_ms millisecondes."""
+        try:
+            ms = int(delta_ms)
+        except Exception:
+            return
+        if not hasattr(self, 'anim_speed') or self.anim_speed <= 0:
+            return
+        self.anim_elapsed += ms
+        if self.anim_elapsed >= self.anim_speed:
+            advance = self.anim_elapsed // self.anim_speed
+            self.anim_index = (self.anim_index + int(advance))
+            self.anim_elapsed = self.anim_elapsed % self.anim_speed
 
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"

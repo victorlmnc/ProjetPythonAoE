@@ -156,6 +156,34 @@ class PygameView:
             print(f"Erreur de chargement de l'asset {path}: {e}")
             return None
 
+    def _load_cache_frames(self, cache_dir: str, target_size: tuple[int,int]) -> list[pygame.Surface] | None:
+        """Charge les images PNG individuelles dans `assets/.cache/<name>`.
+        Renvoie une liste de Surfaces déjà mises à l'échelle, ou None si aucun fichier.
+        """
+        try:
+            if not os.path.isdir(cache_dir):
+                return None
+            files = sorted(f for f in os.listdir(cache_dir) if f.lower().endswith(('.png', '.webp', '.jpg', '.jpeg'))) 
+            frames: list[pygame.Surface] = []
+            for fn in files:
+                path = os.path.join(cache_dir, fn)
+                try:
+                    # Pillow -> BytesIO -> pygame for consistency with other loaders
+                    pil = Image.open(path)
+                    buf = BytesIO()
+                    pil.save(buf, format='PNG')
+                    buf.seek(0)
+                    surf = pygame.image.load(buf, 'PNG').convert_alpha()
+                    surf = pygame.transform.scale(surf, target_size)
+                    frames.append(surf)
+                except Exception:
+                    # Ignorer les fichiers invalides
+                    continue
+            return frames if frames else None
+        except Exception as e:
+            print(f"Erreur lors du chargement du cache {cache_dir}: {e}")
+            return None
+
     def _load_sprites(self):
         """
         Charge tous les assets graphiques nécessaires dans self.orig_*.
@@ -180,22 +208,9 @@ class PygameView:
             is_spritesheet=False
         ) 
         
-        # Unités - Chemins corrigés pour correspondre aux fichiers réels
-        unit_configs = {
-            Knight: (os.path.join(BASE_PATH, "units/knight/walk/knight_walk.webp"), 
-                     (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
-            Crossbowman: (os.path.join(BASE_PATH, "units/crossbowman/walk/crossbowman_walk.webp"), 
-                          (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
-            Pikeman: (os.path.join(BASE_PATH, "units/longswordman/walk/swordsman_walk.webp"), 
-                      (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
-            LongSwordsman: (os.path.join(BASE_PATH, "units/longswordman/walk/swordsman_walk.webp"), 
-                            (int(SPRITE_FRAME_WIDTH * 1.5), int(SPRITE_FRAME_HEIGHT * 1.5))),
-        }
-        
+        # Chargement d'assets d'unités désactivé — on repart sur une base propre.
+        # Placez vos spritesheets ou dossiers .cache puis réactivez le chargement.
         self.orig_units = {}
-        for unit_class, (path, size) in unit_configs.items():
-            loaded = self._load_webp_asset(path, size, is_spritesheet=True)
-            self.orig_units[unit_class] = loaded
 
         # 2. Génération des sprites à la taille actuelle
         self._rescale_assets()
@@ -210,11 +225,8 @@ class PygameView:
             w, h = self.orig_tree.get_size()
             self.tree_sprite = pygame.transform.scale(self.orig_tree, (int(w * self.zoom), int(h * self.zoom)))
 
+        # Unit sprites disabled for clean rework
         self.unit_sprites = {}
-        for u_class, surface in self.orig_units.items():
-            if surface:
-                w, h = surface.get_size()
-                self.unit_sprites[u_class] = pygame.transform.scale(surface, (int(w * self.zoom), int(h * self.zoom)))
 
     def cart_to_iso(self, x: float, y: float) -> tuple[int, int]:
         """Convertit grille -> isométrique en tenant compte du zoom."""
@@ -377,79 +389,49 @@ class PygameView:
 
 
     def draw_units(self, armies: list[Army]):
-        """Dessine les unités."""
-        all_units = []
-        for army in armies:
-            # Correction : L'armée contient une liste d'unités nommée 'units'
-            for unit in army.units:
-                if unit.is_alive:
-                    all_units.append((army.army_id, unit))
-        
-        all_units.sort(key=lambda p: (round(p[1].pos[1]), round(p[1].pos[0])))
+        """Rendu simplifié des unités : cercles colorés.
 
-        for army_id, unit in all_units:
+        Cette implémentation remplace l'affichage par sprites pour
+        repartir d'une base propre. Remplacez/étendez plus tard.
+        """
+        markers = []
+        for army in armies:
+            for unit in army.units:
+                if not unit.is_alive:
+                    continue
+                markers.append((army.army_id, unit))
+
+        # Tri simple par position pour profondeur
+        markers.sort(key=lambda p: (round(p[1].pos[1]), round(p[1].pos[0])))
+
+        for army_id, unit in markers:
             x, y = unit.pos
             ix, iy = int(x), int(y)
+            if not (0 <= ix < self.map.width and 0 <= iy < self.map.height):
+                continue
 
-            # Vérification limites (pour obtenir l'élévation)
-            if 0 <= ix < self.map.width and 0 <= iy < self.map.height:
-                 tile = self.map.grid[ix][iy]
-            else:
-                 continue 
-
+            tile = self.map.grid[ix][iy]
             height_offset = 0
             if tile.terrain_type != 'water':
-                 height_offset = int(tile.elevation * 2 * self.zoom)
+                height_offset = int(tile.elevation * 2 * self.zoom)
 
             screen_x, screen_y = self.cart_to_iso(x, y)
-            # Position de dessin Y avec l'offset d'élévation
-            unit_draw_y = screen_y - height_offset
+            draw_y = screen_y - height_offset - int(12 * self.zoom)
 
-            # Tentative de dessin du sprite
-            unit_class = unit.__class__
-            sprite_surface = self.unit_sprites.get(unit_class)
+            color = BLUE if army_id == 0 else RED
+            radius = max(6, int(8 * self.zoom))
+            pygame.draw.circle(self.screen, color, (screen_x, draw_y), radius)
+            pygame.draw.circle(self.screen, WHITE, (screen_x, draw_y), radius, 2)
 
-            # Sprite is now enabled
-
-
-            if sprite_surface:
-                 # Copie de la surface pour la teinter
-                 final_surface = sprite_surface.copy()
-                 
-                 # Teinte pour différencier les armées
-                 if army_id == 1: # Armée Rouge
-                     final_surface.fill((255, 0, 0, 40), special_flags=pygame.BLEND_RGBA_MULT)
-                 elif army_id == 0: # Armée Bleue
-                     final_surface.fill((0, 0, 255, 40), special_flags=pygame.BLEND_RGBA_MULT)
-
-                 # Centrer les pieds du sprite sur le point isométrique
-                 draw_x = screen_x - final_surface.get_width() // 2
-                 draw_y = unit_draw_y - final_surface.get_height() 
-                 
-                 self.screen.blit(final_surface, (draw_x, draw_y))
-                 
-                 # Position de la barre de vie sur le sprite
-                 hp_y = unit_draw_y - final_surface.get_height() + 5 
-
-            else:
-                 # Fallback au dessin de cercle (TOUJOURS visible)
-                 color = BLUE if army_id == 0 else RED
-                 radius = max(8, int(10 * self.zoom))  # Minimum 8 pixels
-                 circle_y = unit_draw_y - int(15 * self.zoom)
-                 pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
-                 # Ajouter un contour blanc pour la visibilité
-                 pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
-                 hp_y = circle_y - radius - 5
-
-            # Barres de vie (F2 toggle)
+            # Barre de vie minimale au-dessus
             if self.show_hp_bars:
-                hp_ratio = unit.current_hp / unit.max_hp
-                
-                bar_width = int(20 * self.zoom)
-                bar_height = int(3 * self.zoom)
-                
-                pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, hp_y, bar_width, bar_height))
-                pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, bar_width * hp_ratio, bar_height))
+                hp_ratio = unit.current_hp / unit.max_hp if unit.max_hp > 0 else 0
+                bar_w = int(18 * self.zoom)
+                bar_h = max(2, int(3 * self.zoom))
+                bar_x = screen_x - bar_w // 2
+                bar_y = draw_y - radius - 8
+                pygame.draw.rect(self.screen, RED, (bar_x, bar_y, bar_w, bar_h))
+                pygame.draw.rect(self.screen, GREEN, (bar_x, bar_y, int(bar_w * hp_ratio), bar_h))
 
 
     def draw_ui(self, turn_count, paused, armies):
