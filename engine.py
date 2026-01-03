@@ -421,31 +421,18 @@ class Engine:
 
     def _reap_dead_units(self):
         """Retire les unités mortes."""
+        # Suppression immédiate des unités mortes (plus d'animation de mort)
         for unit_id in list(self.units_by_id.keys()):
             unit = self.units_by_id.get(unit_id)
             if unit and not unit.is_alive:
-                # Si l'animation de mort a été jouée (anim_hold True) -> supprimer
                 try:
-                    if getattr(unit, 'ready_to_remove', False):
-                        self.map.remove_unit(unit)
-                        del self.units_by_id[unit_id]
-                        continue
+                    self.map.remove_unit(unit)
                 except Exception:
                     pass
-
-                # Sinon, si un timer de mort est présent, attendre qu'il soit écoulé (fallback)
-                death_elapsed = getattr(unit, 'death_elapsed', None)
-                death_duration = getattr(unit, 'death_duration_ms', None)
-                if death_elapsed is None:
-                    # Pas de timer -> suppression immédiate (fallback)
-                    self.map.remove_unit(unit)
+                try:
                     del self.units_by_id[unit_id]
-                else:
-                    # Attendre la fin de l'animation (ou durée par défaut)
-                    threshold = death_duration if death_duration is not None else 2000
-                    if death_elapsed >= threshold:
-                        self.map.remove_unit(unit)
-                        del self.units_by_id[unit_id]
+                except Exception:
+                    pass
 
     def _check_game_over(self) -> bool:
         """
