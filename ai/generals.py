@@ -30,7 +30,7 @@ class MajorDAFT(General):
 
         for unit in my_units:
             # Recherche optimisée dans la ligne de vue de l'unité
-            nearby_enemies = current_map.get_nearby_units(unit, unit.line_of_sight)
+            nearby_enemies = current_map.get_units_in_radius(unit.pos, unit.line_of_sight)
             
             # Filtre pour ne garder que les vrais ennemis
             nearby_enemies = [e for e in nearby_enemies if e.army_id != self.army_id]
@@ -45,7 +45,7 @@ class MajorDAFT(General):
             if not closest_enemy:
                 continue
 
-            if unit.can_attack(closest_enemy):
+            if closest_enemy and unit.can_attack(closest_enemy):
                 actions.append(("attack", unit.unit_id, closest_enemy.unit_id))
             else:
                 actions.append(("move", unit.unit_id, closest_enemy.pos))
@@ -88,7 +88,9 @@ class ColonelKAISER(General):
 
         for unit in my_units:
             if unit in ranged_units:
-                threat = self.find_closest_enemy(unit, enemy_units)
+                # limiter la recherche de menace aux unités proches
+                threat_candidates = current_map.get_units_in_radius(unit.pos, unit.line_of_sight)
+                threat = self.find_closest_enemy(unit, threat_candidates)
                 if threat:
                     dist = unit._calculate_distance(threat)
                     safety_distance = unit.attack_range * self.KITING_RANGE_PERCENTAGE
