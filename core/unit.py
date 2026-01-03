@@ -63,6 +63,8 @@ class Unit:
         self.anim_index: int = 0
         self.anim_speed: int = 150  # milliseconds per frame (lower = faster)
         self.anim_elapsed: int = 0  # accumulated milliseconds
+        # Last position (used to estimate facing/orientation)
+        self.last_pos: tuple[float, float] = pos
 
     def tick_animation(self, delta_ms: int):
         """Avance l'animation interne de l'unité de delta_ms millisecondes."""
