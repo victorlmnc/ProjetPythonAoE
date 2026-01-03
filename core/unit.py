@@ -1,5 +1,6 @@
 # core/unit.py
 import math
+import logging
 from typing import Optional
 
 # Constantes pour les types d'unités (pour éviter les chaînes magiques)
@@ -117,12 +118,20 @@ class Unit:
         )
         return max(0, dist - self.hitbox_radius - target_unit.hitbox_radius)
 
+    def _center_squared_distance(self, target_unit: 'Unit') -> float:
+        """Returns squared distance between unit centers (avoid sqrt for comparisons)."""
+        dx = self.pos[0] - target_unit.pos[0]
+        dy = self.pos[1] - target_unit.pos[1]
+        return dx * dx + dy * dy
+
     def can_attack(self, target_unit: 'Unit') -> bool:
         if not self.is_alive or not target_unit.is_alive:
             return False
-        distance = self._calculate_distance(target_unit)
-        # On ajoute une petite tolérance (0.1) pour les erreurs de flottants
-        return distance <= (self.attack_range + 0.1)
+        # Use squared distance check to avoid calling sqrt frequently
+        center_dist_sq = self._center_squared_distance(target_unit)
+        # include hitbox radii + small tolerance
+        range_with_hitboxes = self.attack_range + 0.1 + self.hitbox_radius + target_unit.hitbox_radius
+        return center_dist_sq <= (range_with_hitboxes * range_with_hitboxes)
     def status(self, target_unit=None):
         if not self.is_alive:
             return
@@ -163,8 +172,8 @@ class Unit:
         """Tente d'attaquer la cible si à portée et rechargé."""
         if self.can_attack(target_unit) and self.can_act():
             final_damage = self.calculate_damage(target_unit, game_map)
-
-            print(f"COMBAT: {self} attaque {target_unit}")
+            logger = logging.getLogger(__name__)
+            logger.debug("COMBAT: %s attaque %s", self, target_unit)
             target_unit.take_damage(final_damage)
             
             # Reset du cooldown
@@ -174,7 +183,9 @@ class Unit:
 
     def take_damage(self, amount: int):
         self.current_hp -= amount
-        # print(f"   -> subit {amount} dégâts (HP restants: {self.current_hp})")
+        # log damage for debug
+        logger = logging.getLogger(__name__)
+        logger.debug("subit %d dégâts (HP restants: %d)", amount, self.current_hp)
         if self.current_hp <= 0:
             self.current_hp = 0
             # Marquer l'unité comme morte et demander suppression immédiate
@@ -185,7 +196,7 @@ class Unit:
                     del self.target_id
                 except Exception:
                     pass
-            print(f"   -> {self} EST MORT!")
+            logger.info("%s EST MORT!", self)
 
 
 # --- Unités Spécifiques (Stats AoE2 Âge des Châteaux) ---
