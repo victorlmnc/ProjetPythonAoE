@@ -67,7 +67,7 @@ Exemples d'utilisation:
                             help="IA des deux camps (défaut: MajorDAFT MajorDAFT)")
     play_parser.add_argument("--max_turns", type=int, default=2000,
                             help="Nombre max de tours")
-    play_parser.add_argument("--map-size", type=str, default="120x120",
+    play_parser.add_argument("--map-size", type=str, default="50x50",
                             help="Taille de la carte (ex: 60x60, 120x120...)")
 
     # =========================================================================
