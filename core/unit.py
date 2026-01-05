@@ -71,6 +71,9 @@ class Unit:
             'idle': 30,
         }
         # Champ d'animation: frames et temporisation (pas d'animation "play once" spécifique)
+        self.anim_play_once_remaining: int = 0
+        self.orientation: float = 0.0 # Orientation en degrés (Cartésien)
+
         # Last position (used to estimate facing/orientation)
         self.last_pos: tuple[float, float] = pos
 
@@ -86,14 +89,25 @@ class Unit:
 
         if self.anim_elapsed >= self.anim_speed:
             advance = int(self.anim_elapsed // self.anim_speed)
+            self.anim_elapsed = self.anim_elapsed % self.anim_speed
+
+            # Gestion de l'animation "Play Once" (ex: attaque)
+            if self.anim_play_once_remaining > 0:
+                self.anim_play_once_remaining = max(0, self.anim_play_once_remaining - advance)
+
             self.anim_index = self.anim_index + advance
 
-            # Boucler normalement selon le nombre de frames connu
-            frames = self.anim_frames_per_state.get(getattr(self, 'statut', 'idle'), 30)
-            if frames > 0:
-                self.anim_index = self.anim_index % frames
+            # Gestion du bouclage selon le statut
+            statut = getattr(self, 'statut', 'idle')
+            frames = self.anim_frames_per_state.get(statut, 30)
 
-            self.anim_elapsed = self.anim_elapsed % self.anim_speed
+            if frames > 0:
+                if statut == 'death':
+                    # Ne pas boucler l'animation de mort, s'arrêter à la dernière frame
+                    self.anim_index = min(self.anim_index, frames - 1)
+                else:
+                    # Bouclage normal
+                    self.anim_index = self.anim_index % frames
 
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"

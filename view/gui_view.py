@@ -541,32 +541,37 @@ class PygameView:
                                     break
                             if tgt: break
 
-                    if tgt is not None:
-                        u_xs, u_ys = self.cart_to_iso(unit.pos[0], unit.pos[1])
-                        t_xs, t_ys = self.cart_to_iso(tgt.pos[0], tgt.pos[1])
-                        vx = t_xs - u_xs
-                        vy = t_ys - u_ys
-                    else:
-                        lx, ly = getattr(unit, 'last_pos', unit.pos)
-                        u_xs, u_ys = self.cart_to_iso(unit.pos[0], unit.pos[1])
-                        l_xs, l_ys = self.cart_to_iso(lx, ly)
-                        vx = u_xs - l_xs
-                        vy = u_ys - l_ys
+                    # 1. Récupération de l'orientation Cartésienne (degrés)
+                    orientation = getattr(unit, 'orientation', 0.0)
+                    rad = math.radians(orientation)
 
-                    if abs(vx) < 1e-3 and abs(vy) < 1e-3:
-                        orient_idx = 0
-                    else:
-                        angle = math.degrees(math.atan2(vy, vx)) % 360
-                        rows = len(frames_orient)
-                        sector = 360.0 / max(1, rows)
-                        orient_idx = int((angle + sector/2) // sector) % rows
+                    # 2. Conversion en Vecteur Cartésien (Normalized)
+                    dx = math.cos(rad)
+                    dy = math.sin(rad)
+
+                    # 3. Projection Isométrique (Vecteur Écran)
+                    # iso_x = (x - y) * W/2
+                    # iso_y = (x + y) * H/2
+                    # vx = (dx - dy) * self.tile_half_w
+                    # vy = (dx + dy) * self.tile_half_h
+
+                    vx = (dx - dy) * self.tile_half_w
+                    vy = (dx + dy) * self.tile_half_h
+
+                    # 4. Calcul de l'angle Visuel sur l'écran
+                    angle = math.degrees(math.atan2(vy, vx)) % 360
+
+                    rows = len(frames_orient)
+                    sector = 360.0 / max(1, rows)
+                    orient_idx = int((angle + sector/2) // sector) % rows
 
                     nframes = len(frames_orient[orient_idx]) if frames_orient[orient_idx] else 0
                     if nframes > 0:
-                        if state == 'death' and not unit.is_alive:
-                            idx = min(getattr(unit, 'anim_index', 0), nframes - 1)
-                        else:
-                            idx = getattr(unit, 'anim_index', 0) % nframes
+                        # L'index d'animation est géré par Unit.tick_animation (y compris clamp pour death)
+                        idx = getattr(unit, 'anim_index', 0)
+                        # Sécurité bounds
+                        idx = max(0, min(idx, nframes - 1))
+
                         try:
                             current_frame = frames_orient[orient_idx][idx]
                         except Exception:

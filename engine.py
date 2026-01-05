@@ -386,6 +386,9 @@ class Engine:
         # If moved significantly, mark as moving
         if dx*dx + dy*dy > 1e-6:
              unit.is_moving = True
+             # Update Orientation (Cartesian degrees)
+             angle_rad = math.atan2(dy, dx)
+             unit.orientation = math.degrees(angle_rad)
         else:
              unit.is_moving = False
 
