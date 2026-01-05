@@ -70,6 +70,8 @@ class Unit:
             'walk': 30,
             'idle': 30,
         }
+        # Indicateur que l'animation de mort est terminée (ne plus afficher)
+        self.death_anim_finished: bool = False
         # Champ d'animation: frames et temporisation (pas d'animation "play once" spécifique)
         # Last position (used to estimate facing/orientation)
         self.last_pos: tuple[float, float] = pos
@@ -130,6 +132,13 @@ class Unit:
                     # Cap l'index sur la dernière frame au lieu de boucler
                     if self.anim_index >= frames_count:
                         self.anim_index = frames_count - 1
+                    # Marquer l'animation de mort comme terminée si nous sommes
+                    # sur la dernière frame (permettre au renderer de cacher).
+                    try:
+                        if self.anim_index >= frames_count - 1:
+                            self.death_anim_finished = True
+                    except Exception:
+                        pass
                 else:
                     # Boucler normalement
                     self.anim_index = self.anim_index % frames_count
@@ -236,6 +245,7 @@ class Unit:
                 self.statut = 'death'
                 self.anim_index = 0
                 self.death_elapsed = 0
+                self.death_anim_finished = False
             except Exception:
                 pass
             # clear cible
