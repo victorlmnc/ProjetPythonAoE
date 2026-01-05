@@ -99,6 +99,33 @@ class Map:
 
         return nearby_units
 
+    def get_units_in_radius(self, pos: tuple[float, float], search_radius: float, include_self: bool = False) -> list[Unit]:
+        """
+        Trouve les unités proches autour d'une position flottante en scannant
+        uniquement les tuiles pertinentes. Utilise la comparaison sur les
+        distances au carré pour éviter les appels coûteux à sqrt.
+        """
+        nearby_units: list[Unit] = []
+        radius_in_cells = int(search_radius) + 1
+        unit_x, unit_y = int(pos[0]), int(pos[1])
+
+        search_radius_sq = search_radius * search_radius
+
+        for x in range(max(0, unit_x - radius_in_cells), min(self.width, unit_x + radius_in_cells + 1)):
+            for y in range(max(0, unit_y - radius_in_cells), min(self.height, unit_y + radius_in_cells + 1)):
+                tile = self.grid[x][y]
+                for potential in tile.units:
+                    if not include_self and (int(potential.pos[0]) == unit_x and int(potential.pos[1]) == unit_y):
+                        # coarse filter; still check exact position below
+                        pass
+
+                    dx = potential.pos[0] - pos[0]
+                    dy = potential.pos[1] - pos[1]
+                    if dx * dx + dy * dy <= search_radius_sq:
+                        nearby_units.append(potential)
+
+        return nearby_units
+
     @staticmethod
     def _calculate_distance(pos1: tuple[float, float], pos2: tuple[float, float]) -> float:
         """Calcule la distance euclidienne."""

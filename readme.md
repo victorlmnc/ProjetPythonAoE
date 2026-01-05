@@ -12,11 +12,12 @@ Toutes les images de chaque étapess de sprites mises sur github, pas bien ?
 
 ## 🚀 Installation
 
-```bash
-pip install pygame pillow matplotlib pytest
-```
+Pour installer les dépendances de développement, exécutez depuis la racine du projet :
 
----
+```bash
+cd ProjetPythonAoE
+python -m pip install -r requirements.txt
+```
 
 ## 🎮 Lancer le Jeu
 
@@ -84,7 +85,7 @@ python main.py create army armies/mon_armee.txt --general MajorDAFT --units "Kni
 
 ---
 
-## � Référence Complète des Commandes
+## Référence Complète des Commandes
 
 ### 🌟 La Ligne de Commande Ultime (Mode Expert)
 Pour définir **chaque aspect** de la bataille manuellement, utilisez `run` avec tous les paramètres :
