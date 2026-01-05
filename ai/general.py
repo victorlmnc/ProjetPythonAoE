@@ -27,16 +27,22 @@ class General(abc.ABC):
         Une fonction utilitaire que les IA peuvent réutiliser.
         """
         closest_enemy = None
-        min_dist = float('inf') # (sec 22.2.1)
+        min_dist_sq = float('inf')
 
         for enemy in enemy_units:
             if not enemy.is_alive:
                 continue
-            
-            # Utilise la distance Euclidienne (privée, mais ok pour l'exemple)
-            dist = unit._calculate_distance(enemy)
-            if dist < min_dist:
-                min_dist = dist
+
+            # Compare distances au carré pour éviter les sqrt coûteux
+            try:
+                dist_sq = unit._center_squared_distance(enemy)
+            except Exception:
+                # Fallback to slower method if helper missing
+                dist = unit._calculate_distance(enemy)
+                dist_sq = dist * dist
+
+            if dist_sq < min_dist_sq:
+                min_dist_sq = dist_sq
                 closest_enemy = enemy
-        
+
         return closest_enemy

@@ -1,5 +1,6 @@
 # core/unit.py
 import math
+import logging
 from typing import Optional
 
 # Constantes pour les types d'unités (pour éviter les chaînes magiques)
@@ -59,6 +60,40 @@ class Unit:
 
         self.pos: tuple[float, float] = pos
         self.is_alive: bool = True
+        # Animation control (index + speed in ms per frame)
+        self.anim_index: int = 0
+        self.anim_speed: int = 150  # milliseconds per frame (lower = faster)
+        self.anim_elapsed: int = 0  # accumulated milliseconds
+        # Nombre de frames par état (colonnes). Valeur par défaut = 30.
+        self.anim_frames_per_state: dict[str, int] = {
+            'attack': 30,
+            'walk': 30,
+            'idle': 30,
+        }
+        # Champ d'animation: frames et temporisation (pas d'animation "play once" spécifique)
+        # Last position (used to estimate facing/orientation)
+        self.last_pos: tuple[float, float] = pos
+
+    def tick_animation(self, delta_ms: int):
+        """Avance l'animation interne de l'unité de delta_ms millisecondes."""
+        try:
+            ms = int(delta_ms)
+        except Exception:
+            return
+        if not hasattr(self, 'anim_speed') or self.anim_speed <= 0:
+            return
+        self.anim_elapsed += ms
+
+        if self.anim_elapsed >= self.anim_speed:
+            advance = int(self.anim_elapsed // self.anim_speed)
+            self.anim_index = self.anim_index + advance
+
+            # Boucler normalement selon le nombre de frames connu
+            frames = self.anim_frames_per_state.get(getattr(self, 'statut', 'idle'), 30)
+            if frames > 0:
+                self.anim_index = self.anim_index % frames
+
+            self.anim_elapsed = self.anim_elapsed % self.anim_speed
 
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"
@@ -83,16 +118,23 @@ class Unit:
         )
         return max(0, dist - self.hitbox_radius - target_unit.hitbox_radius)
 
+    def _center_squared_distance(self, target_unit: 'Unit') -> float:
+        """Returns squared distance between unit centers (avoid sqrt for comparisons)."""
+        dx = self.pos[0] - target_unit.pos[0]
+        dy = self.pos[1] - target_unit.pos[1]
+        return dx * dx + dy * dy
+
     def can_attack(self, target_unit: 'Unit') -> bool:
         if not self.is_alive or not target_unit.is_alive:
             return False
-        distance = self._calculate_distance(target_unit)
-        # On ajoute une petite tolérance (0.1) pour les erreurs de flottants
-        return distance <= (self.attack_range + 0.1)
+        # Use squared distance check to avoid calling sqrt frequently
+        center_dist_sq = self._center_squared_distance(target_unit)
+        # include hitbox radii + small tolerance
+        range_with_hitboxes = self.attack_range + 0.1 + self.hitbox_radius + target_unit.hitbox_radius
+        return center_dist_sq <= (range_with_hitboxes * range_with_hitboxes)
     def status(self, target_unit=None):
         if not self.is_alive:
-            self.statut = "death"
-        return
+            return
 
         if target_unit and self.can_attack(target_unit):
             self.statut = "attack"
@@ -130,8 +172,8 @@ class Unit:
         """Tente d'attaquer la cible si à portée et rechargé."""
         if self.can_attack(target_unit) and self.can_act():
             final_damage = self.calculate_damage(target_unit, game_map)
-
-            print(f"COMBAT: {self} attaque {target_unit}")
+            logger = logging.getLogger(__name__)
+            logger.debug("COMBAT: %s attaque %s", self, target_unit)
             target_unit.take_damage(final_damage)
             
             # Reset du cooldown
@@ -141,11 +183,20 @@ class Unit:
 
     def take_damage(self, amount: int):
         self.current_hp -= amount
-        # print(f"   -> subit {amount} dégâts (HP restants: {self.current_hp})")
+        # log damage for debug
+        logger = logging.getLogger(__name__)
+        logger.debug("subit %d dégâts (HP restants: %d)", amount, self.current_hp)
         if self.current_hp <= 0:
             self.current_hp = 0
+            # Marquer l'unité comme morte et demander suppression immédiate
             self.is_alive = False
-            print(f"   -> {self} EST MORT!")
+            # clear cible
+            if hasattr(self, 'target_id'):
+                try:
+                    del self.target_id
+                except Exception:
+                    pass
+            logger.info("%s EST MORT!", self)
 
 
 # --- Unités Spécifiques (Stats AoE2 Âge des Châteaux) ---
