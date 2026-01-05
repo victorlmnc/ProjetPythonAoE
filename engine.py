@@ -73,7 +73,7 @@ class Engine:
             if view:
                 # La vue nous renvoie des commandes (pause, step, quit)
                 # On passe time_elapsed au lieu de turn_count
-                command = view.display(self.armies, self.time_elapsed, self.paused)
+                command = view.display(self.armies, self.time_elapsed, self.paused, game_speed_multiplier)
                 
                 if command == "quit":
                     break
@@ -89,11 +89,35 @@ class Engine:
                     from utils.serialization import save_game
                     os.makedirs("saves", exist_ok=True)
                     save_game(self, QUICK_SAVE_PATH)
-                    print("Sauvegarde rapide effectuée !")
+                    full_path = os.path.abspath(QUICK_SAVE_PATH)
+                    print(f"Sauvegarde rapide effectuée: {full_path}")
                 elif command == "quick_load":
-                    # F12 - Chargement rapide (Requis par le PDF)
-                    # Note: Le chargement complet nécessite une refonte de la boucle
-                    print("Quick Load: Utilisez 'battle --load_game saves/quicksave.sav' pour charger.")
+                    # F12 - Chargement rapide en pleine partie
+                    if os.path.exists(QUICK_SAVE_PATH):
+                        from utils.serialization import load_game
+                        try:
+                            loaded_engine = load_game(QUICK_SAVE_PATH)
+                            # Copier l'état du moteur chargé vers self
+                            self.map = loaded_engine.map
+                            self.armies = loaded_engine.armies
+                            self.turn_count = loaded_engine.turn_count
+                            self.time_elapsed = loaded_engine.time_elapsed
+                            self.game_over = loaded_engine.game_over
+                            self.winner = loaded_engine.winner
+                            self.paused = True  # Mettre en pause après chargement
+                            # Reconstruire le cache d'unités
+                            self.units_by_id = {}
+                            for army in self.armies:
+                                for unit in army.units:
+                                    self.units_by_id[unit.unit_id] = unit
+                            # Mettre à jour la map dans la vue
+                            if view:
+                                view.map = self.map
+                            print(f"Chargement reussi ! Temps: {self.time_elapsed:.1f}s")
+                        except Exception as e:
+                            print(f"Erreur de chargement: {e}")
+                    else:
+                        print(f"Aucune sauvegarde trouvee: {QUICK_SAVE_PATH}")
                 elif command == "switch_view":
                     # F9 - Basculer entre vues (pour info, nécessiterait une refonte)
                     print("Switch View: Non implémenté (nécessite de relancer avec -t)")
@@ -143,12 +167,17 @@ class Engine:
 
         if view:
             view.display(self.armies, self.time_elapsed, self.paused)
+            # Afficher l'écran de fin de partie
+            try:
+                view.display_game_over(self.armies, self.winner, self.time_elapsed)
+            except Exception:
+                pass  # Si la méthode n'existe pas (mode terminal)
 
         print("\n--- FIN DE LA PARTIE ---")
         if self.winner is not None:
             print(f"Le vainqueur est l'Armée {self.winner}!")
         elif self.turn_count >= max_turns:
-            print("Limite de tours atteinte. Égalité.")
+            print("Limite de ticks atteinte. Egalite.")
         else:
             print("Égalité.")
 

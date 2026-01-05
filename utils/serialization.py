@@ -27,7 +27,7 @@ def load_game(filename: str) -> Engine:
         with open(filename, 'rb') as f:
             engine = pickle.load(f)
         
-        print(f"Chargement réussi ! Tour actuel : {engine.turn_count}")
+        print(f"Chargement reussi ! Tick actuel : {engine.turn_count}")
         return engine
     except FileNotFoundError:
         print(f"Erreur : Fichier de sauvegarde '{filename}' introuvable.", file=sys.stderr)
