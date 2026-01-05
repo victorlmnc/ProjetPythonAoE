@@ -7,7 +7,10 @@ from PIL import Image
 from core.map import Map
 from core.army import Army
 # Import de toutes les classes d'unités pour le mappage des sprites
-from core.unit import Knight, Pikeman, Crossbowman, LongSwordsman, LightCavalry
+from core.unit import (
+    Knight, Pikeman, Crossbowman, LongSwordsman, LightCavalry, 
+    Castle, Wonder, Unit
+)
 
 # --- CONSTANTES DE CONFIGURATION VUE ---
 SCREEN_WIDTH = 1280
@@ -54,7 +57,7 @@ class PygameView:
         self.ui_font = pygame.font.SysFont('Arial', 24, bold=True)
 
         # --- Zoom Settings ---
-        self.min_zoom = 0.4
+        self.min_zoom = 0.2  # déZoom loin
         self.max_zoom = 2.0
         self.zoom = self.min_zoom  # Démarrer dézoomé au max
 
@@ -335,13 +338,38 @@ class PygameView:
         final_y = iso_y + self.offset_y - self.scroll_y
         return int(final_x), int(final_y)
 
-    def _clamp_camera(self):
-        """Limite la caméra - plus de liberté quand zoomé pour atteindre les coins."""
-        # Base: 300px | Zoomé max: ~1500px
-        margin = int(300 + 750 * (self.zoom / self.min_zoom - 1))
+    def iso_to_cart(self, iso_x: float, iso_y: float) -> tuple[float, float]:
+        """Convertit écran isométrique -> grille cartésienne (inverse de cart_to_iso)."""
+        # Annuler le scroll/offset
+        adj_x = iso_x - self.offset_x + self.scroll_x
+        adj_y = iso_y - self.offset_y + self.scroll_y
         
-        self.scroll_x = max(-margin, min(self.scroll_x, margin))
-        self.scroll_y = max(-margin, min(self.scroll_y, margin))
+        # Système d'équations:
+        # iso_x = (x - y) * tile_half_w
+        # iso_y = (x + y) * tile_half_h
+        # => x - y = adj_x / tile_half_w
+        # => x + y = adj_y / tile_half_h
+        # => 2x = adj_x/thw + adj_y/thh
+        
+        term1 = adj_x / self.tile_half_w
+        term2 = adj_y / self.tile_half_h
+        
+        x = (term1 + term2) / 2
+        y = (term2 - term1) / 2
+        return x, y
+
+    def _clamp_camera(self):
+        """Limite la caméra dynamiquement selon la taille de la carte et le zoom."""
+        # Calcul de la taille projetée de la carte (demi-diagonales)
+        # Largeur totale iso ~ (W + H) * tile_half_w
+        # Hauteur totale iso ~ (W + H) * tile_half_h
+        
+        # On autorise à scroller jusqu'à voir les coins + une marge (écran/2)
+        limit_x = (self.map.width + self.map.height) * self.tile_half_w / 2 + SCREEN_WIDTH * 0.2
+        limit_y = (self.map.width + self.map.height) * self.tile_half_h / 2 + SCREEN_HEIGHT * 0.2
+        
+        self.scroll_x = max(-limit_x, min(self.scroll_x, limit_x))
+        self.scroll_y = max(-limit_y, min(self.scroll_y, limit_y))
 
     def check_events(self) -> str | None:
         """Gère clavier/souris."""
@@ -582,19 +610,50 @@ class PygameView:
                 # fallback minimal: dessiner seulement si l'unité est vivante
                 if unit.is_alive:
                     color = BLUE if army_id == 0 else RED
-                    radius = max(8, int(10 * self.zoom))
-                    circle_y = unit_draw_y - int(15 * self.zoom)
-                    pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
-                    pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
-                    hp_y = circle_y - radius - 5
+                    
+                    # Logique de dessin de fallback (Cercle vs Carré)
+                    # Si c'est un Bâtiment (hitbox > 0.6 ou type spécifique), on fait un carré/rectangle
+                    is_building = unit.hitbox_radius > 0.6
+                    
+                    if is_building:
+                        # Dessin de bâtiment (Carré 3D simple)
+                        size = int(unit.hitbox_radius * 2 * 32 * self.zoom) # 32 pixels/mètre approx
+                        rect_x = screen_x - size // 2
+                        rect_y = unit_draw_y - size
+                        
+                        # Couleur spécifique pour Castle/Wonder
+                        if isinstance(unit, Castle):
+                            draw_color = (150, 150, 150) # Gris Pierre
+                        elif isinstance(unit, Wonder):
+                            draw_color = (255, 215, 0) # Or
+                        else:
+                            draw_color = color
+                            
+                        # Face avant
+                        pygame.draw.rect(self.screen, draw_color, (rect_x, rect_y, size, size))
+                        # Bordure
+                        pygame.draw.rect(self.screen, BLACK, (rect_x, rect_y, size, size), 2)
+                        
+                        # Marque de couleur du joueur
+                        mark_size = size // 4
+                        pygame.draw.rect(self.screen, color, (rect_x + size//2 - mark_size//2, rect_y + size//4, mark_size, mark_size))
+
+                        hp_y = rect_y - 10
+                    else:
+                        # Dessin d'unité standard (Cercle)
+                        radius = max(8, int(10 * self.zoom))
+                        circle_y = unit_draw_y - int(15 * self.zoom)
+                        pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
+                        pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
+                        hp_y = circle_y - radius - 5
                 else:
                     # unité morte et pas de sprite: ne rien dessiner
                     hp_y = unit_draw_y
 
             if self.show_hp_bars and unit.is_alive:
                 hp_ratio = unit.current_hp / unit.max_hp if unit.max_hp > 0 else 0
-                bar_width = int(20 * self.zoom)
-                bar_height = int(3 * self.zoom)
+                bar_width = int(24 * self.zoom)
+                bar_height = int(4 * self.zoom)
                 pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, hp_y, bar_width, bar_height))
                 pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, int(bar_width * hp_ratio), bar_height))
 
@@ -659,21 +718,64 @@ class PygameView:
 
         # Minimap (F3/M toggle)
         if self.show_minimap:
-            mm_x, mm_y = SCREEN_WIDTH - MINIMAP_SIZE - 20, SCREEN_HEIGHT - MINIMAP_SIZE - 20
-            pygame.draw.rect(self.screen, BLACK, (mm_x, mm_y, MINIMAP_SIZE, MINIMAP_SIZE))
+            # Centre de la minimap
+            mm_center_x = SCREEN_WIDTH - MINIMAP_SIZE/2 - 20
+            mm_center_y = SCREEN_HEIGHT - MINIMAP_SIZE/2 - 20
             
-            scale_x = MINIMAP_SIZE / self.map.width
-            scale_y = MINIMAP_SIZE / self.map.height
+            # Facteur d'échelle pour faire rentrer la map (diagonale W+H) dans MINIMAP_SIZE
+            # Map Dimensions: W, H
+            # Diagonale Isométrique Max ~ W + H (en "unités de grille")
+            # Marges de sécurité
+            max_dim = self.map.width + self.map.height
+            scale_mm = (MINIMAP_SIZE * 0.8) / max_dim
+            
+            # Fonction locale pour projeter sur la minimap
+            def cart_to_mm(cx, cy):
+                # Iso projection standard mais centrée sur mm_center
+                # x_iso = (x - y)
+                # y_iso = (x + y)
+                iso_x = (cx - cy) * scale_mm
+                iso_y = (cx + cy) * scale_mm * 0.5 # Aplatissement standard 2:1
+                return int(mm_center_x + iso_x), int(mm_center_y + iso_y - (self.map.width + self.map.height)*scale_mm*0.25)
+                # Le -offset Y sert à centrer approximativement le losange
 
-            for _, ox, oy in self.map.obstacles:
-                rect_coords = (int(mm_x + ox*scale_x), int(mm_y + oy*scale_y), 2, 2)
-                pygame.draw.rect(self.screen, (100,100,100), rect_coords) 
-                
+            # 1. Dessiner le losange de fond (Grille 0,0 -> W,0 -> W,H -> 0,H)
+            p1 = cart_to_mm(0, 0)
+            p2 = cart_to_mm(self.map.width, 0)
+            p3 = cart_to_mm(self.map.width, self.map.height)
+            p4 = cart_to_mm(0, self.map.height)
+            
+            pygame.draw.polygon(self.screen, (20, 20, 20), [p1, p2, p3, p4]) # Fond sombre
+            pygame.draw.polygon(self.screen, (100, 100, 100), [p1, p2, p3, p4], 2) # Bordure
+
+            # 2. Dessiner les unités
             for army in armies:
                 c = BLUE if army.army_id == 0 else RED
                 for u in army.units:
                     if u.is_alive:
-                        pygame.draw.circle(self.screen, c, (mm_x + int(u.pos[0]*scale_x), mm_y + int(u.pos[1]*scale_y)), 2)
+                        mx, my = cart_to_mm(u.pos[0], u.pos[1])
+                        # Petit point
+                        pygame.draw.circle(self.screen, c, (mx, my), 2)
+
+            # 3. Dessiner le rectangle de vue caméra (Viewport)
+            # On projette les 4 coins de l'écran vers le monde (grid), puis vers la minimap
+            corners_screen = [
+                (0, 0),
+                (SCREEN_WIDTH, 0),
+                (SCREEN_WIDTH, SCREEN_HEIGHT),
+                (0, SCREEN_HEIGHT)
+            ]
+            
+            poly_points = []
+            for sx, sy in corners_screen:
+                gx, gy = self.iso_to_cart(sx, sy)
+                # Clamp aux bords pour éviter que le rect parte à l'infini graphiquement
+                gx = max(0, min(self.map.width, gx))
+                gy = max(0, min(self.map.height, gy))
+                poly_points.append(cart_to_mm(gx, gy))
+            
+            if len(poly_points) == 4:
+                pygame.draw.polygon(self.screen, WHITE, poly_points, 1)
 
     def display(self, armies: list[Army], time_elapsed: float, paused: bool) -> str | None:
         cmd = self.check_events()

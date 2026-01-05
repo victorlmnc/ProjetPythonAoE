@@ -67,13 +67,15 @@ Exemples d'utilisation:
                             help="IA des deux camps (défaut: MajorDAFT MajorDAFT)")
     play_parser.add_argument("--max_turns", type=int, default=2000,
                             help="Nombre max de tours")
+    play_parser.add_argument("--map-size", type=str, default="120x120",
+                            help="Taille de la carte (ex: 60x60, 120x120...)")
 
     # =========================================================================
     # Commande: battle run <scenario> <AI1> <AI2> [-t] [-d DATAFILE]
     # =========================================================================
     run_parser = subparsers.add_parser("run", help="Lancer une bataille unique")
     run_parser.add_argument("scenario", type=str, 
-                           help="Chemin vers le scénario (.py ou .map + armées)")
+                           help="Chemin vers le scénario (.scen, .py ou .map + armées)")
     run_parser.add_argument("AI1", type=str, 
                            help="Nom du général de l'armée 1 (ex: MajorDAFT)")
     run_parser.add_argument("AI2", type=str, 
@@ -214,8 +216,25 @@ def run_battle(args):
     gen2_class = GENERAL_CLASS_MAP[args.AI2]
     
     # Charger le scénario
-    # Si c'est un fichier .map, on a besoin des armées
-    if args.scenario.endswith('.map'):
+    # Cas 1: Unified Scenario (.scen) ou détection de contenu
+    is_unified = False
+    if args.scenario.endswith('.scen') or args.scenario.endswith('.txt'):
+        # Check simple de contenu pour différencier d'un simple fichier armée
+        # (Pas parfait mais suffisant pour le prototype)
+        try:
+           with open(args.scenario, 'r') as f:
+               head = f.read(100)
+               if "SIZE:" in head or "UNITS:" in head:
+                   is_unified = True
+        except:
+            pass
+
+    if is_unified:
+        from utils.unified_loader import load_scenario
+        game_map, army1, army2 = load_scenario(args.scenario, args.AI1, args.AI2)
+
+    # Cas 2: Fichier .map classique (Nécessite des armées externes)
+    elif args.scenario.endswith('.map'):
         if not args.army1 or not args.army2:
             # Utiliser des armées par défaut
             print("Utilisation d'armées par défaut (10 Knights chacun)")
@@ -229,6 +248,8 @@ def run_battle(args):
             game_map = load_map_from_file(args.scenario)
             army1 = load_army_from_file(args.army1, army_id=0, general_name=args.AI1)
             army2 = load_army_from_file(args.army2, army_id=1, general_name=args.AI2)
+    
+    # Cas 3: Scénario Python (.py)
     else:
         # Scénario Python (.py) - Implémentation Req 3
         print(f"Chargement du scénario Python: {args.scenario}")
@@ -258,10 +279,6 @@ def run_battle(args):
             else:
                  raise ValueError("create_scenario doit renvoyer (army1, army2) ou (army1, army2, map)")
 
-            # Réassigner la map aux armées et au moteur
-            # (Au cas où le scénario ne l'a pas fait explicitement)
-            # Pas nécessaire car Engine prend Map + Armies
-            
         except Exception as e:
             print(f"Erreur lors du chargement du scénario Python: {e}")
             sys.exit(1)
@@ -515,7 +532,13 @@ def run_play(args):
         sys.exit(1)
     
     # Créer une carte par défaut
-    game_map = Map(60, 60)
+    try:
+        w, h = map(int, args.map_size.lower().split('x'))
+    except ValueError:
+        print("Erreur format map-size. Utilisation défaut 120x120")
+        w, h = 120, 120
+
+    game_map = Map(w, h)
     
     # Créer les armées avec les unités choisies (composition mixte)
     # Si plusieurs types, on divise le nombre total par le nombre de types
