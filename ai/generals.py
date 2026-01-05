@@ -110,7 +110,12 @@ class ColonelKAISER(General):
                         move_pos = self._calculate_formation_position(unit, target, army_centroid)
                         actions.append(("move", unit.unit_id, move_pos))
             else:
-                 actions.append(("move", unit.unit_id, army_centroid))
+                 # Fallback: Avancer vers l'ennemi le plus proche si aucun visible
+                 closest_any = self.find_closest_enemy(unit, enemy_units)
+                 if closest_any:
+                      actions.append(("move", unit.unit_id, closest_any.pos))
+                 else:
+                      actions.append(("move", unit.unit_id, army_centroid))
 
         return actions
 

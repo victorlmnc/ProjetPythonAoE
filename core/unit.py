@@ -28,7 +28,7 @@ class Unit:
                  armor_classes: list[str], # ex: ["Infantry", "Spearman"]
                  bonus_damage: dict[str, int], # ex: {"Cavalry": 22}
                  pos: tuple[float, float],
-                 hitbox_radius: float = 0.5,
+                 hitbox_radius: float = 0.2,
                  reload_time: float = 2.0): # NOUVEAU: Temps de rechargement (en secondes/tours logiques)
 
         self.unit_id: int = unit_id
@@ -158,7 +158,7 @@ class Knight(Unit):
             attack_type=DMG_MELEE, melee_armor=2, pierce_armor=2, line_of_sight=4,
             armor_classes=["Cavalry", UC_UNIQUE_UNIT],
             bonus_damage={},
-            hitbox_radius=0.7,
+            hitbox_radius=0.3,
             reload_time=1.8 # Attaque rapide
         )
 
@@ -170,7 +170,7 @@ class Pikeman(Unit):
             attack_type=DMG_MELEE, melee_armor=0, pierce_armor=0, line_of_sight=4,
             armor_classes=["Infantry", "Spearman"],
             bonus_damage={"Cavalry": 22, "Elephant": 25},
-            hitbox_radius=0.4,
+            hitbox_radius=0.2,
             reload_time=3.0 # Lent (cf PDF)
         )
 
@@ -186,7 +186,7 @@ class Crossbowman(Unit):
                 UC_STANDARD_BUILDING: 1,
                 "Archer": 0, # Fixed key
             },
-            hitbox_radius=0.4,
+            hitbox_radius=0.2,
             reload_time=2.0 # Moyen
         )
 
@@ -198,7 +198,7 @@ class LongSwordsman(Unit):
             attack_type=DMG_MELEE, melee_armor=1, pierce_armor=1, line_of_sight=4,
             armor_classes=["Infantry"], # Fixed case
             bonus_damage={UC_STANDARD_BUILDING: 2},
-            hitbox_radius=0.4,
+            hitbox_radius=0.2,
             reload_time=2.0
         )
 
@@ -210,7 +210,7 @@ class EliteSkirmisher(Unit):
             attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=4, line_of_sight=7,
             armor_classes=["Archer"], # Fixed case
             bonus_damage={"Archer": 3, "Spearman": 3}, # Fixed key "All Archers" -> "Archer"
-            hitbox_radius=0.4,
+            hitbox_radius=0.2,
             reload_time=3.0 # Lent
         )
 
@@ -222,7 +222,7 @@ class CavalryArcher(Unit):
             attack_type=DMG_PIERCE, melee_armor=1, pierce_armor=0, line_of_sight=6,
             armor_classes=["Archer", "Cavalry"], # Fixed case
             bonus_damage={"Spearman": 2},
-            hitbox_radius=0.7,
+            hitbox_radius=0.3,
             reload_time=2.0
         )
 
@@ -234,7 +234,7 @@ class Onager(Unit):
             attack_type=DMG_MELEE, melee_armor=0, pierce_armor=2, line_of_sight=10,
             armor_classes=["siege"],
             bonus_damage={UC_STANDARD_BUILDING: 10},
-            hitbox_radius=1.0,
+            hitbox_radius=0.4,
             reload_time=6.0 # Très lent
         )
         # L'Onager fait des dégâts de zone (rayon de splash)
@@ -251,7 +251,7 @@ class LightCavalry(Unit):
             attack_type=DMG_MELEE, melee_armor=0, pierce_armor=2, line_of_sight=6,
             armor_classes=["Cavalry"],
             bonus_damage={"Monk": 10},  # Bonus contre les moines
-            hitbox_radius=0.6,
+            hitbox_radius=0.3,
             reload_time=2.0
         )
 
@@ -264,7 +264,7 @@ class Scorpion(Unit):
             attack_type=DMG_PIERCE, melee_armor=0, pierce_armor=5, line_of_sight=9,
             armor_classes=["siege"],
             bonus_damage={"Elephant": 6, "Infantry": 0},  # Les projectiles traversent
-            hitbox_radius=0.9,
+            hitbox_radius=0.4,
             reload_time=3.6
         )
         # Le Scorpion fait des dégâts en ligne (bolt traverse les unités)
@@ -279,7 +279,7 @@ class CappedRam(Unit):
             attack_type=DMG_MELEE, melee_armor=-3, pierce_armor=195, line_of_sight=3,
             armor_classes=["siege", "Ram"],
             bonus_damage={UC_STANDARD_BUILDING: 200, UC_STONE_DEFENSE: 65},
-            hitbox_radius=1.2,
+            hitbox_radius=0.5,
             reload_time=5.0
         )
 
@@ -295,7 +295,7 @@ class Trebuchet(Unit):
             attack_type=DMG_MELEE, melee_armor=1, pierce_armor=150, line_of_sight=19,
             armor_classes=["siege"],
             bonus_damage={UC_STANDARD_BUILDING: 250, UC_STONE_DEFENSE: 250},
-            hitbox_radius=1.5,
+            hitbox_radius=0.6,
             reload_time=10.0  # Très lent
         )
         self.is_deployed = True  # True = peut tirer, False = peut bouger
@@ -314,7 +314,7 @@ class EliteWarElephant(Unit):
             attack_type=DMG_MELEE, melee_armor=1, pierce_armor=3, line_of_sight=5,
             armor_classes=["Cavalry", "Elephant", UC_UNIQUE_UNIT],
             bonus_damage={UC_STANDARD_BUILDING: 7},
-            hitbox_radius=1.2,
+            hitbox_radius=0.45,
             reload_time=2.0
         )
         # Dégâts de zone (piétinement) - Inflige des dégâts aux unités proches
@@ -333,7 +333,7 @@ class Monk(Unit):
             attack_type=DMG_MELEE, melee_armor=0, pierce_armor=0, line_of_sight=11,
             armor_classes=["Monk"],
             bonus_damage={},
-            hitbox_radius=0.4,
+            hitbox_radius=0.2,
             reload_time=1.0
         )
         # Capacités spéciales du Moine
