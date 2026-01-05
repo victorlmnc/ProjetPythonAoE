@@ -291,8 +291,6 @@ class Onager(Unit):
         # L'Onager fait des dégâts de zone (rayon de splash)
         self.splash_radius = 1.5
 
-# --- Unités Manquantes (Requises par le PDF) ---
-
 class LightCavalry(Unit):
     """Cavalerie légère - Rapide mais fragile, bon pour le harcèlement."""
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):

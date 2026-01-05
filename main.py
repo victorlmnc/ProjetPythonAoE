@@ -448,7 +448,7 @@ def run_lanchester(args):
     else:
         view = PygameView(engine.map)
     
-    speed = 1 if args.terminal else 15
+    speed = 1 if args.terminal else 2
     engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
 
 
@@ -476,7 +476,7 @@ def run_legacy_battle(args):
         view = PygameView(engine.map)
     
     try:
-        speed = 1 if args.view == "terminal" else 15
+        speed = 1 if args.view == "terminal" else 2
         engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
     except KeyboardInterrupt:
         print("\nSimulation interrompue.")
@@ -539,7 +539,7 @@ def run_play(args):
         view = PygameView(engine.map)
     
     try:
-        speed = 1 if args.terminal else 15
+        speed = 1 if args.terminal else 2
         engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
     except KeyboardInterrupt:
         print("\nPartie interrompue.")

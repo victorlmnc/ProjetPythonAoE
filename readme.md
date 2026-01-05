@@ -1,9 +1,3 @@
-Noms IA dans fichiers de l armée mais aussi dans ligne de commande ?? fais quoi si diff ? qui decide entre les 2 ?
-Tester la "meilleure" IA car elle fait nimp.
-Charger les sprits et tester sur chaque unités et animations.
-Toutes les images de chaque étapess de sprites mises sur github, pas bien ?
-
-
 # 🏰 MedievAIl - Battle GenerAIl Simulator
 
 > Simulateur de batailles médiévales inspiré d'Age of Empires II, axé sur les tactiques IA.
@@ -12,198 +6,169 @@ Toutes les images de chaque étapess de sprites mises sur github, pas bien ?
 
 ## 🚀 Installation
 
-Pour installer les dépendances de développement, exécutez depuis la racine du projet :
+1.  **Prérequis** : Python 3.10+
+2.  **Installation** :
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+---
+
+## 🎮 Jouer Directement (Partie Rapide)
+
+Le moyen le plus simple de lancer une bataille sans configuration complexe.
 
 ```bash
-cd ProjetPythonAoE
-python -m pip install -r requirements.txt
-```
-
-## 🎮 Lancer le Jeu
-
-```bash
-# Partie rapide (10v10 Knights, mode Pygame)
 python main.py play
-
-# Mode Terminal ASCII
-python main.py play -t
-
-# Personnaliser unités/nombre/IA
-python main.py play -u Pikeman -n 20 -ai MajorDAFT ColonelKAISER
 ```
+_Lance une bataille 10 vs 10 Chevaliers avec l'IA par défaut._
+
+### Options Simples :
+| Commande | Effet |
+| :--- | :--- |
+| `python main.py play -u Pikeman` | Jouer avec des **Piquiers** |
+| `python main.py play -n 50` | **50 unités** par armée |
+| `python main.py play -t` | Mode **Terminal** (sans fenêtre graphique) |
+| `python main.py play -ai MajorDAFT ColonelKAISER` | Choisir les **IA** |
 
 ---
 
-## ⌨️ Contrôles en Jeu (Pygame)
+## ⌨️ Contrôles & Raccourcis (Interface Graphique)
 
-### Navigation Caméra
+Une fois le jeu lancé, voici comment interagir :
 
+### 🕹️ Contrôles de Jeu
+| Touche | Action |
+| :---: | :--- |
+| **Espace** | **Pause** / Reprendre |
+| **Échap** | Quitter le jeu |
+| **+ / -** | Accélérer / Ralentir le temps |
+| **F11** | Sauvegarde Rapide |
+| **F12** | Chargement Rapide |
+
+### 🎥 Caméra
 | Contrôle | Action |
-|----------|--------|
-| **W / ↑** | Haut |
-| **A / ←** | Gauche |
-| **S / ↓** | Bas |
-| **D / →** | Droite |
-| **Maj + WASD** | Déplacement rapide (3x) |
-| **Clic droit + glisser** | Faire glisser la carte |
-| **Molette** | Zoom avant / arrière |
+| :---: | :--- |
+| **Clic Droit + Glisser** | **Déplacer la carte** (Recommandé) |
+| **Molette Souris** | **Zoom** Avant / Arrière |
+| **Z / Q / S / D** | Déplacement Clavier (ou Flèches) |
+| **Maj** + Direction | Déplacement Rapide |
 
-### Affichage (Toggles)
+### 📊 Affichage (Toggles)
+Utilisez les touches numériques pour activer/désactiver les infos :
 
 | Touche | Action |
-|--------|--------|
-| **1** | Toggle infos armée |
-| **2** | Toggle barres de vie |
-| **3** ou **M** | Toggle minimap |
-| **4** | Toggle détails unités |
-
-### Contrôles Jeu
-
-| Touche | Action |
-|--------|--------|
-| **Espace** | Pause / Reprendre |
-| **F11** | Sauvegarde rapide |
-| **F12** | Info chargement |
-| **Échap** | Quitter |
+| :---: | :--- |
+| **1** | **Infos Armées** (Total unités, % vie...) |
+| **2** | **Barres de Vie** (Au dessus des unités) |
+| **3** | **Minimap** (En bas à droite) |
+| **4** | **Détail Unités** (Liste des types restants) |
 
 ---
 
-## 🛠️ Génération Procédurale (Nouveau)
+## ⚔️ Les Unités
 
-Plus besoin de créer les fichiers à la main ! Utilisez la commande `create`.
+Chaque unité a ses forces et faiblesses (Pierre-Papier-Ciseaux).
 
-### 1. Créer une Carte
+| Unité | HP | Atk | Spécial | Fort Contre... |
+| :--- | :---: | :---: | :--- | :--- |
+| **Knight** | 100 | 10 | Rapide | Archers, Infanterie légère |
+| **Pikeman** | 55 | 4 | Bonus Cavalerie | **Chevaliers** (+22 dégâts) |
+| **Crossbowman** | 35 | 6 | Portée (7.0) | Infanterie lente |
+| **Onager** | 50 | 50 | Dégâts de Zone | Groupes d'unités |
+| **EliteWarElephant** | 620 | 20 | Piétinement | Tout (mais lent) |
+| **Monk** | 30 | 0 | Soin & Conversion | Unités isolées |
+
+---
+
+## 🧠 Les Généraux (IA)
+
+| Nom | Comportement |
+| :--- | :--- |
+| `CaptainBRAINDEAD` | **Passif**. N'attaque que si touché. Sert de "Putsching Ball". |
+| `MajorDAFT` | **Agressif Basique**. Fonce sur l'ennemi le plus proche. |
+| `ColonelKAISER` | **Stratège**. Utilise des formations, le kiting et concentre ses tirs. |
+
+---
+
+## 🛠️ Création de Contenu
+
+Plus besoin de modifier les fichiers à la main !
+
+### 1. Créer une Carte Propre
 ```bash
 python main.py create map maps/ma_carte.map --width 80 --height 80 --noise 0.2
 ```
 
-### 2. Créer une Armée
+### 2. Créer une Armée Personnalisée
 ```bash
-# Générer une armée avec 20 Chevaliers et 15 Piquiers
-python main.py create army armies/mon_armee.txt --general MajorDAFT --units "Knight:20,Pikeman:15" --id 0
+# Exemple : Armée du Joueur 1 (ID 0) avec 20 Chevaliers et 10 Moines
+python main.py create army armies/mon_armee.txt --general ColonelKAISER --units "Knight:20,Monk:10" --id 0
 ```
 
 ---
 
-## Référence Complète des Commandes
+## 🔧 Commandes Avancées
 
-### 🌟 La Ligne de Commande Ultime (Mode Expert)
-Pour définir **chaque aspect** de la bataille manuellement, utilisez `run` avec tous les paramètres :
+Pour un contrôle total sur la simulation.
+
+### 1. Lancer un Scénario Précis (`run`)
+La commande ultime pour charger vos fichiers `.map` et `.txt`.
 
 ```bash
-python main.py run <MAP> <GENERAL_1> <GENERAL_2> --army1 <FICHIER_ARMEE_1> --army2 <FICHIER_ARMEE_2> --max_turns <TOURS> [-t] [-d <SAVE_FILE>]
+python main.py run <MAP> <IA1> <IA2> --army1 <FILE1> --army2 <FILE2> [options]
 ```
 
-**Exemple concret ultra-complet :**
+**Exemple Complet :**
 ```bash
-python main.py run maps/terrain_accidenté.map ColonelKAISER MajorDAFT --army1 armies/ma_super_armee.txt --army2 armies/ennemi_base.txt --max_turns 5000
-
-python main.py run maps/forest.map MajorDAFT MajorDAFT --army1 armies/armee_rouge.txt --army2 armies/armee_bleue.txt --max_turns 5000
+python main.py run maps/ma_carte.map MajorDAFT ColonelKAISER --army1 armies/mon_armee.txt --army2 armies/ennemi.txt --max_turns 5000
 ```
+> **Note :** Le nom de l'IA spécifié dans la commande est **prioritaire** sur celui écrit dans le fichier d'armée.
 
-| Paramètre | Description |
-|-----------|-------------|
-| `run` | Commande principale pour lancer un scénario précis. |
-| `<MAP>` | Fichier map (`.map`) ou script scénario (`.py`). |
-| `<GENERAL_1/2>` | IA des généraux (ex: `ColonelKAISER`, `MajorDAFT`, `CaptainBRAINDEAD`). |
-| `--army1/2` | Chemins vers les fichiers de composition d'armée (requis si fichier `.map`). |
-| `--max_turns` | Limite de tours avant fin forcée (défaut: 1000). |
-| `-t` | (Optionnel) Force le mode **Terminal ASCII** (pas de fenêtre graphique). |
-| `-d` | (Optionnel) Fichier de sauvegarde où enregistrer l'état final. |
-
-> [!NOTE]
-> **Priorité des Noms d'IA** : Si vous spécifiez un nom de général dans la ligne de commande (ex: `run ... MajorDAFT`), il sera **prioritaire** sur le nom défini dans le fichier d'armée (`GENERAL: ...`). Cela permet de tester différentes IA avec la même composition d'armée sans modifier le fichier.
-
----
-
-### 🚀 Partie Rapide (`play`)
-Le moyen le plus simple de lancer une bataille sans fichiers de config.
+### 2. Tournoi Automatique (`tourney`)
+Faire s'affronter des IA en boucle pour voir qui est la meilleure.
 
 ```bash
-python main.py play -u Knight Pikeman -n 50 -ai ColonelKAISER CaptainBRAINDEAD
+python main.py tourney -G MajorDAFT ColonelKAISER -S scenarios/test.map -N 100 --na
 ```
+*   `-N 100` : 100 matchs.
+*   `--na` : "No Animation" (Mode turbo sans graphismes).
 
-*   `-u`, `--units` : Types d'unités (ex: `Knight`, `Pikeman`, `Crossbowman`, `Monk`, `EliteWarElephant`).
-*   `-n`, `--count` : Nombre d'unités **par type** pour chaque armée.
-*   `-ai`, `--generals` : Les deux IA qui s'affrontent.
-
----
-
-### 🏆 Tournoi Automatique (`tourney`)
-Faire s'affronter plusieurs IA sur plusieurs cartes en boucle.
+### 3. Analyse de Données (`plot` / `lanchester`)
+Vérifier l'équilibrage mathématique du jeu.
 
 ```bash
-python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map maps/large.map -N 10 --na
-```
-
-*   `-G` : Liste des Généraux participants.
-*   `-S` : Liste des cartes/scénarios à jouer.
-*   `-N` : Nombre de rounds par match-up.
-*   `--na` : "No Animation" (mode super-rapide sans rendu graphique).
-
----
-
-### 📊 Analyse & Graphiques (`plot` & `lanchester`)
-Pour vérifier l'équilibrage et la loi de Lanchester.
-
-```bash
-# Vérifier la loi carrée de Lanchester (N vs 2N)
+# Vérifier la loi de Lanchester (N vs 2N)
 python main.py lanchester Knight 20 -t
 
-# Générer un graphique de performance (nécessite matplotlib)
-python main.py plot MajorDAFT win_rate scenarios/1v1.py "range(10, 100, 10)" --opponent CaptainBRAINDEAD
+# Générer un graphique de Win Rate
+python main.py plot MajorDAFT win_rate scenarios/1v1.py "range(10, 100, 10)"
 ```
 
 ---
 
-## 👥 Généraux (IA)
+## 🧪 Développement
 
-| Nom | Comportement |
-|-----|--------------|
-| `CaptainBRAINDEAD` | Passif, n'attaque que si agressé |
-| `MajorDAFT` | Agressif, attaque l'ennemi le plus proche |
-| `ColonelKAISER` | Avancé : formations, kiting, focus fire |
-
----
-
-## ⚔️ Unités
-
-| Unité | HP | Attaque | Portée | Spécial |
-|-------|-----|---------|--------|---------|
-| Knight | 100 | 10 | 0.5 | - |
-| Pikeman | 55 | 4 | 0.5 | +22 vs Cavalerie |
-| Crossbowman | 35 | 6 | 7.0 | - |
-| Onager | 50 | 50 | 8.0 | Splash damage |
-| EliteWarElephant | 620 | 20 | 0.5 | Trample damage |
-| Monk | 30 | 0 | 9.0 | Heal & Convert |
-
----
-
-## 🧪 Tests
+Pour lancer les tests unitaires et vérifier que tout fonctionne :
 
 ```bash
-pytest tests/test_unit.py -v
+pytest tests/
 ```
+---
+
+##  M�caniques & R�gles
+
+Quelques d�tails techniques sur le fonctionnement du jeu :
+
+- **Formule de D�g�ts** : max(1, Attaque + Bonus - Armure)
+- **�l�vation** : +25% de d�g�ts si l'attaquant est en hauteur.
+- **Victoire** : Destruction totale de l'arm�e adverse.
 
 ---
 
-## ⚡ Mécaniques
+##  V�rification de Conformit�
 
-- **Formule dégâts** : `max(1, Attaque + Bonus - Armure)`
-- **Élévation** : +25% dégâts depuis hauteur
-- **Victoire** : Destruction armée ou Wonder ennemie
+Pour v�rifier que le projet respecte chaque point du cahier des charges (Req 1 � 15), consultez le guide d�taill� :
 
----
+ **[Voir le Guide de Test Complet (testing_guide.md)](testing_guide.md)**
 
-## 📜 Vérification de Conformité (PDF)
-
-Pour vérifier que le projet respecte chaque point du cahier des charges (Req 1 à 15), consultez le guide détaillé :
-
-👉 **[Voir le Guide de Test complet (testing_guide.md)](testing_guide.md)**
-
-### Résumé des vérifications clés :
-1.  **Sprites** : Lancez `python main.py play` et zoomez.
-2.  **Scénarios Python** : Lancez `python main.py run scenarios/test_scenario.py MajorDAFT MajorDAFT`.
-3.  **Vitesse** : Appuyez sur `+` ou `-` en jeu.
-4.  **Lanchester** : Lancez `python main.py lanchester Knight 50 -t`.
-5.  **Tournoi** : Lancez `python main.py tourney -G MajorDAFT CaptainBRAINDEAD -S scenarios/test_scenario.py`.
