@@ -66,7 +66,7 @@ Exemples d'utilisation:
     play_parser.add_argument("-ai", "--generals", nargs=2, default=["MajorDAFT", "MajorDAFT"],
                             help="IA des deux camps (défaut: MajorDAFT MajorDAFT)")
     play_parser.add_argument("--max_turns", type=int, default=2000,
-                            help="Nombre max de tours")
+                            help="Nombre max de ticks")
     play_parser.add_argument("--map-size", type=str, default="120x120",
                             help="Taille de la carte (ex: 60x60, 120x120...)")
 
@@ -89,7 +89,7 @@ Exemples d'utilisation:
     run_parser.add_argument("--army2", type=str, default=None,
                            help="Fichier armée 2 (optionnel si scénario .py)")
     run_parser.add_argument("--max_turns", type=int, default=1000,
-                           help="Nombre maximum de tours (défaut: 1000)")
+                           help="Nombre maximum de ticks (defaut: 1000)")
 
     # =========================================================================
     # Commande: battle tourney -G <AI1> <AI2>... -S <SCEN1>... [-N=10]
@@ -133,7 +133,7 @@ Exemples d'utilisation:
     lanchester_parser.add_argument("--general", type=str, default="MajorDAFT",
                                   help="Général à utiliser (défaut: MajorDAFT)")
     lanchester_parser.add_argument("--max_turns", type=int, default=1000,
-                                  help="Nombre maximum de tours")
+                                  help="Nombre maximum de ticks")
 
     # =========================================================================
     # Commande legacy: battle (ancien format avec --map, --army1, etc.)

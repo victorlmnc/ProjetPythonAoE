@@ -99,14 +99,26 @@ class Unit:
                 
         elif state == 'walk':
             # L'animation accélère avec la vitesse de déplacement
-            # Base : disons qu'à speed=1.0, le cycle dure 1000ms (1s)
-            BASE_WALK_CYCLE_MS = 1000 
+            # Base : disons qu'à speed=1.0, le cycle dure 800ms
+            BASE_WALK_CYCLE_MS = 800 
             # Plus speed est grand, plus cycle est court
             cycle_duration = BASE_WALK_CYCLE_MS / max(0.1, self.speed)
             if frames_count > 0:
                 ms_per_frame = cycle_duration / frames_count
             else:
-                ms_per_frame = 50
+                ms_per_frame = 80
+        
+        elif state == 'death':
+            # Animation de mort : dure environ 1.5 secondes
+            DEATH_DURATION_MS = 1500
+            if frames_count > 0:
+                ms_per_frame = DEATH_DURATION_MS / frames_count
+            else:
+                ms_per_frame = 100
+        
+        elif state == 'idle':
+            # Idle plus lent pour économiser les ressources
+            ms_per_frame = 150
         
         # Protection contre divisions par zéro ou valeurs aberrantes
         ms_per_frame = max(10, ms_per_frame) 

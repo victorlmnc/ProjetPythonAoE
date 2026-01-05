@@ -42,9 +42,12 @@ OBSTACLE_COLOR = (100, 100, 100) # Gris pour les obstacles
 MINIMAP_SIZE = 200
 MINIMAP_MARGIN = 20
 
-# Taille d'une seule frame dans VOS spritesheets (estimée).
+# Taille d'une seule frame dans VOS spritesheets (estimee).
 SPRITE_FRAME_WIDTH = 48  
-SPRITE_FRAME_HEIGHT = 72 
+SPRITE_FRAME_HEIGHT = 72
+
+# Echelle d'affichage des unites (2.5 = taille visible)
+UNIT_DISPLAY_SCALE = 2.5 
 
 class PygameView:
     def __init__(self, game_map: Map):
@@ -55,13 +58,18 @@ class PygameView:
         self.map = game_map
         self.font = pygame.font.SysFont('Arial', 16, bold=True)
         self.ui_font = pygame.font.SysFont('Arial', 24, bold=True)
+        
+        # --- Dynamic screen dimensions (for resize/fullscreen support) ---
+        self.screen_w = SCREEN_WIDTH
+        self.screen_h = SCREEN_HEIGHT
 
         # --- Zoom Settings ---
+        # --- Zoom Settings ---
         self.min_zoom = 0.2  # déZoom loin
-        self.max_zoom = 2.0
+        self.max_zoom = 2.5
         # Discrete zoom levels for caching (performance optimization)
-        self.zoom_levels = [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.25, 1.5, 2.0]
-        self.zoom = self.min_zoom  # Démarrer dézoomé au max
+        self.zoom_levels = [0.2, 0.4, 0.5, 0.6, 0.8, 1.0, 1.25, 1.5, 2.0, 2.5]
+        self.zoom = self.min_zoom  # Demarrer dezoome au max
         # Cache for pre-scaled sprites at each zoom level
         self._zoom_cache: dict[float, dict] = {}
 
@@ -109,12 +117,97 @@ class PygameView:
         self.tree_sprite: pygame.Surface | None = None
         self.grass_sprite: pygame.Surface | None = None
         
-        self._load_sprites()
-        print("Chargement des assets de fond terminé.")
-        # timing pour les animations côté vue (ms)
+        # --- Loading with progress ---
+        num_unit_types = 5
+        num_zoom_levels = len(self.zoom_levels)
+        total_steps = num_unit_types + num_zoom_levels + 1
+        
+        self._show_loading_screen("Initialisation...", 0, total_steps)
+        
+        self._load_sprites_with_progress(total_steps)
+        
+        # Pre-cache ALL zoom levels
+        current_zoom = self.zoom
+        for idx, z in enumerate(self.zoom_levels):
+            step = num_unit_types + idx + 1
+            self._show_loading_screen(f"Zoom {z}x", step, total_steps)
+            self.zoom = z
+            self.update_zoom_metrics()
+            self._rescale_assets()
+        
+        # Restore initial zoom
+        self.zoom = current_zoom
+        self.update_zoom_metrics()
+        self._rescale_assets()
+        
+        self._show_loading_screen("Pret!", total_steps, total_steps)
+        pygame.time.wait(200)
+        print("Chargement termine.")
+        
+        # timing pour les animations cote vue (ms)
         self._last_anim_tick = pygame.time.get_ticks()
-        # Facteur pour ralentir l'animation côté vue (>1 = plus lent)
+        # Facteur pour ralentir l'animation cote vue (>1 = plus lent)
         self.anim_time_scale = 0.5
+
+    def _show_loading_screen(self, step_text: str, current_step: int, total_steps: int):
+        """Affiche un écran de chargement avec progression."""
+        # Process events to keep window responsive
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+        
+        # Background
+        self.screen.fill((15, 18, 25))
+        
+        # Title
+        title_font = pygame.font.SysFont('Arial', 48, bold=True)
+        title = title_font.render("MedievAIl", True, (255, 215, 100))
+        self.screen.blit(title, (self.screen_w // 2 - title.get_width() // 2, self.screen_h // 2 - 100))
+        
+        # Subtitle
+        sub_font = pygame.font.SysFont('Arial', 18)
+        sub = sub_font.render("Chargement en cours...", True, (120, 120, 140))
+        self.screen.blit(sub, (self.screen_w // 2 - sub.get_width() // 2, self.screen_h // 2 - 40))
+        
+        # Progress bar
+        bar_w, bar_h = 400, 20
+        bar_x = self.screen_w // 2 - bar_w // 2
+        bar_y = self.screen_h // 2 + 10
+        
+        # Background bar
+        pygame.draw.rect(self.screen, (30, 30, 40), (bar_x, bar_y, bar_w, bar_h))
+        pygame.draw.rect(self.screen, (50, 50, 60), (bar_x, bar_y, bar_w, bar_h), 2)
+        
+        # Progress fill
+        progress = current_step / max(1, total_steps)
+        fill_w = int(bar_w * progress)
+        if fill_w > 0:
+            # Gradient-like effect
+            for i in range(fill_w):
+                alpha = 0.7 + 0.3 * (i / bar_w)
+                color = (int(80 * alpha), int(180 * alpha), int(255 * alpha))
+                pygame.draw.line(self.screen, color, (bar_x + i, bar_y + 2), (bar_x + i, bar_y + bar_h - 2))
+        
+        # Percentage
+        pct_text = self.font.render(f"{int(progress * 100)}%", True, (200, 200, 200))
+        self.screen.blit(pct_text, (bar_x + bar_w + 15, bar_y + 2))
+        
+        # Current step
+        step_font = pygame.font.SysFont('Arial', 14)
+        step = step_font.render(step_text, True, (100, 100, 120))
+        self.screen.blit(step, (self.screen_w // 2 - step.get_width() // 2, bar_y + 35))
+        
+        # Animated dots
+        dots = "." * (1 + (pygame.time.get_ticks() // 500) % 3)
+        dots_txt = sub_font.render(dots, True, (100, 100, 120))
+        self.screen.blit(dots_txt, (self.screen_w // 2 + sub.get_width() // 2, self.screen_h // 2 - 40))
+        
+        pygame.display.flip()
+    
+    def _load_sprites_with_progress(self, total_steps: int):
+        """Charge les sprites avec affichage de progression."""
+        self._load_sprites(total_steps)
 
     def update_zoom_metrics(self):
         """Recalcule les dimensions des tuiles et l'offset de base selon le zoom."""
@@ -128,8 +221,9 @@ class PygameView:
         center_map_y = self.map.height / 2
         iso_center_x = (center_map_x - center_map_y) * self.tile_half_w
         iso_center_y = (center_map_x + center_map_y) * self.tile_half_h
-        self.offset_x = SCREEN_WIDTH / 2 - iso_center_x
-        self.offset_y = SCREEN_HEIGHT / 2 - iso_center_y
+        # Use dynamic screen dimensions
+        self.offset_x = self.screen_w / 2 - iso_center_x
+        self.offset_y = self.screen_h / 2 - iso_center_y
 
     def _load_webp_asset(self, path: str, target_size: tuple[int, int], is_spritesheet: bool) -> pygame.Surface | None:
         """
@@ -233,7 +327,7 @@ class PygameView:
             print(f"Erreur lors du chargement du cache {cache_dir}: {e}")
             return None
 
-    def _load_sprites(self):
+    def _load_sprites(self, total_steps: int = 17):
         """
         Charge tous les assets graphiques nécessaires dans self.orig_*.
         Ensuite, génère les versions scalées.
@@ -275,7 +369,10 @@ class PygameView:
         }
 
         self.orig_units = {}
-        for u_class, name in unit_configs.items():
+        for idx, (u_class, name) in enumerate(unit_configs.items()):
+            # Update loading screen for each unit type
+            self._show_loading_screen(f"Sprites: {name}", idx + 1, total_steps)
+            
             self.orig_units[u_class] = {'blue': {}, 'red': {}}
             for color_folder, prefix in (('blue', 'b'), ('red', 'r')):
                 for state, (rows, cols) in states_grid.items():
@@ -323,8 +420,8 @@ class PygameView:
             w, h = self.orig_tree.get_size()
             cache['tree'] = scale_func(self.orig_tree, (max(1, int(w * cached_zoom)), max(1, int(h * cached_zoom))))
 
-        # Scale unit sprites
-        DISPLAY_SCALE = 1.5
+        # Scale unit sprites - utilise la constante globale
+        DISPLAY_SCALE = UNIT_DISPLAY_SCALE
         unit_cache = {}
         for u_class, color_dict in self.orig_units.items():
             unit_cache[u_class] = {'blue': {}, 'red': {}}
@@ -391,8 +488,8 @@ class PygameView:
         # Hauteur totale iso ~ (W + H) * tile_half_h
         
         # On autorise à scroller jusqu'à voir les coins + une marge (écran/2)
-        limit_x = (self.map.width + self.map.height) * self.tile_half_w / 2 + SCREEN_WIDTH * 0.2
-        limit_y = (self.map.width + self.map.height) * self.tile_half_h / 2 + SCREEN_HEIGHT * 0.2
+        limit_x = (self.map.width + self.map.height) * self.tile_half_w / 2 + self.screen_w * 0.2
+        limit_y = (self.map.width + self.map.height) * self.tile_half_h / 2 + self.screen_h * 0.2
         
         self.scroll_x = max(-limit_x, min(self.scroll_x, limit_x))
         self.scroll_y = max(-limit_y, min(self.scroll_y, limit_y))
@@ -404,10 +501,10 @@ class PygameView:
         # Vitesse de scroll (Maj = rapide, Req 9 PDF)
         current_speed = self.scroll_speed_fast if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) else self.scroll_speed
         
-        # Déplacement Caméra
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]: self.scroll_x -= current_speed
+        # Déplacement Caméra (Flèches + ZQSD pour clavier français)
+        if keys[pygame.K_LEFT] or keys[pygame.K_q]: self.scroll_x -= current_speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]: self.scroll_x += current_speed
-        if keys[pygame.K_UP] or keys[pygame.K_w]: self.scroll_y -= current_speed
+        if keys[pygame.K_UP] or keys[pygame.K_z]: self.scroll_y -= current_speed
         if keys[pygame.K_DOWN] or keys[pygame.K_s] and not (keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]): 
             self.scroll_y += current_speed
         
@@ -416,6 +513,14 @@ class PygameView:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT: return "quit"
+            
+            # --- RESIZE/FULLSCREEN HANDLING ---
+            if event.type == pygame.VIDEORESIZE:
+                self.screen_w = event.w
+                self.screen_h = event.h
+                self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+                self.update_zoom_metrics()  # Recalculate offsets for new size
+            
             
             # --- DRAG SOURIS pour scroll (Clic droit + glisser) ---
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:  # Clic droit
@@ -487,9 +592,9 @@ class PygameView:
         
         # Get cart coords of screen corners
         top_left = self.iso_to_cart(-margin, -margin)
-        top_right = self.iso_to_cart(SCREEN_WIDTH + margin, -margin)
-        bottom_left = self.iso_to_cart(-margin, SCREEN_HEIGHT + margin)
-        bottom_right = self.iso_to_cart(SCREEN_WIDTH + margin, SCREEN_HEIGHT + margin)
+        top_right = self.iso_to_cart(self.screen_w + margin, -margin)
+        bottom_left = self.iso_to_cart(-margin, self.screen_h + margin)
+        bottom_right = self.iso_to_cart(self.screen_w + margin, self.screen_h + margin)
         
         # Find bounding box in tile coordinates
         all_x = [top_left[0], top_right[0], bottom_left[0], bottom_right[0]]
@@ -563,9 +668,17 @@ class PygameView:
                 # Inclure aussi les unités mortes récentes pour afficher l'animation de mort
                 visible_units.append((army.army_id, unit))
 
-        visible_units.sort(key=lambda p: (round(p[1].pos[1]), round(p[1].pos[0])))
+        # Tri stable avec unit_id comme tiebreaker pour éviter le clignotement
+        visible_units.sort(key=lambda p: (p[1].pos[1], p[1].pos[0], p[1].unit_id))
 
         for army_id, unit in visible_units:
+            # Ne pas afficher les unités dont l'animation de mort est terminée
+            if not unit.is_alive:
+                death_elapsed = getattr(unit, 'death_elapsed', 0)
+                # Temps max pour l'animation de mort (environ 2 secondes)
+                if death_elapsed > 2000:
+                    continue  # Skip - l'unité doit disparaître
+            
             x, y = unit.pos
             ix, iy = int(x), int(y)
             if not (0 <= ix < self.map.width and 0 <= iy < self.map.height):
@@ -697,77 +810,184 @@ class PygameView:
     def draw_ui(self, time_elapsed, paused, armies):
         """Interface Utilisateur avec toggles F1-F4 - Design moderne."""
         
-        # --- PAUSE INDICATOR ---
-        if paused:
-            pause_surface = pygame.Surface((400, 50), pygame.SRCALPHA)
-            pause_surface.fill((200, 50, 50, 200))
-            txt = self.ui_font.render("⏸ PAUSE - Espace pour reprendre", True, WHITE)
-            pause_surface.blit(txt, (pause_surface.get_width()//2 - txt.get_width()//2, 12))
-            self.screen.blit(pause_surface, (SCREEN_WIDTH//2 - 200, 20))
+        # --- TIME DISPLAY (Top center - always visible) ---
+        minutes = int(time_elapsed) // 60
+        seconds = int(time_elapsed) % 60
+        time_str = f"Duree: {minutes:02d}:{seconds:02d}"
         
-        # --- TIME DISPLAY (Top left corner) ---
-        time_surface = pygame.Surface((120, 40), pygame.SRCALPHA)
-        time_surface.fill((0, 0, 0, 150))
-        time_txt = self.ui_font.render(f"⏱ {int(time_elapsed)}s", True, WHITE)
-        time_surface.blit(time_txt, (10, 8))
-        self.screen.blit(time_surface, (15, 15))
-
-        # --- F1: ARMY INFO PANELS ---
-        if self.show_army_info:
-            panel_width = 280
-            panel_height = 70
-            panel_x = 15
-            panel_y = 65
+        time_surface = pygame.Surface((160, 35), pygame.SRCALPHA)
+        time_surface.fill((15, 15, 20, 200))
+        pygame.draw.rect(time_surface, (80, 80, 90), (0, 0, 160, 35), 1)
+        time_txt = self.ui_font.render(time_str, True, (220, 220, 220))
+        time_surface.blit(time_txt, (time_surface.get_width()//2 - time_txt.get_width()//2, 5))
+        self.screen.blit(time_surface, (self.screen_w//2 - 80, 10))
+        
+        # --- PAUSE OVERLAY WITH FULL CONTROLS ---
+        if paused:
+            # Semi-transparent overlay
+            overlay = pygame.Surface((self.screen_w, self.screen_h), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))
+            self.screen.blit(overlay, (0, 0))
             
+            # Main pause panel
+            panel_w, panel_h = 450, 400
+            panel_x = self.screen_w // 2 - panel_w // 2
+            panel_y = self.screen_h // 2 - panel_h // 2
+            
+            pause_panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+            pause_panel.fill((20, 22, 28, 240))
+            pygame.draw.rect(pause_panel, (70, 130, 220), (0, 0, panel_w, panel_h), 2)
+            
+            # Title
+            title = self.ui_font.render("PAUSE", True, (255, 200, 100))
+            pause_panel.blit(title, (panel_w//2 - title.get_width()//2, 15))
+            
+            # Separator
+            pygame.draw.line(pause_panel, (60, 60, 70), (20, 50), (panel_w - 20, 50), 1)
+            
+            # Controls sections
+            controls = [
+                ("NAVIGATION", [
+                    ("Fleches/ZQSD/Clic droit", "Deplacer camera"),
+                    ("Molette souris", "Zoom +/-"),
+                    ("Maj + fleches", "Deplacement rapide"),
+                ]),
+                ("JEU", [
+                    ("Espace", "Pause / Reprendre"),
+                    ("+/-", "Vitesse simulation"),
+                    ("Echap", "Quitter"),
+                ]),
+                ("AFFICHAGE", [
+                    ("1 / F1", f"Infos armee {'[ON]' if self.show_army_info else '[OFF]'}"),
+                    ("2 / F2", f"Barres HP {'[ON]' if self.show_hp_bars else '[OFF]'}"),
+                    ("3 / F3 / M", f"Minimap {'[ON]' if self.show_minimap else '[OFF]'}"),
+                    ("4 / F4", f"Details unites {'[ON]' if self.show_unit_details else '[OFF]'}"),
+                ]),
+                ("SAUVEGARDE", [
+                    ("F11", "Sauvegarde rapide"),
+                    ("F12", "Charger sauvegarde"),
+                ]),
+            ]
+            
+            y_offset = 60
+            small_font = pygame.font.SysFont('Arial', 13)
+            
+            for section_name, section_controls in controls:
+                # Section header
+                section_txt = self.font.render(section_name, True, (150, 180, 220))
+                pause_panel.blit(section_txt, (20, y_offset))
+                y_offset += 20
+                
+                for key, desc in section_controls:
+                    # Key
+                    key_txt = small_font.render(key, True, (180, 180, 180))
+                    pause_panel.blit(key_txt, (30, y_offset))
+                    # Description
+                    desc_txt = small_font.render(desc, True, (120, 120, 130))
+                    pause_panel.blit(desc_txt, (200, y_offset))
+                    y_offset += 16
+                
+                y_offset += 6  # Space between sections
+            
+            # Resume hint at bottom
+            resume_txt = self.font.render("Appuyez sur ESPACE pour reprendre", True, (100, 200, 100))
+            pause_panel.blit(resume_txt, (panel_w//2 - resume_txt.get_width()//2, panel_h - 30))
+            
+            self.screen.blit(pause_panel, (panel_x, panel_y))
+        
+        # --- F1: ARMY INFO PANELS (Beautiful redesign) ---
+        if self.show_army_info:
+            # Position armies at top corners for VS-style display
             for i, army in enumerate(armies):
                 alive = sum(1 for u in army.units if u.is_alive)
                 total = len(army.units)
-                percent = (alive / total) if total > 0 else 0
+                percent = (alive / total * 100) if total > 0 else 0
                 total_hp = sum(u.current_hp for u in army.units if u.is_alive)
                 max_total_hp = sum(u.max_hp for u in army.units)
                 hp_percent = (total_hp / max_total_hp) if max_total_hp > 0 else 0
                 general_name = army.general.__class__.__name__
                 
-                # Team colors
-                team_color = (70, 130, 220) if i == 0 else (220, 70, 70)
-                accent_color = (100, 160, 255) if i == 0 else (255, 100, 100)
+                # Panel dimensions
+                panel_w, panel_h = 260, 85
                 
-                # Panel background
-                panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-                panel.fill((20, 20, 25, 220))
+                # Position: left for army 0, right for army 1
+                if i == 0:
+                    panel_x = 15
+                else:
+                    panel_x = self.screen_w - panel_w - 15
+                panel_y = 10
                 
-                # Team color accent bar (left side)
-                pygame.draw.rect(panel, team_color, (0, 0, 4, panel_height))
+                # Team colors with glow effect
+                if i == 0:
+                    main_color = (50, 120, 200)
+                    glow_color = (80, 150, 255)
+                    bar_color = (100, 180, 255)
+                else:
+                    main_color = (200, 60, 60)
+                    glow_color = (255, 100, 100)
+                    bar_color = (255, 120, 120)
                 
-                # Header
-                header = self.font.render(f"Armée {i+1} • {general_name}", True, accent_color)
-                panel.blit(header, (12, 8))
+                # Panel with gradient-like effect
+                panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
                 
-                # Units count with mini progress bar
-                units_txt = self.font.render(f"Unités: {alive}/{total}", True, WHITE)
-                panel.blit(units_txt, (12, 30))
+                # Background gradient simulation (darker at top, lighter at bottom)
+                for y in range(panel_h):
+                    alpha = 200 + int(40 * (y / panel_h))
+                    shade = 15 + int(10 * (y / panel_h))
+                    pygame.draw.line(panel, (shade, shade, shade + 5, min(255, alpha)), (0, y), (panel_w, y))
                 
-                # Units progress bar
-                bar_x, bar_y, bar_w, bar_h = 110, 33, 80, 10
-                pygame.draw.rect(panel, (40, 40, 45), (bar_x, bar_y, bar_w, bar_h))
-                pygame.draw.rect(panel, accent_color, (bar_x, bar_y, int(bar_w * percent), bar_h))
+                # Glowing border on team side
+                border_side = 0 if i == 0 else panel_w - 5
+                for glow in range(5):
+                    alpha = 150 - glow * 30
+                    pygame.draw.rect(panel, (*glow_color, max(0, alpha)), (border_side + (glow if i == 1 else -glow), 0, 5 - glow, panel_h))
                 
-                # HP display
-                hp_txt = self.font.render(f"HP: {total_hp}", True, (150, 255, 150))
-                panel.blit(hp_txt, (200, 30))
+                # Main team color bar
+                pygame.draw.rect(panel, main_color, (0 if i == 0 else panel_w - 5, 0, 5, panel_h))
                 
-                # HP progress bar (bottom)
-                hp_bar_y = panel_height - 12
-                pygame.draw.rect(panel, (40, 40, 45), (12, hp_bar_y, panel_width - 24, 6))
-                pygame.draw.rect(panel, (100, 200, 100), (12, hp_bar_y, int((panel_width - 24) * hp_percent), 6))
+                # Outer border
+                pygame.draw.rect(panel, (60, 60, 70), (0, 0, panel_w, panel_h), 1)
                 
-                self.screen.blit(panel, (panel_x, panel_y + i * (panel_height + 10)))
+                # Army name and general
+                name_x = 15 if i == 0 else 10
+                title = self.ui_font.render(f"ARMEE {i+1}", True, glow_color)
+                panel.blit(title, (name_x, 8))
+                
+                general_txt = self.font.render(general_name, True, (180, 180, 180))
+                panel.blit(general_txt, (name_x, 32))
+                
+                # Stats row
+                stats_y = 52
+                
+                # Units alive
+                units_str = f"{alive}/{total} unites"
+                units_txt = self.font.render(units_str, True, WHITE)
+                panel.blit(units_txt, (name_x, stats_y))
+                
+                # HP with colored bar (Vie globale)
+                vie_label = self.font.render("Vie:", True, (150, 150, 150))
+                panel.blit(vie_label, (name_x + 95, stats_y))
+                
+                hp_bar_x = name_x + 125
+                hp_bar_w = 85
+                hp_bar_h = 14
+                
+                # HP bar background
+                pygame.draw.rect(panel, (30, 30, 35), (hp_bar_x, stats_y, hp_bar_w, hp_bar_h))
+                # HP bar fill
+                pygame.draw.rect(panel, bar_color, (hp_bar_x, stats_y, int(hp_bar_w * hp_percent), hp_bar_h))
+                # HP bar border
+                pygame.draw.rect(panel, (80, 80, 90), (hp_bar_x, stats_y, hp_bar_w, hp_bar_h), 1)
+                
+                # HP percentage text on bar
+                hp_pct_txt = self.font.render(f"{int(hp_percent * 100)}%", True, WHITE)
+                panel.blit(hp_pct_txt, (hp_bar_x + hp_bar_w//2 - hp_pct_txt.get_width()//2, stats_y - 1))
+                
+                self.screen.blit(panel, (panel_x, panel_y))
         
-        # --- F4: UNIT DETAILS PANELS ---
+        # --- F4: UNIT DETAILS PANELS (positioned under respective army) ---
         if self.show_unit_details:
-            detail_panel_width = 200
-            detail_x = 15
-            detail_y = 220 if self.show_army_info else 65
+            detail_panel_width = 180
             
             for i, army in enumerate(armies):
                 team_color = (70, 130, 220) if i == 0 else (220, 70, 70)
@@ -785,63 +1005,63 @@ class PygameView:
                 
                 # Calculate panel height
                 num_types = len(unit_counts)
-                detail_panel_height = 30 + num_types * 22
+                detail_panel_height = 28 + num_types * 18
+                
+                # Position: under respective army (left for 0, right for 1)
+                if i == 0:
+                    detail_x = 15
+                else:
+                    detail_x = self.screen_w - detail_panel_width - 15
+                detail_y = 100  # Under army panels
                 
                 # Panel background
                 panel = pygame.Surface((detail_panel_width, detail_panel_height), pygame.SRCALPHA)
                 panel.fill((20, 20, 25, 200))
-                pygame.draw.rect(panel, team_color, (0, 0, 3, detail_panel_height))
+                pygame.draw.rect(panel, (40, 40, 50), (0, 0, detail_panel_width, detail_panel_height), 1)
+                border_x = 0 if i == 0 else detail_panel_width - 3
+                pygame.draw.rect(panel, team_color, (border_x, 0, 3, detail_panel_height))
                 
                 # Header
-                header = self.font.render(f"Armée {i+1} - Détails", True, accent_color)
-                panel.blit(header, (10, 6))
+                header = self.font.render(f"Details", True, accent_color)
+                panel.blit(header, (10 if i == 0 else 8, 5))
                 
                 # Unit type rows
-                row_y = 28
-                # Unit type icons (simple text)
-                UNIT_ICONS = {
-                    'Knight': '⚔', 'Pikeman': '🔱', 'Crossbowman': '🏹',
-                    'LongSwordsman': '⚔', 'LightCavalry': '🐎', 'Castle': '🏰',
-                    'Wonder': '⭐', 'Onager': '💥', 'Monk': '✝'
-                }
+                row_y = 24
                 
                 for unit_type, counts in unit_counts.items():
-                    icon = UNIT_ICONS.get(unit_type, '•')
                     alive, total = counts['alive'], counts['total']
                     ratio = alive / total if total > 0 else 0
                     
                     # Status color
                     if ratio == 1:
-                        status_color = (100, 200, 100)  # Full = green
+                        status_color = (100, 200, 100)
                     elif ratio > 0.5:
-                        status_color = (200, 200, 100)  # Half = yellow
+                        status_color = (200, 200, 100)
                     elif ratio > 0:
-                        status_color = (200, 100, 100)  # Low = red
+                        status_color = (200, 100, 100)
                     else:
-                        status_color = (100, 100, 100)  # Dead = gray
+                        status_color = (100, 100, 100)
                     
-                    # Short name (max 10 chars)
                     short_name = unit_type[:10] if len(unit_type) > 10 else unit_type
-                    line = self.font.render(f"{icon} {short_name}: {alive}/{total}", True, status_color)
-                    panel.blit(line, (10, row_y))
-                    row_y += 20
+                    line = self.font.render(f"{short_name}: {alive}/{total}", True, status_color)
+                    panel.blit(line, (10 if i == 0 else 8, row_y))
+                    row_y += 16
                 
                 self.screen.blit(panel, (detail_x, detail_y))
-                detail_y += detail_panel_height + 10
         
-        # --- SHORTCUTS DISPLAY (Top right) ---
-        shortcuts_surface = pygame.Surface((220, 30), pygame.SRCALPHA)
-        shortcuts_surface.fill((0, 0, 0, 120))
-        shortcuts = "1:Info 2:HP 3:Map 4:Detail"
-        shortcut_txt = self.font.render(shortcuts, True, (150, 150, 150))
-        shortcuts_surface.blit(shortcut_txt, (10, 6))
-        self.screen.blit(shortcuts_surface, (SCREEN_WIDTH - 235, 15))
+        # --- MINI CONTROLS HINT (Bottom right - only when NOT paused) ---
+        if not paused:
+            hint_surface = pygame.Surface((180, 25), pygame.SRCALPHA)
+            hint_surface.fill((0, 0, 0, 120))
+            hint_txt = self.font.render("Espace = Pause / Controles", True, (140, 140, 140))
+            hint_surface.blit(hint_txt, (8, 4))
+            self.screen.blit(hint_surface, (self.screen_w - 195, self.screen_h - 35))
 
         # Minimap (F3/M toggle)
         if self.show_minimap:
             # Centre de la minimap
-            mm_center_x = SCREEN_WIDTH - MINIMAP_SIZE/2 - 20
-            mm_center_y = SCREEN_HEIGHT - MINIMAP_SIZE/2 - 20
+            mm_center_x = self.screen_w - MINIMAP_SIZE/2 - 20
+            mm_center_y = self.screen_h - MINIMAP_SIZE/2 - 20
             
             # Facteur d'échelle pour faire rentrer la map (diagonale W+H) dans MINIMAP_SIZE
             # Map Dimensions: W, H
@@ -882,9 +1102,9 @@ class PygameView:
             # On projette les 4 coins de l'écran vers le monde (grid), puis vers la minimap
             corners_screen = [
                 (0, 0),
-                (SCREEN_WIDTH, 0),
-                (SCREEN_WIDTH, SCREEN_HEIGHT),
-                (0, SCREEN_HEIGHT)
+                (self.screen_w, 0),
+                (self.screen_w, self.screen_h),
+                (0, self.screen_h)
             ]
             
             poly_points = []
@@ -898,25 +1118,32 @@ class PygameView:
             if len(poly_points) == 4:
                 pygame.draw.polygon(self.screen, WHITE, poly_points, 1)
 
-    def display(self, armies: list[Army], time_elapsed: float, paused: bool) -> str | None:
+    def display(self, armies: list[Army], time_elapsed: float, paused: bool = False, speed_multiplier: float = 1.0) -> str | None:
         cmd = self.check_events()
 
-        # Avancer les animations par frame (déléguer à la vue pour fluidité)
-        now = pygame.time.get_ticks()
-        delta = now - getattr(self, '_last_anim_tick', now)
-        self._last_anim_tick = now
-        # Appliquer le facteur de ralentissement (diviser le delta pour ralentir)
-        try:
-            scaled_delta = max(1, int(delta / max(0.001, self.anim_time_scale)))
-        except Exception:
-            scaled_delta = max(1, int(delta))
+        # Avancer les animations par frame (delta constant pour fluidité)
+        # Utiliser un delta constant de 16ms (environ 60 FPS) pour des animations stables
+        anim_delta = 16  # ms constant pour des animations fluides
+        
         # Si le jeu est en pause, ne pas avancer les animations
         if not paused:
             try:
+                # Seuil de zoom pour désactiver les animations de marche pour éviter les vibrations
+                # Condition: Zoom loin (< 0.6) ET Vitesse faible (< 4.0)
+                # Si le jeu va vite, on laisse les animations car l'accélération masque les vibrations
+                disable_walk_anim = (self.zoom < 0.6) and (speed_multiplier < 4.0)
+                
                 for army in armies:
                     for unit in army.units:
                         try:
-                            unit.tick_animation(int(scaled_delta))
+                            # Ne pas animer la marche si on est trop dézoomé (évite les vibrations)
+                            if disable_walk_anim and getattr(unit, 'statut', '') == 'walk':
+                                # On n'appelle pas tick_animation, mais on s'assure qu'on est à l'index 0
+                                # pour avoir une image statique propre
+                                unit.anim_index = 0
+                                continue
+                            
+                            unit.tick_animation(anim_delta)
                         except Exception:
                             pass
             except Exception:
@@ -929,3 +1156,233 @@ class PygameView:
         pygame.display.flip()
         self.clock.tick(60)
         return cmd
+
+    def display_game_over(self, armies: list[Army], winner_id: int | None, time_elapsed: float):
+        """Affiche l'écran de fin de partie avec animations et stats."""
+        
+        # Calcul des stats détaillées
+        stats = []
+        for army in armies:
+            alive_units = [u for u in army.units if u.is_alive]
+            dead_units = [u for u in army.units if not u.is_alive]
+            alive = len(alive_units)
+            total = len(army.units)
+            hp_remaining = sum(u.current_hp for u in alive_units)
+            max_hp = sum(u.max_hp for u in army.units)
+            hp_lost = max_hp - hp_remaining
+            
+            # Stats par type d'unité
+            unit_types = {}
+            for u in army.units:
+                name = u.__class__.__name__
+                if name not in unit_types:
+                    unit_types[name] = {'alive': 0, 'dead': 0, 'hp': 0, 'max_hp': 0}
+                unit_types[name]['max_hp'] += u.max_hp
+                if u.is_alive:
+                    unit_types[name]['alive'] += 1
+                    unit_types[name]['hp'] += u.current_hp
+                else:
+                    unit_types[name]['dead'] += 1
+            
+            stats.append({
+                'name': f"Armee {army.army_id + 1}",
+                'general': army.general.__class__.__name__,
+                'alive': alive,
+                'total': total,
+                'hp': hp_remaining,
+                'max_hp': max_hp,
+                'hp_lost': hp_lost,
+                'survival_rate': (alive / total * 100) if total > 0 else 0,
+                'hp_rate': (hp_remaining / max_hp * 100) if max_hp > 0 else 0,
+                'unit_types': unit_types,
+            })
+        
+        start_time = pygame.time.get_ticks()
+        
+        while True:
+            elapsed = pygame.time.get_ticks() - start_time
+            progress = min(1.0, elapsed / 600)  # Animation fade-in en 0.6s
+            
+            # Gestion des événements
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return
+                if event.type == pygame.KEYDOWN:
+                    return
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    return
+            
+            # Dessiner le fond
+            self.screen.fill(BG_COLOR)
+            self.draw_map()
+            self.draw_units(armies)
+            
+            # Overlay sombre avec fade-in
+            overlay_alpha = min(200, int(220 * progress))
+            overlay = pygame.Surface((self.screen_w, self.screen_h), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, overlay_alpha))
+            self.screen.blit(overlay, (0, 0))
+            
+            # Panel central plus grand
+            panel_w, panel_h = 650, 480
+            panel_x = self.screen_w // 2 - panel_w // 2
+            panel_y = self.screen_h // 2 - panel_h // 2
+            
+            # Animation de slide
+            slide_offset = int((1 - progress) * 80)
+            panel_y += slide_offset
+            
+            panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+            
+            # Fond avec dégradé simulé
+            for y in range(panel_h):
+                shade = 12 + int(8 * (y / panel_h))
+                pygame.draw.line(panel, (shade, shade + 2, shade + 5, 245), (0, y), (panel_w, y))
+            
+            # Bordure extérieure
+            pygame.draw.rect(panel, (60, 65, 80), (0, 0, panel_w, panel_h), 2)
+            
+            # Titre avec couleur de l'équipe gagnante
+            if winner_id is not None:
+                winner_team_color = (100, 170, 255) if winner_id == 0 else (255, 110, 110)
+                title_text = f"VICTOIRE DE L'ARMEE {winner_id + 1}"
+                title_color = winner_team_color
+            else:
+                title_text = "EGALITE"
+                title_color = (180, 180, 180)
+            
+            # Titre animé - plus grand
+            title_scale = 0.6 + 0.4 * min(1.0, progress * 2)
+            title_font = pygame.font.SysFont('Arial', int(32 * title_scale), bold=True)
+            title = title_font.render(title_text, True, title_color)
+            panel.blit(title, (panel_w // 2 - title.get_width() // 2, 15))
+            
+            # Durée de la bataille - plus visible
+            minutes = int(time_elapsed) // 60
+            seconds = int(time_elapsed) % 60
+            time_str = f"Duree: {minutes}m {seconds}s"
+            time_font = pygame.font.SysFont('Arial', 20, bold=True)
+            time_txt = time_font.render(time_str, True, (255, 215, 100))
+            panel.blit(time_txt, (panel_w // 2 - time_txt.get_width() // 2, 50))
+            
+            # Ligne de séparation
+            pygame.draw.line(panel, (50, 55, 70), (25, 80), (panel_w - 25, 80), 1)
+            
+            # === SECTION STATS - 2 colonnes avec plus d'espace ===
+            gap = 60  # Espace entre les colonnes pour le VS
+            col_w = (panel_w - 50 - gap) // 2
+            
+            for i, s in enumerate(stats):
+                # Position de la colonne - plus d'espace au milieu
+                col_x = 25 if i == 0 else panel_w - col_w - 25
+                base_y = 90
+                
+                # Couleurs équipe
+                if i == 0:
+                    team_color = (80, 140, 220)
+                    accent = (100, 170, 255)
+                    bar_color = (70, 140, 220)
+                else:
+                    team_color = (220, 80, 80)
+                    accent = (255, 110, 110)
+                    bar_color = (220, 70, 70)
+                
+                is_winner = (winner_id == i)
+                
+                # Fond de colonne légèrement coloré
+                col_bg = pygame.Surface((col_w, 370), pygame.SRCALPHA)
+                col_bg.fill((*team_color, 15))
+                panel.blit(col_bg, (col_x, base_y))
+                
+                # Bordure latérale colorée
+                pygame.draw.rect(panel, team_color, (col_x, base_y, 4, 370))
+                
+                # === EN-TETE ===
+                header_y = base_y + 8
+                
+                winner_icon = "" if is_winner else ""
+                name_txt = self.ui_font.render(f"{winner_icon}{s['name']}", True, accent)
+                panel.blit(name_txt, (col_x + 12, header_y))
+
+                
+                # Général
+                gen_txt = self.font.render(f"General: {s['general']}", True, (150, 150, 160))
+                panel.blit(gen_txt, (col_x + 12, header_y + 26))
+                
+                # === STATS GLOBALES ===
+                stat_y = header_y + 55
+                
+                # Taux de survie
+                survival_label = self.font.render("Taux de survie:", True, (130, 130, 140))
+                panel.blit(survival_label, (col_x + 12, stat_y))
+                survival_val = self.font.render(f"{s['survival_rate']:.0f}%", True, (200, 200, 200))
+                panel.blit(survival_val, (col_x + col_w - 50, stat_y))
+                
+                # Barre de survie
+                bar_y = stat_y + 18
+                bar_w = col_w - 24
+                pygame.draw.rect(panel, (30, 30, 35), (col_x + 12, bar_y, bar_w, 8))
+                pygame.draw.rect(panel, bar_color, (col_x + 12, bar_y, int(bar_w * s['survival_rate'] / 100), 8))
+                
+                # Unités survivantes (simplifié)
+                unit_y = bar_y + 16
+                units_txt = self.font.render(f"{s['alive']}/{s['total']} unites", True, (170, 170, 180))
+                panel.blit(units_txt, (col_x + 12, unit_y))
+                
+                # HP Global
+                hp_y = unit_y + 22
+                hp_label = self.font.render("Vie globale:", True, (130, 130, 140))
+                panel.blit(hp_label, (col_x + 12, hp_y))
+                hp_val = self.font.render(f"{s['hp_rate']:.0f}%", True, (200, 200, 200))
+                panel.blit(hp_val, (col_x + col_w - 50, hp_y))
+                
+                # Barre HP
+                hp_bar_y = hp_y + 18
+                pygame.draw.rect(panel, (30, 30, 35), (col_x + 12, hp_bar_y, bar_w, 8))
+                hp_fill = (80, 180, 80) if s['hp_rate'] > 50 else ((200, 180, 60) if s['hp_rate'] > 25 else (200, 80, 80))
+                pygame.draw.rect(panel, hp_fill, (col_x + 12, hp_bar_y, int(bar_w * s['hp_rate'] / 100), 8))
+                
+                # HP chiffré
+                hp_num_y = hp_bar_y + 14
+                hp_num = self.font.render(f"{s['hp']}/{s['max_hp']} HP", True, (140, 140, 150))
+                panel.blit(hp_num, (col_x + 12, hp_num_y))
+                
+                
+                # === DETAILS PAR TYPE ===
+                type_y = hp_num_y + 28
+                type_header = self.font.render("Details des survivants par unites:", True, (120, 120, 130))
+                panel.blit(type_header, (col_x + 12, type_y))
+                
+                type_y += 20
+                for unit_name, ut in s['unit_types'].items():
+                    # Nom + stats
+                    status_color = (100, 180, 100) if ut['dead'] == 0 else ((180, 180, 80) if ut['alive'] > 0 else (150, 80, 80))
+                    ut_txt = self.font.render(f"{unit_name}: {ut['alive']}/{ut['alive']+ut['dead']}", True, status_color)
+                    panel.blit(ut_txt, (col_x + 16, type_y))
+                    
+                    # Mini barre HP
+                    ut_hp_pct = (ut['hp'] / ut['max_hp']) if ut['max_hp'] > 0 else 0
+                    mini_bar_x = col_x + 130
+                    pygame.draw.rect(panel, (30, 30, 35), (mini_bar_x, type_y + 3, 60, 6))
+                    pygame.draw.rect(panel, status_color, (mini_bar_x, type_y + 3, int(60 * ut_hp_pct), 6))
+                    
+                    type_y += 18
+            
+            # VS au centre - bien centré entre les colonnes
+            vs_y = 200
+            vs_x = panel_w // 2
+            vs_bg = pygame.Surface((50, 50), pygame.SRCALPHA)
+            pygame.draw.circle(vs_bg, (40, 40, 50, 200), (25, 25), 25)
+            panel.blit(vs_bg, (vs_x - 25, vs_y))
+            vs_txt = self.ui_font.render("VS", True, (100, 100, 120))
+            panel.blit(vs_txt, (vs_x - vs_txt.get_width() // 2, vs_y + 12))
+            
+            # === BAS DU PANEL ===
+            # Hint
+            hint = self.font.render("Appuyez sur une touche pour quitter...", True, (90, 90, 100))
+            panel.blit(hint, (panel_w // 2 - hint.get_width() // 2, panel_h - 25))
+            
+            self.screen.blit(panel, (panel_x, panel_y))
+            
+            pygame.display.flip()
+            self.clock.tick(60)

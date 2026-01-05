@@ -71,7 +71,7 @@ class TerminalView:
                 return sys.stdin.read(1).lower()
         return None
 
-    def display(self, armies: list[Army], time_elapsed: float, paused: bool = False) -> str | None:
+    def display(self, armies: list[Army], time_elapsed: float, paused: bool = False, speed_multiplier: float = 1.0) -> str | None:
         """
         Génère et affiche la frame courante.
         Retourne une commande si une touche spéciale est pressée.
