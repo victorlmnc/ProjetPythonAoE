@@ -1,3 +1,9 @@
+Noms IA dans fichiers de l armée mais aussi dans ligne de commande ?? fais quoi si diff ? qui decide entre les 2 ?
+Tester la "meilleure" IA car elle fait nimp.
+Charger les sprits et tester sur chaque unités et animations.
+Toutes les images de chaque étapess de sprites mises sur github, pas bien ?
+
+
 # 🏰 MedievAIl - Battle GenerAIl Simulator
 
 > Simulateur de batailles médiévales inspiré d'Age of Empires II, axé sur les tactiques IA.
@@ -103,6 +109,9 @@ python main.py run maps/forest.map MajorDAFT MajorDAFT --army1 armies/armee_roug
 | `--max_turns` | Limite de tours avant fin forcée (défaut: 1000). |
 | `-t` | (Optionnel) Force le mode **Terminal ASCII** (pas de fenêtre graphique). |
 | `-d` | (Optionnel) Fichier de sauvegarde où enregistrer l'état final. |
+
+> [!NOTE]
+> **Priorité des Noms d'IA** : Si vous spécifiez un nom de général dans la ligne de commande (ex: `run ... MajorDAFT`), il sera **prioritaire** sur le nom défini dans le fichier d'armée (`GENERAL: ...`). Cela permet de tester différentes IA avec la même composition d'armée sans modifier le fichier.
 
 ---
 

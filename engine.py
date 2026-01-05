@@ -284,7 +284,7 @@ class Engine:
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
         """Gère le chevauchement des unités."""
         final_pos = potential_pos
-        nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius * 2)
+        nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius + 5.0)
 
         for other_unit in nearby_units:
             if other_unit == moving_unit: continue

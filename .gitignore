@@ -3,28 +3,44 @@ __pycache__/
 *.py[cod]
 *.so
 *.egg-info/
+.coverage
+htmlcov/
 
 # Virtual environments
 .venv/
 env/
 venv/
+ENV/
 
 # Editor dirs
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Tests caches
+# Tests
 .pytest_cache/
+.tox/
 
-# macOS
+# OS generated files
 .DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
 
-# Fichiers générés par le projet
+# Project generated files (artifacts)
 pdf_content.txt
+requirements_text.txt
 saves/
 tournament_report.html
 lanchester_*.png
 *.sav
+
+# Test outputs and temporary logs
 test_output.txt
 test_results.txt
-requirements_text.txt
+test_results_*.txt
+*.log
+
+# Temporary test scripts
+tests/test_hitbox.py
