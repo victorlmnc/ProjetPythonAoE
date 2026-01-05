@@ -22,10 +22,10 @@ from engine import Engine
 from view.terminal_view import TerminalView
 from view.gui_view import PygameView 
 from utils.serialization import save_game, load_game
-from tournament import Tournament
+from scripts.tournament import Tournament
 from utils.loaders import load_map_from_file, load_army_from_file
 from core.definitions import GENERAL_CLASS_MAP, UNIT_CLASS_MAP
-from scenarios import lanchester_scenario, custom_battle_scenario
+from scripts.run_scenario import lanchester_scenario, custom_battle_scenario
 from utils.generators import generate_map_file, generate_army_file
 
 
