@@ -552,6 +552,11 @@ class PygameView:
             if state == 'statique':
                 state = 'idle'
 
+            # Si l'animation de mort est marquée comme terminée, ne plus
+            # dessiner le sprite (empêche un second cycle visible).
+            if getattr(unit, 'death_anim_finished', False):
+                continue
+
             current_frame = None
             if sprites_for_unit:
                 frames_for_color = sprites_for_unit.get(color_key, {})
