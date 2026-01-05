@@ -35,6 +35,7 @@ saves/
 tournament_report.html
 lanchester_*.png
 *.sav
+*.scen
 
 # Test outputs and temporary logs
 test_output.txt
@@ -43,6 +44,7 @@ test_results_*.txt
 debug_output.txt
 *debug*
 *.log
+gen_test_scen.py
 
 # Temporary scripts and clutter
 extract_pdf.py

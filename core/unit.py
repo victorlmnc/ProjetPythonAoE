@@ -80,20 +80,51 @@ class Unit:
             ms = int(delta_ms)
         except Exception:
             return
-        if not hasattr(self, 'anim_speed') or self.anim_speed <= 0:
-            return
+            
+        # --- CALCUL DYNAMIQUE DU TEMPS PAR FRAME ---
+        state = getattr(self, 'statut', 'idle')
+        frames_count = self.anim_frames_per_state.get(state, 30)
+        
+        # Valeur par défaut
+        ms_per_frame = 150 # ~6.6 FPS idle
+        
+        if state == 'attack':
+            # L'animation doit durer exactement reload_time
+            # reload_time est en secondes
+            total_duration_ms = self.reload_time * 1000
+            if frames_count > 0:
+                ms_per_frame = total_duration_ms / frames_count
+            else:
+                ms_per_frame = 100 # Fallback
+                
+        elif state == 'walk':
+            # L'animation accélère avec la vitesse de déplacement
+            # Base : disons qu'à speed=1.0, le cycle dure 1000ms (1s)
+            BASE_WALK_CYCLE_MS = 1000 
+            # Plus speed est grand, plus cycle est court
+            cycle_duration = BASE_WALK_CYCLE_MS / max(0.1, self.speed)
+            if frames_count > 0:
+                ms_per_frame = cycle_duration / frames_count
+            else:
+                ms_per_frame = 50
+        
+        # Protection contre divisions par zéro ou valeurs aberrantes
+        ms_per_frame = max(10, ms_per_frame) 
+        
         self.anim_elapsed += ms
 
-        if self.anim_elapsed >= self.anim_speed:
-            advance = int(self.anim_elapsed // self.anim_speed)
+        if self.anim_elapsed >= ms_per_frame:
+            advance = int(self.anim_elapsed // ms_per_frame)
             self.anim_index = self.anim_index + advance
 
             # Boucler normalement selon le nombre de frames connu
-            frames = self.anim_frames_per_state.get(getattr(self, 'statut', 'idle'), 30)
-            if frames > 0:
-                self.anim_index = self.anim_index % frames
+            if frames_count > 0:
+                # Gestion du "Play Once" pour l'attaque (suggéré par le plan)
+                # Mais ici l'appelant (engine/view) gère souvent l'état. 
+                # On boucle simplement l'index mathématique.
+                self.anim_index = self.anim_index % frames_count
 
-            self.anim_elapsed = self.anim_elapsed % self.anim_speed
+            self.anim_elapsed = self.anim_elapsed % ms_per_frame
 
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"

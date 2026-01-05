@@ -1,174 +1,125 @@
-# 🏰 MedievAIl - Battle GenerAIl Simulator
+# MedievAIl - Battle GenerAIl Simulator 🏰⚔️
 
-> Simulateur de batailles médiévales inspiré d'Age of Empires II, axé sur les tactiques IA.
-
----
+Bienvenue dans **MedievAIl**, un simulateur de batailles épiques en temps réel (RTS) où des Intelligences Artificielles s'affrontent !
+Ce projet respecte strictement le cahier des charges "ProjetPython-1-20.pdf".
 
 ## 🚀 Installation
 
-1.  **Prérequis** : Python 3.10+
-2.  **Installation** :
-    ```bash
-    pip install -r requirements.txt
-    ```
+Assurez-vous d'avoir Python 3.10+ et installez les dépendances :
+```bash
+pip install -r requirements.txt
+```
 
 ---
 
-## 🎮 Jouer Directement (Partie Rapide)
+## 🎮 Commandes Principales
 
-Le moyen le plus simple de lancer une bataille sans configuration complexe.
+L'interface en ligne de commande (CLI) permet de lancer tous les modes de jeu.
 
+### 1. Partie Rapide (Mode Play)
+Pour voir une bataille immédiate entre deux IAs par défaut :
 ```bash
-python main.py play
+python main.py play [OPTIONS]
 ```
-_Lance une bataille 10 vs 10 Chevaliers avec l'IA par défaut._
+**Options :**
+- `-u <UnitType>` : Choisir le type d'unité (ex: `-u Knight`, `-u Pikeman`...).
+- `-n <Nombre>` : Nombre d'unités par armée (défaut: 10).
+- `-ai <Gen1> <Gen2>` : Choisir les généraux (ex: `-ai MajorDAFT ColonelKAISER`).
+- `-t` : Mode Terminal (ASCII) au lieu de la vue 2.5D.
+- `--map-size 60x60` : Taille de la carte.
 
-### Options Simples :
-| Commande | Effet |
+### 2. Bataille Personnalisée (Mode Run)
+Lancer un scénario spécifique (Fichier `.scen`, `.map` ou `.py`).
+```bash
+python main.py run <ScenarioFile> <AI1> <AI2> [-t]
+```
+**Exemple :**
+```bash
+python main.py run scenarios/compliance_test.scen MajorDAFT ColonelKAISER
+```
+
+### 3. Tournoi Automatique
+Faites s'affronter plusieurs IAs sur plusieurs scénarios pour déterminer le meilleur général.
+```bash
+python main.py tourney -G <AI1> <AI2>... -S <Map1> <Map2>... [-N Rounds]
+```
+
+### 4. Analyse Lanchester (Plot)
+Testez la loi de Lanchester (N unités vs 2N unités) et générez un graphique de performance.
+```bash
+python main.py plot <AI> win_rate <Scenario> "<Range>"
+```
+**Exemple :**
+```bash
+python main.py plot MajorDAFT win_rate scenarios/1v1.map "range(10, 100, 10)"
+```
+
+---
+
+## 🎮 Contrôles (Interface Graphique)
+
+L'interface Pygame (Vue 2.5D) propose de nombreuses commandes pour naviguer et analyser la bataille.
+
+| Action | Touche / Souris |
 | :--- | :--- |
-| `python main.py play -u Pikeman` | Jouer avec des **Piquiers** |
-| `python main.py play -n 50` | **50 unités** par armée |
-| `python main.py play -t` | Mode **Terminal** (sans fenêtre graphique) |
-| `python main.py play -ai MajorDAFT ColonelKAISER` | Choisir les **IA** |
+| **Déplacement Caméra** | **Flèches** ou **WASD** |
+| **Panoramique (Drag)** | Maintenir **Clic Droit** et glisser |
+| **Zoom** | **Molette Souris** (Haut/Bas) |
+| **Pause / Reprendre** | **Espace** |
+| **Pas à Pas** | **S** (si en pause) |
+| **Accélérer / Ralentir** | **+** / **-** (Pavé Numérique) |
+| **Afficher Infos Armées** | **F1** (ou **1**) |
+| **Afficher Barres de Vie** | **F2** (ou **2**) |
+| **Afficher Minimap** | **F3** (ou **3**) ou **M** |
+| **Détails Unités** | **F4** (ou **4**) |
+| **Sauvegarde Rapide** | **F11** |
+| **Chargement Rapide** | **F12** |
+| **Quitter** | **Échap** |
 
 ---
 
-## ⌨️ Contrôles & Raccourcis (Interface Graphique)
+## 📝 Format de Scénario (.scen)
 
-Une fois le jeu lancé, voici comment interagir :
+Le format unifié `.scen` permet de définir la carte, les unités et les bâtiments dans un seul fichier texte facile à éditer.
 
-### 🕹️ Contrôles de Jeu
-| Touche | Action |
-| :---: | :--- |
-| **Espace** | **Pause** / Reprendre |
-| **Échap** | Quitter le jeu |
-| **+ / -** | Accélérer / Ralentir le temps |
-| **F11** | Sauvegarde Rapide |
-| **F12** | Chargement Rapide |
-
-### 🎥 Caméra
-| Contrôle | Action |
-| :---: | :--- |
-| **Clic Droit + Glisser** | **Déplacer la carte** (Recommandé) |
-| **Molette Souris** | **Zoom** Avant / Arrière |
-| **Z / Q / S / D** | Déplacement Clavier (ou Flèches) |
-| **Maj** + Direction | Déplacement Rapide |
-
-### 📊 Affichage (Toggles)
-Utilisez les touches numériques pour activer/désactiver les infos :
-
-| Touche | Action |
-| :---: | :--- |
-| **1** | **Infos Armées** (Total unités, % vie...) |
-| **2** | **Barres de Vie** (Au dessus des unités) |
-| **3** | **Minimap** (En bas à droite) |
-| **4** | **Détail Unités** (Liste des types restants) |
-
----
-
-## ⚔️ Les Unités
-
-Chaque unité a ses forces et faiblesses (Pierre-Papier-Ciseaux).
-
-| Unité | HP | Atk | Spécial | Fort Contre... |
-| :--- | :---: | :---: | :--- | :--- |
-| **Knight** | 100 | 10 | Rapide | Archers, Infanterie légère |
-| **Pikeman** | 55 | 4 | Bonus Cavalerie | **Chevaliers** (+22 dégâts) |
-| **Crossbowman** | 35 | 6 | Portée (7.0) | Infanterie lente |
-| **Onager** | 50 | 50 | Dégâts de Zone | Groupes d'unités |
-| **EliteWarElephant** | 620 | 20 | Piétinement | Tout (mais lent) |
-| **Monk** | 30 | 0 | Soin & Conversion | Unités isolées |
-
----
-
-## 🧠 Les Généraux (IA)
-
-| Nom | Comportement |
-| :--- | :--- |
-| `CaptainBRAINDEAD` | **Passif**. N'attaque que si touché. Sert de "Putsching Ball". |
-| `MajorDAFT` | **Agressif Basique**. Fonce sur l'ennemi le plus proche. |
-| `ColonelKAISER` | **Stratège**. Utilise des formations, le kiting et concentre ses tirs. |
-
----
-
-## 🛠️ Création de Contenu
-
-Plus besoin de modifier les fichiers à la main !
-
-### 1. Créer une Carte Propre
-```bash
-python main.py create map maps/ma_carte.map --width 80 --height 80 --noise 0.2
+**Structure du fichier :**
+```text
+SIZE: <Largeur> <Hauteur>
+GRID:
+0 0 1 0 ... (Élévation par tuile)
+...
+UNITS:
+<Type>, <X>, <Y>, <ID_Joueur>
+...
+STRUCTURES:
+<Type>, <X>, <Y>, <ID_Joueur>
+...
 ```
 
-### 2. Créer une Armée Personnalisée
-```bash
-# Exemple : Armée du Joueur 1 (ID 0) avec 20 Chevaliers et 10 Moines
-python main.py create army armies/mon_armee.txt --general ColonelKAISER --units "Knight:20,Monk:10" --id 0
+**Exemple :**
+```text
+SIZE: 60 60
+UNITS:
+Knight, 10.5, 10.5, 0
+Pikeman, 12.0, 10.5, 0
+Knight, 50.5, 50.5, 1
+STRUCTURES:
+Castle, 5.0, 5.0, 0
+Wonder, 55.0, 55.0, 1
 ```
 
 ---
 
-## 🔧 Commandes Avancées
+## 🏗️ Structure du Projet
 
-Pour un contrôle total sur la simulation.
-
-### 1. Lancer un Scénario Précis (`run`)
-La commande ultime pour charger vos fichiers `.map` et `.txt`.
-
-```bash
-python main.py run <MAP> <IA1> <IA2> --army1 <FILE1> --army2 <FILE2> [options]
-```
-
-**Exemple Complet :**
-```bash
-python main.py run maps/ma_carte.map MajorDAFT ColonelKAISER --army1 armies/mon_armee.txt --army2 armies/ennemi.txt --max_turns 5000
-```
-> **Note :** Le nom de l'IA spécifié dans la commande est **prioritaire** sur celui écrit dans le fichier d'armée.
-
-### 2. Tournoi Automatique (`tourney`)
-Faire s'affronter des IA en boucle pour voir qui est la meilleure.
-
-```bash
-python main.py tourney -G MajorDAFT ColonelKAISER -S scenarios/test.map -N 100 --na
-```
-*   `-N 100` : 100 matchs.
-*   `--na` : "No Animation" (Mode turbo sans graphismes).
-
-### 3. Analyse de Données (`plot` / `lanchester`)
-Vérifier l'équilibrage mathématique du jeu.
-
-```bash
-# Vérifier la loi de Lanchester (N vs 2N)
-python main.py lanchester Knight 20 -t
-
-# Générer un graphique de Win Rate
-python main.py plot MajorDAFT win_rate scenarios/1v1.py "range(10, 100, 10)"
-```
-
----
-
-## 🧪 Développement
-
-Pour lancer les tests unitaires et vérifier que tout fonctionne :
-
-```bash
-pytest tests/
-```
----
-
-##  M�caniques & R�gles
-
-Quelques d�tails techniques sur le fonctionnement du jeu :
-
-- **Formule de D�g�ts** : max(1, Attaque + Bonus - Armure)
-- **�l�vation** : +25% de d�g�ts si l'attaquant est en hauteur.
-- **Victoire** : Destruction totale de l'arm�e adverse.
-
----
-
-##  V�rification de Conformit�
-
-Pour v�rifier que le projet respecte chaque point du cahier des charges (Req 1 � 15), consultez le guide d�taill� :
-
- **[Voir le Guide de Test Complet (testing_guide.md)](testing_guide.md)**
-
+- **`main.py`** : Point d'entrée principal (CLI).
+- **`core/`** : Cœur de la simulation.
+  - `engine.py` : Boucle principale et règles du jeu.
+  - `map.py`, `unit.py`, `army.py` : Modèles de données.
+- **`view/`** : Gestion de l'affichage.
+  - `gui_view.py` : Vue isométrique Pygame avec zoom et caméra.
+  - `terminal_view.py` : Vue ASCII pour le débogage.
+- **`ai/`** : Intelligences Artificielles (Stratégies des généraux).
+- **`scenarios/`** : Fichiers de définition des batailles (`.scen`, `.map`).
+- **`assets/`** : Ressources graphiques (Sprites).
+- **`utils/`** : Outils de chargement et de génération aléatoire.
