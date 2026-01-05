@@ -59,7 +59,11 @@ class PygameView:
         # --- Zoom Settings ---
         self.min_zoom = 0.2  # déZoom loin
         self.max_zoom = 2.0
+        # Discrete zoom levels for caching (performance optimization)
+        self.zoom_levels = [0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.25, 1.5, 2.0]
         self.zoom = self.min_zoom  # Démarrer dézoomé au max
+        # Cache for pre-scaled sprites at each zoom level
+        self._zoom_cache: dict[float, dict] = {}
 
         # Dimensions actuelles (seront calculées via update_zoom_metrics)
         self.tile_width = BASE_TILE_WIDTH
@@ -93,13 +97,7 @@ class PygameView:
         self.drag_scroll_start_x = 0
         self.drag_scroll_start_y = 0
         
-        # --- LIGNES DE DÉBOGAGE POUR LES ARBRES ---
-        # Ajout de plusieurs arbres à des positions fixes pour test
-        self.map.add_obstacle("Tree", 10, 10) 
-        self.map.add_obstacle("Tree", 15, 5)  
-        self.map.add_obstacle("Tree", 5, 15)  
-        self.map.add_obstacle("Tree", 20, 15) 
-        # ----------------------------------------
+        # Debug obstacles removed for production
 
         # --- Assets Originaux (Chargés une fois à taille de base) ---
         self.orig_grass: pygame.Surface | None = None
@@ -294,41 +292,68 @@ class PygameView:
         # 2. Génération des sprites à la taille actuelle
         self._rescale_assets()
 
+    def _get_cached_zoom_level(self, zoom: float) -> float:
+        """Trouve le niveau de zoom caché le plus proche."""
+        return min(self.zoom_levels, key=lambda z: abs(z - zoom))
+
     def _rescale_assets(self):
-        """Redimensionne les assets originaux selon self.zoom."""
+        """Redimensionne les assets originaux selon self.zoom avec cache."""
+        # Snap to nearest cached zoom level for performance
+        cached_zoom = self._get_cached_zoom_level(self.zoom)
+        
+        # Check if we already have this zoom level cached
+        if cached_zoom in self._zoom_cache:
+            cache = self._zoom_cache[cached_zoom]
+            self.grass_sprite = cache.get('grass')
+            self.tree_sprite = cache.get('tree')
+            self.unit_sprites = cache.get('units', {})
+            return
+        
+        # Create new cache entry
+        cache = {}
+        
+        # Use smoothscale for better quality at low zoom levels
+        scale_func = pygame.transform.smoothscale if cached_zoom < 0.6 else pygame.transform.scale
+        
         if self.orig_grass:
             w, h = self.orig_grass.get_size()
-            self.grass_sprite = pygame.transform.scale(self.orig_grass, (int(w * self.zoom), int(h * self.zoom)))
+            cache['grass'] = scale_func(self.orig_grass, (max(1, int(w * cached_zoom)), max(1, int(h * cached_zoom))))
         
         if self.orig_tree:
             w, h = self.orig_tree.get_size()
-            self.tree_sprite = pygame.transform.scale(self.orig_tree, (int(w * self.zoom), int(h * self.zoom)))
+            cache['tree'] = scale_func(self.orig_tree, (max(1, int(w * cached_zoom)), max(1, int(h * cached_zoom))))
 
-        # Scale and prepare display sprites from orig_units according to zoom
-        # DISPLAY_SCALE multiplie la taille de frame originale (ajustable)
+        # Scale unit sprites
         DISPLAY_SCALE = 1.5
-        self.unit_sprites = {}
+        unit_cache = {}
         for u_class, color_dict in self.orig_units.items():
-            self.unit_sprites[u_class] = {'blue': {}, 'red': {}}
+            unit_cache[u_class] = {'blue': {}, 'red': {}}
             for color in ('blue', 'red'):
                 for state, frames in (color_dict.get(color) or {}).items():
                     if not frames:
-                        self.unit_sprites[u_class][color][state] = None
+                        unit_cache[u_class][color][state] = None
                         continue
                     scaled_orientations = []
-                    # compute target display size
-                    target_w = max(1, int(SPRITE_FRAME_WIDTH * DISPLAY_SCALE * self.zoom))
-                    target_h = max(1, int(SPRITE_FRAME_HEIGHT * DISPLAY_SCALE * self.zoom))
+                    target_w = max(1, int(SPRITE_FRAME_WIDTH * DISPLAY_SCALE * cached_zoom))
+                    target_h = max(1, int(SPRITE_FRAME_HEIGHT * DISPLAY_SCALE * cached_zoom))
                     for row_frames in frames:
                         scaled_row = []
                         for frame in row_frames:
                             try:
-                                scaled = pygame.transform.scale(frame, (target_w, target_h))
+                                scaled = scale_func(frame, (target_w, target_h))
                                 scaled_row.append(scaled)
                             except Exception:
                                 scaled_row.append(frame)
                         scaled_orientations.append(scaled_row)
-                    self.unit_sprites[u_class][color][state] = scaled_orientations
+                    unit_cache[u_class][color][state] = scaled_orientations
+        
+        cache['units'] = unit_cache
+        
+        # Store in cache and apply
+        self._zoom_cache[cached_zoom] = cache
+        self.grass_sprite = cache.get('grass')
+        self.tree_sprite = cache.get('tree')
+        self.unit_sprites = unit_cache
 
     def cart_to_iso(self, x: float, y: float) -> tuple[int, int]:
         """Convertit grille -> isométrique en tenant compte du zoom."""
@@ -336,7 +361,8 @@ class PygameView:
         iso_y = (x + y) * self.tile_half_h
         final_x = iso_x + self.offset_x - self.scroll_x
         final_y = iso_y + self.offset_y - self.scroll_y
-        return int(final_x), int(final_y)
+        # Use round() to reduce animation vibration at low zoom
+        return round(final_x), round(final_y)
 
     def iso_to_cart(self, iso_x: float, iso_y: float) -> tuple[float, float]:
         """Convertit écran isométrique -> grille cartésienne (inverse de cart_to_iso)."""
@@ -451,36 +477,47 @@ class PygameView:
         return None
 
     def draw_map(self):
-        """Dessine le sol et les obstacles."""
+        """Dessine le sol et les obstacles avec view frustum culling."""
         
         obstacles_dict = {(int(x), int(y)): type_name for type_name, x, y in self.map.obstacles}
-
-        for y in range(self.map.height):
-            for x in range(self.map.width):
+        
+        # --- VIEW FRUSTUM CULLING ---
+        # Calculate visible tile range from screen corners (optimization)
+        margin = 100 * self.zoom
+        
+        # Get cart coords of screen corners
+        top_left = self.iso_to_cart(-margin, -margin)
+        top_right = self.iso_to_cart(SCREEN_WIDTH + margin, -margin)
+        bottom_left = self.iso_to_cart(-margin, SCREEN_HEIGHT + margin)
+        bottom_right = self.iso_to_cart(SCREEN_WIDTH + margin, SCREEN_HEIGHT + margin)
+        
+        # Find bounding box in tile coordinates
+        all_x = [top_left[0], top_right[0], bottom_left[0], bottom_right[0]]
+        all_y = [top_left[1], top_right[1], bottom_left[1], bottom_right[1]]
+        
+        min_tile_x = max(0, int(min(all_x)) - 1)
+        max_tile_x = min(self.map.width, int(max(all_x)) + 2)
+        min_tile_y = max(0, int(min(all_y)) - 1)
+        max_tile_y = min(self.map.height, int(max(all_y)) + 2)
+        
+        # Only iterate through visible tiles
+        for y in range(min_tile_y, max_tile_y):
+            for x in range(min_tile_x, max_tile_x):
                 tile = self.map.grid[x][y]
-                
                 screen_x, screen_y = self.cart_to_iso(x, y)
-                
-                # Optimisation : ne pas dessiner hors écran (ajusté avec zoom)
-                margin = 100 * self.zoom
-                if not (-margin < screen_x < SCREEN_WIDTH + margin and -margin < screen_y < SCREEN_HEIGHT + margin):
-                   continue
 
                 # 1. Calcul de l'élévation (mise à l'échelle)
                 height_offset = 0
                 if tile.terrain_type != 'water':
-                    # Hauteur standard * zoom
-                    height_offset = int(tile.elevation * 2 * self.zoom)
+                    height_offset = round(tile.elevation * 2 * self.zoom)
                     
                 base_y = screen_y - height_offset
 
                 # 2. DESSIN DU FOND (GAZON ou COULEUR)
                 if self.grass_sprite and tile.terrain_type != 'water' and tile.elevation == 0:
                     sprite = self.grass_sprite
-                    # Ancrer le sprite au coin supérieur de la tuile
                     draw_x = screen_x - self.tile_half_w
                     draw_y = screen_y - self.tile_half_h
-                    
                     self.screen.blit(sprite, (draw_x, draw_y))
                 else:
                     # Fallback : Dessin du losange par couleur d'élévation
@@ -505,11 +542,10 @@ class PygameView:
                          (screen_x - self.tile_half_w, screen_y)
                      ])
 
-                # 4. DESSIN DU SPRITE D'ARBRE (après le sol pour qu'il soit par-dessus)
+                # 4. DESSIN DU SPRITE D'ARBRE
                 is_tree = (x, y) in obstacles_dict and obstacles_dict[(x,y)] == "Tree"
                 if is_tree and self.tree_sprite:
                     sprite = self.tree_sprite
-                    # Ancrer le bas du sprite sur le point isométrique de la tuile
                     draw_x = screen_x - sprite.get_width() // 2
                     draw_y = screen_y - sprite.get_height()
                     self.screen.blit(sprite, (draw_x, draw_y))
@@ -659,62 +695,147 @@ class PygameView:
 
 
     def draw_ui(self, time_elapsed, paused, armies):
-        """Interface Utilisateur avec toggles F1-F4."""
-        if paused:
-            txt = self.ui_font.render("PAUSE (Espace pour reprendre)", True, WHITE, RED)
-            self.screen.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 20))
+        """Interface Utilisateur avec toggles F1-F4 - Design moderne."""
         
-        turn_txt = self.ui_font.render(f"Temps: {int(time_elapsed)}s", True, WHITE)
-        self.screen.blit(turn_txt, (20, 20))
+        # --- PAUSE INDICATOR ---
+        if paused:
+            pause_surface = pygame.Surface((400, 50), pygame.SRCALPHA)
+            pause_surface.fill((200, 50, 50, 200))
+            txt = self.ui_font.render("⏸ PAUSE - Espace pour reprendre", True, WHITE)
+            pause_surface.blit(txt, (pause_surface.get_width()//2 - txt.get_width()//2, 12))
+            self.screen.blit(pause_surface, (SCREEN_WIDTH//2 - 200, 20))
+        
+        # --- TIME DISPLAY (Top left corner) ---
+        time_surface = pygame.Surface((120, 40), pygame.SRCALPHA)
+        time_surface.fill((0, 0, 0, 150))
+        time_txt = self.ui_font.render(f"⏱ {int(time_elapsed)}s", True, WHITE)
+        time_surface.blit(time_txt, (10, 8))
+        self.screen.blit(time_surface, (15, 15))
 
-        # F1: Infos générales armée
+        # --- F1: ARMY INFO PANELS ---
         if self.show_army_info:
-            y = 60
+            panel_width = 280
+            panel_height = 70
+            panel_x = 15
+            panel_y = 65
+            
             for i, army in enumerate(armies):
                 alive = sum(1 for u in army.units if u.is_alive)
                 total = len(army.units)
-                percent = (alive / total * 100) if total > 0 else 0
+                percent = (alive / total) if total > 0 else 0
                 total_hp = sum(u.current_hp for u in army.units if u.is_alive)
-                text_color = BLUE if i == 0 else RED
+                max_total_hp = sum(u.max_hp for u in army.units)
+                hp_percent = (total_hp / max_total_hp) if max_total_hp > 0 else 0
                 general_name = army.general.__class__.__name__
-                txt = self.font.render(f"Armée {i+1} [{general_name}]: {alive}/{total} ({percent:.0f}%) | HP: {total_hp}", True, text_color)
-                self.screen.blit(txt, (20, y))
-                y += 25
+                
+                # Team colors
+                team_color = (70, 130, 220) if i == 0 else (220, 70, 70)
+                accent_color = (100, 160, 255) if i == 0 else (255, 100, 100)
+                
+                # Panel background
+                panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+                panel.fill((20, 20, 25, 220))
+                
+                # Team color accent bar (left side)
+                pygame.draw.rect(panel, team_color, (0, 0, 4, panel_height))
+                
+                # Header
+                header = self.font.render(f"Armée {i+1} • {general_name}", True, accent_color)
+                panel.blit(header, (12, 8))
+                
+                # Units count with mini progress bar
+                units_txt = self.font.render(f"Unités: {alive}/{total}", True, WHITE)
+                panel.blit(units_txt, (12, 30))
+                
+                # Units progress bar
+                bar_x, bar_y, bar_w, bar_h = 110, 33, 80, 10
+                pygame.draw.rect(panel, (40, 40, 45), (bar_x, bar_y, bar_w, bar_h))
+                pygame.draw.rect(panel, accent_color, (bar_x, bar_y, int(bar_w * percent), bar_h))
+                
+                # HP display
+                hp_txt = self.font.render(f"HP: {total_hp}", True, (150, 255, 150))
+                panel.blit(hp_txt, (200, 30))
+                
+                # HP progress bar (bottom)
+                hp_bar_y = panel_height - 12
+                pygame.draw.rect(panel, (40, 40, 45), (12, hp_bar_y, panel_width - 24, 6))
+                pygame.draw.rect(panel, (100, 200, 100), (12, hp_bar_y, int((panel_width - 24) * hp_percent), 6))
+                
+                self.screen.blit(panel, (panel_x, panel_y + i * (panel_height + 10)))
         
-        # F4: Détails unités (types et nombres)
+        # --- F4: UNIT DETAILS PANELS ---
         if self.show_unit_details:
-            y = 130
+            detail_panel_width = 200
+            detail_x = 15
+            detail_y = 220 if self.show_army_info else 65
+            
             for i, army in enumerate(armies):
-                text_color = BLUE if i == 0 else RED
-                # Compter totaux et vivants par type
-                total_counts = {}
-                alive_counts = {}
+                team_color = (70, 130, 220) if i == 0 else (220, 70, 70)
+                accent_color = (100, 160, 255) if i == 0 else (255, 100, 100)
+                
+                # Count units by type
+                unit_counts = {}
                 for u in army.units:
                     name = u.__class__.__name__
-                    total_counts[name] = total_counts.get(name, 0) + 1
+                    if name not in unit_counts:
+                        unit_counts[name] = {'alive': 0, 'total': 0}
+                    unit_counts[name]['total'] += 1
                     if u.is_alive:
-                        alive_counts[name] = alive_counts.get(name, 0) + 1
+                        unit_counts[name]['alive'] += 1
+                
+                # Calculate panel height
+                num_types = len(unit_counts)
+                detail_panel_height = 30 + num_types * 22
+                
+                # Panel background
+                panel = pygame.Surface((detail_panel_width, detail_panel_height), pygame.SRCALPHA)
+                panel.fill((20, 20, 25, 200))
+                pygame.draw.rect(panel, team_color, (0, 0, 3, detail_panel_height))
+                
+                # Header
+                header = self.font.render(f"Armée {i+1} - Détails", True, accent_color)
+                panel.blit(header, (10, 6))
+                
+                # Unit type rows
+                row_y = 28
+                # Unit type icons (simple text)
+                UNIT_ICONS = {
+                    'Knight': '⚔', 'Pikeman': '🔱', 'Crossbowman': '🏹',
+                    'LongSwordsman': '⚔', 'LightCavalry': '🐎', 'Castle': '🏰',
+                    'Wonder': '⭐', 'Onager': '💥', 'Monk': '✝'
+                }
+                
+                for unit_type, counts in unit_counts.items():
+                    icon = UNIT_ICONS.get(unit_type, '•')
+                    alive, total = counts['alive'], counts['total']
+                    ratio = alive / total if total > 0 else 0
+                    
+                    # Status color
+                    if ratio == 1:
+                        status_color = (100, 200, 100)  # Full = green
+                    elif ratio > 0.5:
+                        status_color = (200, 200, 100)  # Half = yellow
+                    elif ratio > 0:
+                        status_color = (200, 100, 100)  # Low = red
                     else:
-                        if name not in alive_counts:
-                            alive_counts[name] = 0
+                        status_color = (100, 100, 100)  # Dead = gray
+                    
+                    # Short name (max 10 chars)
+                    short_name = unit_type[:10] if len(unit_type) > 10 else unit_type
+                    line = self.font.render(f"{icon} {short_name}: {alive}/{total}", True, status_color)
+                    panel.blit(line, (10, row_y))
+                    row_y += 20
                 
-                header = self.font.render(f"Armée {i+1} détail:", True, text_color)
-                self.screen.blit(header, (20, y))
-                y += 20
-                
-                for unit_type, total in total_counts.items():
-                    # On affiche seulement si l'unité était présente au début (total > 0)
-                    # Ce qui est toujours vrai ici car on itère sur total_counts clés
-                    alive = alive_counts.get(unit_type, 0)
-                    txt = self.font.render(f"  {unit_type}: {alive}/{total}", True, text_color)
-                    self.screen.blit(txt, (20, y))
-                    y += 18
-                y += 10
+                self.screen.blit(panel, (detail_x, detail_y))
+                detail_y += detail_panel_height + 10
         
-        # Afficher les raccourcis actifs
-        shortcuts = f"1:Info 2:HP 3/M:Minimap 4:Détails"
+        # --- SHORTCUTS DISPLAY (Top right) ---
+        shortcuts_surface = pygame.Surface((220, 30), pygame.SRCALPHA)
+        shortcuts_surface.fill((0, 0, 0, 120))
+        shortcuts = "1:Info 2:HP 3:Map 4:Detail"
         shortcut_txt = self.font.render(shortcuts, True, (150, 150, 150))
-        self.screen.blit(shortcut_txt, (SCREEN_WIDTH - shortcut_txt.get_width() - 20, 20))
+        shortcuts_surface.blit(shortcut_txt, (10, 6))
+        self.screen.blit(shortcuts_surface, (SCREEN_WIDTH - 235, 15))
 
         # Minimap (F3/M toggle)
         if self.show_minimap:
