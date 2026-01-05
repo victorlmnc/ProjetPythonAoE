@@ -40,7 +40,13 @@ lanchester_*.png
 test_output.txt
 test_results.txt
 test_results_*.txt
+debug_output.txt
 *.log
 
-# Temporary test scripts
-tests/test_hitbox.py
+# Temporary scripts and clutter
+extract_pdf.py
+test_combat.py
+ProjetPython-1-20.pdf
+
+# Test directory (User requested cleanup)
+tests/

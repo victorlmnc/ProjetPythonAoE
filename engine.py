@@ -151,6 +151,52 @@ class Engine:
         else:
             print("Égalité.")
 
+    def _determine_unit_status(self, unit: Unit):
+        """Updates the status of a unit based on its state and surroundings."""
+        if not getattr(unit, 'is_alive', True):
+            unit.statut = 'death'
+            return
+
+        prev = getattr(unit, 'statut', None)
+        new_stat = prev
+
+        # Check if attacking
+        target_id = getattr(unit, 'target_id', None)
+        target = self.units_by_id.get(target_id) if target_id is not None else None
+        
+        is_attacking = False
+        if target and getattr(target, 'is_alive', False):
+            if unit.can_attack(target):
+                 new_stat = 'attack'
+                 is_attacking = True
+            else:
+                 # Has target but not in range -> check if actually moving
+                 # If blocked, should be idle, otherwise walk
+                 if getattr(unit, 'is_moving', False):
+                     new_stat = 'walk'
+                 else:
+                     new_stat = 'idle'
+        else:
+            # No target
+            if getattr(unit, 'is_moving', False):
+                new_stat = 'walk'
+            else:
+                new_stat = 'idle'
+
+        # If played-once animation is running, don't interrupt unless death
+        if getattr(unit, 'anim_play_once_remaining', 0) > 0 and new_stat != 'death':
+            return
+
+        # Apply state change
+        if new_stat != prev:
+            if prev != 'death': # Death is final
+                unit.statut = new_stat
+                try:
+                    unit.anim_index = 0
+                    unit.anim_play_once_remaining = 0
+                except Exception:
+                    pass
+
     def _execute_actions(self, actions: list[Action], dt: float):
         """Exécute les actions (Temps, Mouvements, Attaques)."""
 
@@ -158,6 +204,9 @@ class Engine:
         # dt est le temps écoulé en secondes depuis la dernière update
         TIME_STEP = dt 
         for unit in self.units_by_id.values():
+            # Reset moving flag at start of frame
+            unit.is_moving = False
+            
             # cooldown uniquement si vivant
             if unit.is_alive:
                 unit.tick_cooldown(TIME_STEP)
@@ -184,7 +233,6 @@ class Engine:
                 target_pos = data
                 if unit and unit.is_alive:
                     acted_units.add(unit_id)
-                    unit.statut = 'walk'
                     try:
                         unit.target_id = None
                     except Exception:
@@ -197,17 +245,17 @@ class Engine:
                 unit = self.units_by_id.get(unit_id)
                 target_id = data
                 target = self.units_by_id.get(target_id)
-
+                
+                # If we are attacking, we might also be moving towards the target (move due to attack range)
+                # But here we handle the Attack Action (firing/striking)
+                # Movement towards target is often handled by 'move' action if IA issued it,
+                # OR handled implicitly if your engine does auto-move-to-attack (not the case here, separate actions).
+                
                 if unit and unit.is_alive and target and target.is_alive:
-                    # Marquer action et orientation vers la cible pour la vue
-                    try:
-                        acted_units.add(unit_id)
-                    except Exception:
-                        pass
-                    unit.statut = 'attack'
                     unit.target_id = target_id
-
-                    # L'unité vérifie son cooldown interne ici
+                    
+                    # If out of range, IA should have sent a move command separate/combined.
+                    # If we are strictly in Attack logic:
                     if unit.can_attack(target) and unit.can_act():
                         final_damage = unit.calculate_damage(target, self.map)
                         target.take_damage(final_damage)
@@ -217,13 +265,13 @@ class Engine:
                             frames = getattr(unit, 'anim_frames_per_state', {}).get('attack', 30)
                             unit.anim_play_once_remaining = frames
                             unit.anim_index = 0
+                            unit.statut = 'attack' # Force attack status immediately
                         except Exception:
                             pass
 
                         # --- Splash Damage (Onager, Trebuchet) ---
                         if hasattr(unit, 'splash_radius') and unit.splash_radius > 0:
                             splash_damage = int(final_damage * 0.5)  # 50% des dégâts
-                            # Recherche locale via la map pour éviter un scan global
                             nearby = self.map.get_units_in_radius(target.pos, unit.splash_radius)
                             for other in nearby:
                                 if other.is_alive and other != target and other.army_id != unit.army_id:
@@ -264,82 +312,14 @@ class Engine:
                                         (unit.pos[1] - target.pos[1])**2)
                     if distance <= getattr(unit, 'conversion_range', 9.0) and unit.can_act():
                         # Conversion réussie (simplifié : toujours réussie après cooldown)
-                        # Changer l'armée de l'unité convertie
                         old_army_id = target.army_id
                         target.army_id = unit.army_id
                         unit.current_cooldown = getattr(unit, 'conversion_time', 4.0)
                         print(f"CONVERSION: {unit} a converti {target}!")
 
-        # 4. Déterminer le statut exact de chaque unité selon vos règles:
-        # - Si hp==0 -> 'death'
-        # - Si a une target vivante: si à portée -> 'attack' sinon -> 'walk'
-        # - Si pas de target et en mouvement -> 'walk'
-        # - Sinon -> 'idle'
-        try:
-            for uid, unit in self.units_by_id.items():
-                if not getattr(unit, 'is_alive', True):
-                    unit.statut = 'death'
-                    continue
-
-                prev = getattr(unit, 'statut', None)
-
-                # vérifier la cible
-                new_stat = prev
-                target_id = getattr(unit, 'target_id', None)
-                target = self.units_by_id.get(target_id) if target_id is not None else None
-                if target is not None and getattr(target, 'is_alive', False):
-                    # distance aux bords des hitboxes
-                    dist_centers = math.hypot(unit.pos[0] - target.pos[0], unit.pos[1] - target.pos[1])
-                    edge_dist = max(0.0, dist_centers - unit.hitbox_radius - target.hitbox_radius)
-                    if edge_dist <= (unit.attack_range + 0.1):
-                        new_stat = 'attack'
-                    else:
-                        new_stat = 'walk'
-                else:
-                    # pas de cible vivante
-                    # détecter mouvement via last_pos (déjà mis dans _handle_movement)
-                    lx, ly = getattr(unit, 'last_pos', unit.pos)
-                    mv_dx = unit.pos[0] - lx
-                    mv_dy = unit.pos[1] - ly
-                    if math.hypot(mv_dx, mv_dy) > 1e-3:
-                        new_stat = 'walk'
-                    else:
-                        new_stat = 'idle'
-
-                # si la cible a été tuée, effacer target_id
-                if target is not None and not getattr(target, 'is_alive', True):
-                    try:
-                        unit.target_id = None
-                    except Exception:
-                        pass
-
-                # si on est en mode "play once", empêcher de changer d'état
-                if getattr(unit, 'anim_play_once_remaining', 0) > 0:
-                    # laisser le statut courant jusqu'à la fin de l'animation
-                    continue
-
-                # appliquer changement d'état si nécessaire
-                if new_stat != prev:
-                    # ne toucher pas la mort ici
-                    if prev != 'death':
-                        unit.statut = new_stat
-                        try:
-                            unit.anim_index = 0
-                        except Exception:
-                            pass
-                        # Clear hold and ensure play-once counter is reset unless we explicitly set it
-                        try:
-                            unit.anim_hold = False
-                        except Exception:
-                            pass
-                        if new_stat not in ('attack', 'death'):
-                            try:
-                                unit.anim_play_once_remaining = 0
-                            except Exception:
-                                pass
-                # sinon laisser l'animation continuer
-        except Exception:
-            pass
+        # 4. Final Status Update
+        for uid, unit in self.units_by_id.items():
+            self._determine_unit_status(unit)
 
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float], dt: float):
         """Calcule et applique le mouvement."""
@@ -353,9 +333,12 @@ class Engine:
         vector_y = target_pos[1] - old_pos[1]
         distance = math.sqrt(vector_x**2 + vector_y**2)
 
-        if distance < 0.01: return
+        if distance < 0.01:
+            unit.is_moving = False
+            return
 
         # Vitesse ajustée par le delta time
+
         move_dist = min(distance, unit.speed * dt)
         
         norm_x = vector_x / distance
@@ -393,6 +376,18 @@ class Engine:
         x = max(0.1, min(final_pos[0], self.map.width - 0.1))
         y = max(0.1, min(final_pos[1], self.map.height - 0.1))
         final_pos = (x, y)
+
+        # Check if actual movement occurred (compare final_pos vs old_pos)
+        # Note: If pushed by other units, you might move even if "blocked" in potential pos
+        # But for 'walk' animation we usually care about intentional movement or significant displacement.
+        dx = final_pos[0] - old_pos[0]
+        dy = final_pos[1] - old_pos[1]
+        
+        # If moved significantly, mark as moving
+        if dx*dx + dy*dy > 1e-6:
+             unit.is_moving = True
+        else:
+             unit.is_moving = False
 
         self.map.update_unit_position(unit, old_pos, final_pos)
 

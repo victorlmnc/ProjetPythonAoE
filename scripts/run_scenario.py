@@ -1,4 +1,10 @@
 # scenarios.py
+import sys
+import os
+
+# Add project root to path
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import math
 from core.army import Army
 from core.unit import Unit
