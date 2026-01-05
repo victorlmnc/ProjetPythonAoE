@@ -476,6 +476,15 @@ class Engine:
                     del self.units_by_id[unit_id]
                 except Exception:
                     pass
+                # Retirer également de la liste d'unités de son armée pour
+                # empêcher la vue de continuer à l'afficher.
+                try:
+                    for army in self.armies:
+                        if unit in army.units:
+                            army.units.remove(unit)
+                            break
+                except Exception:
+                    pass
                 continue
 
             # Avec vue : attendre la fin de l'animation 'death'
@@ -483,13 +492,26 @@ class Engine:
             ms_per_frame = getattr(unit, 'anim_speed', 150)
             death_duration_ms = max(0, int(frames * ms_per_frame))
             elapsed = getattr(unit, 'death_elapsed', 0)
-            if elapsed >= death_duration_ms:
+            # Remove when either the engine timer exceeded the expected
+            # death animation duration OR when the unit reports the
+            # death animation finished (robust against timing mismatches).
+            if elapsed >= death_duration_ms or getattr(unit, 'death_anim_finished', False):
                 try:
                     self.map.remove_unit(unit)
                 except Exception:
                     pass
                 try:
                     del self.units_by_id[unit_id]
+                except Exception:
+                    pass
+
+                # Retirer également de la liste d'unités de son armée pour
+                # empêcher la vue de continuer à l'afficher.
+                try:
+                    for army in self.armies:
+                        if unit in army.units:
+                            army.units.remove(unit)
+                            break
                 except Exception:
                     pass
 
