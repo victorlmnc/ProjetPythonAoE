@@ -429,10 +429,31 @@ class Engine:
 
     def _reap_dead_units(self):
         """Retire les unités mortes."""
-        # Suppression immédiate des unités mortes (plus d'animation de mort)
+        # Si nous avons une vue (animations côté client), laisser la
+        # durée de l'animation de mort s'écouler avant suppression.
         for unit_id in list(self.units_by_id.keys()):
             unit = self.units_by_id.get(unit_id)
-            if unit and not unit.is_alive:
+            if not unit or unit.is_alive:
+                continue
+
+            # Mode headless / pas de vue : suppression immédiate
+            if not getattr(self, 'view_present', False):
+                try:
+                    self.map.remove_unit(unit)
+                except Exception:
+                    pass
+                try:
+                    del self.units_by_id[unit_id]
+                except Exception:
+                    pass
+                continue
+
+            # Avec vue : attendre la fin de l'animation 'death'
+            frames = getattr(unit, 'anim_frames_per_state', {}).get('death', 30)
+            ms_per_frame = getattr(unit, 'anim_speed', 150)
+            death_duration_ms = max(0, int(frames * ms_per_frame))
+            elapsed = getattr(unit, 'death_elapsed', 0)
+            if elapsed >= death_duration_ms:
                 try:
                     self.map.remove_unit(unit)
                 except Exception:

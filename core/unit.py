@@ -117,12 +117,22 @@ class Unit:
             advance = int(self.anim_elapsed // ms_per_frame)
             self.anim_index = self.anim_index + advance
 
-            # Boucler normalement selon le nombre de frames connu
+            # Si un compteur 'play once' existe (ex: attaque), le diminuer
+            try:
+                if getattr(self, 'anim_play_once_remaining', 0) > 0:
+                    self.anim_play_once_remaining = max(0, self.anim_play_once_remaining - advance)
+            except Exception:
+                pass
+
+            # Si l'unité est morte et en état 'death', ne pas boucler l'animation
             if frames_count > 0:
-                # Gestion du "Play Once" pour l'attaque (suggéré par le plan)
-                # Mais ici l'appelant (engine/view) gère souvent l'état. 
-                # On boucle simplement l'index mathématique.
-                self.anim_index = self.anim_index % frames_count
+                if getattr(self, 'statut', None) == 'death' and not getattr(self, 'is_alive', True):
+                    # Cap l'index sur la dernière frame au lieu de boucler
+                    if self.anim_index >= frames_count:
+                        self.anim_index = frames_count - 1
+                else:
+                    # Boucler normalement
+                    self.anim_index = self.anim_index % frames_count
 
             self.anim_elapsed = self.anim_elapsed % ms_per_frame
 
@@ -221,6 +231,13 @@ class Unit:
             self.current_hp = 0
             # Marquer l'unité comme morte et demander suppression immédiate
             self.is_alive = False
+            # Initialiser l'état d'animation de mort pour la vue
+            try:
+                self.statut = 'death'
+                self.anim_index = 0
+                self.death_elapsed = 0
+            except Exception:
+                pass
             # clear cible
             if hasattr(self, 'target_id'):
                 try:
