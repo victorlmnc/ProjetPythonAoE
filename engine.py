@@ -56,6 +56,7 @@ class Engine:
         # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent (moins d'updates)
         # Pour du temps réel fluide, on veut ~30 updates/sec => 60FPS / 2 = 30
         LOGIC_SPEED_DIVIDER = logic_speed
+        game_speed_multiplier = 1.0
         step_once = False # Pour le mode pas-à-pas (touche S)
 
         # Indiquer la présence d'une vue externe (pour déléguer l'animation au rendu)
@@ -63,8 +64,8 @@ class Engine:
         
         # Calcul du Delta Time (Temps écoulé entre deux updates logiques)
         # Si on tourne à 60 FPS et qu'on update tous les N frames:
-        # dt = N / 60.0 secondes
-        dt = LOGIC_SPEED_DIVIDER / 60.0
+        # dt_base = N / 60.0 secondes
+        dt_base = LOGIC_SPEED_DIVIDER / 60.0
 
         while not self.game_over and self.turn_count < max_turns:
             
@@ -97,13 +98,13 @@ class Engine:
                     # F9 - Basculer entre vues (pour info, nécessiterait une refonte)
                     print("Switch View: Non implémenté (nécessite de relancer avec -t)")
                 elif command == "speed_up":
-                    LOGIC_SPEED_DIVIDER = max(1, LOGIC_SPEED_DIVIDER - 1)
-                    dt = LOGIC_SPEED_DIVIDER / 60.0
-                    print(f"Vitesse++ (Divider: {LOGIC_SPEED_DIVIDER}, dt={dt:.3f}s)")
+                    # Augmenter la vitesse de simulation (x2, x4, x8, max x16)
+                    game_speed_multiplier = min(16.0, game_speed_multiplier * 2)
+                    print(f"Vitesse de simulation: x{game_speed_multiplier}")
                 elif command == "speed_down":
-                    LOGIC_SPEED_DIVIDER = min(60, LOGIC_SPEED_DIVIDER + 1)
-                    dt = LOGIC_SPEED_DIVIDER / 60.0
-                    print(f"Vitesse-- (Divider: {LOGIC_SPEED_DIVIDER}, dt={dt:.3f}s)")
+                    # Diminuer la vitesse (min x0.25)
+                    game_speed_multiplier = max(0.25, game_speed_multiplier / 2)
+                    print(f"Vitesse de simulation: x{game_speed_multiplier}")
 
             elif self.turn_count % 30 == 0: # Moins de spam en console
                 print(f"\n--- TEMPS {self.time_elapsed:.1f}s ---")
@@ -134,10 +135,10 @@ class Engine:
 
                     actions = army.general.decide_actions(self.map, my_living_units, enemy_living_units)
                     all_actions.extend(actions)
-
-            self._execute_actions(all_actions, dt)
+            dt_sim = dt_base * game_speed_multiplier
+            self._execute_actions(all_actions, dt_sim)
             self.turn_count += 1
-            self.time_elapsed += dt
+            self.time_elapsed += dt_sim
             # --- FIN DE LA LOGIQUE ---
 
         if view:
