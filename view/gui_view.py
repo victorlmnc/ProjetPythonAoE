@@ -7,7 +7,7 @@ from PIL import Image
 from core.map import Map
 from core.army import Army
 # Import de toutes les classes d'unités pour le mappage des sprites
-from core.unit import Knight, Pikeman, Crossbowman, LongSwordsman
+from core.unit import Knight, Pikeman, Crossbowman, LongSwordsman, LightCavalry
 
 # --- CONSTANTES DE CONFIGURATION VUE ---
 SCREEN_WIDTH = 1280
@@ -132,23 +132,24 @@ class PygameView:
 
     def _load_webp_asset(self, path: str, target_size: tuple[int, int], is_spritesheet: bool) -> pygame.Surface | None:
         """
-        Charge un fichier WEBP via Pillow, le convertit en PNG in-memory,
-        le charge dans Pygame, et le met à l'échelle vers la taille CIBLE.
+        Charge un fichier WEBP via Pillow, convertit en raw bytes,
+        charge dans Pygame, et met à l'échelle vers la taille CIBLE.
+        Optimisé pour éviter l'encodage PNG.
         """
         try:
-            pil_img = Image.open(path)
+            pil_img = Image.open(path).convert("RGBA")
             
             if is_spritesheet:
                 # Découpe la première frame (position 0,0)
                 frame_area = (0, 0, SPRITE_FRAME_WIDTH, SPRITE_FRAME_HEIGHT)
                 pil_img = pil_img.crop(frame_area)
             
-            # Conversion Pillow -> BytesIO -> Pygame Surface
-            data = BytesIO()
-            pil_img.save(data, format='PNG')
-            data.seek(0)
+            # Conversion Pillow -> Bytes (Raw RGBA) -> Pygame Surface
+            mode = pil_img.mode
+            size = pil_img.size
+            data = pil_img.tobytes()
             
-            surface = pygame.image.load(data, 'PNG').convert_alpha()
+            surface = pygame.image.frombytes(data, size, mode).convert_alpha()
 
             # Mise à l'échelle (pour l'affichage isométrique)
             return pygame.transform.scale(surface, target_size)
@@ -163,9 +164,10 @@ class PygameView:
     def _load_spritesheet_grid(self, path: str, rows: int, cols: int) -> list[list[pygame.Surface]] | None:
         """Charge une spritesheet WebP et découpe en grille [rows][cols].
         Retourne une liste de listes: frames[row][col].
+        Optimisé via tobytes/frombytes.
         """
         try:
-            pil_img = Image.open(path)
+            pil_img = Image.open(path).convert("RGBA")
         except FileNotFoundError:
             return None
         except Exception as e:
@@ -189,10 +191,12 @@ class PygameView:
                 lower = upper + frame_h
                 try:
                     frame = pil_img.crop((left, upper, right, lower))
-                    buf = BytesIO()
-                    frame.save(buf, format='PNG')
-                    buf.seek(0)
-                    surf = pygame.image.load(buf, 'PNG').convert_alpha()
+                    
+                    mode = frame.mode
+                    size = frame.size
+                    data = frame.tobytes()
+                    surf = pygame.image.frombytes(data, size, mode).convert_alpha()
+                    
                     row_frames.append(surf)
                 except Exception:
                     # ignorer frame invalide
@@ -201,7 +205,7 @@ class PygameView:
         return frames
 
     def _load_cache_frames(self, cache_dir: str, target_size: tuple[int,int]) -> list[pygame.Surface] | None:
-        """Charge les images PNG individuelles dans `assets/.cache/<name>`.
+        """Charge les images individuelles dans `assets/.cache/<name>`.
         Renvoie une liste de Surfaces déjà mises à l'échelle, ou None si aucun fichier.
         """
         try:
@@ -212,12 +216,12 @@ class PygameView:
             for fn in files:
                 path = os.path.join(cache_dir, fn)
                 try:
-                    # Pillow -> BytesIO -> pygame for consistency with other loaders
-                    pil = Image.open(path)
-                    buf = BytesIO()
-                    pil.save(buf, format='PNG')
-                    buf.seek(0)
-                    surf = pygame.image.load(buf, 'PNG').convert_alpha()
+                    pil = Image.open(path).convert("RGBA")
+                    mode = pil.mode
+                    size = pil.size
+                    data = pil.tobytes()
+                    surf = pygame.image.frombytes(data, size, mode).convert_alpha()
+                    
                     surf = pygame.transform.scale(surf, target_size)
                     frames.append(surf)
                 except Exception:
@@ -259,6 +263,7 @@ class PygameView:
             Crossbowman: "crossbowman",
             Pikeman: "pikeman",
             LongSwordsman: "longswordman",
+            LightCavalry: "knight", # Fallback to knight sprites
         }
 
         states_grid = {

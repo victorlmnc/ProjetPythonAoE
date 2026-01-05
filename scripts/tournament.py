@@ -1,7 +1,12 @@
 # tournament.py
+import sys
+import os
+
+# Add project root to path
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import itertools
 from collections import defaultdict
-import os
 from utils.loaders import load_map_from_file, load_army_from_file
 from engine import Engine
 
