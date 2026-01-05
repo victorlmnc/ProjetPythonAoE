@@ -41,6 +41,7 @@ test_output.txt
 test_results.txt
 test_results_*.txt
 debug_output.txt
+*debug*
 *.log
 
 # Temporary scripts and clutter
