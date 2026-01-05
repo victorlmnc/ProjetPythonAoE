@@ -81,7 +81,7 @@ class PygameView:
         self.show_army_info = True      # F1: Infos générales
         self.show_hp_bars = True        # F2: Barres de vie
         self.show_minimap = True        # F3/M: Minimap
-        self.show_unit_details = False  # F4: Détails unités
+        self.show_unit_details = True  # F4: Détails unités
         
         # --- Drag souris pour scroll ---
         self.is_dragging = False
