@@ -594,13 +594,13 @@ class PygameView:
                 pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, int(bar_width * hp_ratio), bar_height))
 
 
-    def draw_ui(self, turn_count, paused, armies):
+    def draw_ui(self, time_elapsed, paused, armies):
         """Interface Utilisateur avec toggles F1-F4."""
         if paused:
             txt = self.ui_font.render("PAUSE (Espace pour reprendre)", True, WHITE, RED)
             self.screen.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 20))
         
-        turn_txt = self.ui_font.render(f"Tour: {turn_count}", True, WHITE)
+        turn_txt = self.ui_font.render(f"Temps: {int(time_elapsed)}s", True, WHITE)
         self.screen.blit(turn_txt, (20, 20))
 
         # F1: Infos générales armée
@@ -608,10 +608,12 @@ class PygameView:
             y = 60
             for i, army in enumerate(armies):
                 alive = sum(1 for u in army.units if u.is_alive)
+                total = len(army.units)
+                percent = (alive / total * 100) if total > 0 else 0
                 total_hp = sum(u.current_hp for u in army.units if u.is_alive)
                 text_color = BLUE if i == 0 else RED
                 general_name = army.general.__class__.__name__
-                txt = self.font.render(f"Armée {i+1} [{general_name}]: {alive} unités | HP: {total_hp}", True, text_color)
+                txt = self.font.render(f"Armée {i+1} [{general_name}]: {alive}/{total} ({percent:.0f}%) | HP: {total_hp}", True, text_color)
                 self.screen.blit(txt, (20, y))
                 y += 25
         
@@ -620,17 +622,27 @@ class PygameView:
             y = 130
             for i, army in enumerate(armies):
                 text_color = BLUE if i == 0 else RED
-                unit_counts = {}
+                # Compter totaux et vivants par type
+                total_counts = {}
+                alive_counts = {}
                 for u in army.units:
+                    name = u.__class__.__name__
+                    total_counts[name] = total_counts.get(name, 0) + 1
                     if u.is_alive:
-                        name = u.__class__.__name__
-                        unit_counts[name] = unit_counts.get(name, 0) + 1
+                        alive_counts[name] = alive_counts.get(name, 0) + 1
+                    else:
+                        if name not in alive_counts:
+                            alive_counts[name] = 0
                 
                 header = self.font.render(f"Armée {i+1} détail:", True, text_color)
                 self.screen.blit(header, (20, y))
                 y += 20
-                for unit_type, count in unit_counts.items():
-                    txt = self.font.render(f"  {unit_type}: {count}", True, text_color)
+                
+                for unit_type, total in total_counts.items():
+                    # On affiche seulement si l'unité était présente au début (total > 0)
+                    # Ce qui est toujours vrai ici car on itère sur total_counts clés
+                    alive = alive_counts.get(unit_type, 0)
+                    txt = self.font.render(f"  {unit_type}: {alive}/{total}", True, text_color)
                     self.screen.blit(txt, (20, y))
                     y += 18
                 y += 10
@@ -658,7 +670,7 @@ class PygameView:
                     if u.is_alive:
                         pygame.draw.circle(self.screen, c, (mm_x + int(u.pos[0]*scale_x), mm_y + int(u.pos[1]*scale_y)), 2)
 
-    def display(self, armies: list[Army], turn_count: int, paused: bool) -> str | None:
+    def display(self, armies: list[Army], time_elapsed: float, paused: bool) -> str | None:
         cmd = self.check_events()
 
         # Avancer les animations par frame (déléguer à la vue pour fluidité)
@@ -685,7 +697,7 @@ class PygameView:
         self.screen.fill(BG_COLOR)
         self.draw_map()
         self.draw_units(armies)
-        self.draw_ui(turn_count, paused, armies)
+        self.draw_ui(time_elapsed, paused, armies)
         pygame.display.flip()
         self.clock.tick(60)
         return cmd

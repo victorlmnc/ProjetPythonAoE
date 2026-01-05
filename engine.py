@@ -23,6 +23,7 @@ class Engine:
         self.map: Map = map_instance
         self.armies: list[Army] = [army1, army2]
         self.turn_count: int = 0
+        self.time_elapsed: float = 0.0  # Temps écoulé en secondes
         self.game_over: bool = False
         self.winner: Optional[int] = None 
         
@@ -42,27 +43,36 @@ class Engine:
                 self.units_by_id[unit.unit_id] = unit
                 self.map.add_unit(unit)
 
-    def run_game(self, max_turns: int = 1000, view: Optional[Any] = None, logic_speed: int = 15):
+    def run_game(self, max_turns: int = 1000, view: Optional[Any] = None, logic_speed: int = 2):
         """
         Boucle principale du jeu.
+        logic_speed : Diviseur de frame.
+            - Avant: 15 (4 updates/sec)
+            - Maintenant: 2 (30 updates/sec) pour fluidité
         """
         print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
 
         frame_counter = 0
-        # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent.
-        # 15 donne un bon rythme visible à 60 FPS (4 ticks logique / sec).
+        # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent (moins d'updates)
+        # Pour du temps réel fluide, on veut ~30 updates/sec => 60FPS / 2 = 30
         LOGIC_SPEED_DIVIDER = logic_speed
         step_once = False # Pour le mode pas-à-pas (touche S)
 
         # Indiquer la présence d'une vue externe (pour déléguer l'animation au rendu)
         self.view_present = bool(view)
+        
+        # Calcul du Delta Time (Temps écoulé entre deux updates logiques)
+        # Si on tourne à 60 FPS et qu'on update tous les N frames:
+        # dt = N / 60.0 secondes
+        dt = LOGIC_SPEED_DIVIDER / 60.0
 
         while not self.game_over and self.turn_count < max_turns:
             
             # --- 1. Gestion des Inputs et Affichage ---
             if view:
                 # La vue nous renvoie des commandes (pause, step, quit)
-                command = view.display(self.armies, self.turn_count, self.paused)
+                # On passe time_elapsed au lieu de turn_count
+                command = view.display(self.armies, self.time_elapsed, self.paused)
                 
                 if command == "quit":
                     break
@@ -87,14 +97,16 @@ class Engine:
                     # F9 - Basculer entre vues (pour info, nécessiterait une refonte)
                     print("Switch View: Non implémenté (nécessite de relancer avec -t)")
                 elif command == "speed_up":
-                    LOGIC_SPEED_DIVIDER = max(1, LOGIC_SPEED_DIVIDER - 2)
-                    print(f"Vitesse++ (Divider: {LOGIC_SPEED_DIVIDER})")
+                    LOGIC_SPEED_DIVIDER = max(1, LOGIC_SPEED_DIVIDER - 1)
+                    dt = LOGIC_SPEED_DIVIDER / 60.0
+                    print(f"Vitesse++ (Divider: {LOGIC_SPEED_DIVIDER}, dt={dt:.3f}s)")
                 elif command == "speed_down":
-                    LOGIC_SPEED_DIVIDER = min(60, LOGIC_SPEED_DIVIDER + 2)
-                    print(f"Vitesse-- (Divider: {LOGIC_SPEED_DIVIDER})")
+                    LOGIC_SPEED_DIVIDER = min(60, LOGIC_SPEED_DIVIDER + 1)
+                    dt = LOGIC_SPEED_DIVIDER / 60.0
+                    print(f"Vitesse-- (Divider: {LOGIC_SPEED_DIVIDER}, dt={dt:.3f}s)")
 
-            elif self.turn_count % 10 == 0:
-                print(f"\n--- TOUR {self.turn_count} ---")
+            elif self.turn_count % 30 == 0: # Moins de spam en console
+                print(f"\n--- TEMPS {self.time_elapsed:.1f}s ---")
 
             # --- 2. Blocage si en pause ---
             if self.paused and not step_once:
@@ -123,12 +135,13 @@ class Engine:
                     actions = army.general.decide_actions(self.map, my_living_units, enemy_living_units)
                     all_actions.extend(actions)
 
-            self._execute_actions(all_actions)
+            self._execute_actions(all_actions, dt)
             self.turn_count += 1
+            self.time_elapsed += dt
             # --- FIN DE LA LOGIQUE ---
 
         if view:
-            view.display(self.armies, self.turn_count, self.paused)
+            view.display(self.armies, self.time_elapsed, self.paused)
 
         print("\n--- FIN DE LA PARTIE ---")
         if self.winner is not None:
@@ -138,12 +151,12 @@ class Engine:
         else:
             print("Égalité.")
 
-    def _execute_actions(self, actions: list[Action]):
+    def _execute_actions(self, actions: list[Action], dt: float):
         """Exécute les actions (Temps, Mouvements, Attaques)."""
 
         # 0. FAIRE AVANCER LE TEMPS (COOLDOWNS)
-        # On considère qu'un tick logique = 0.5 sec de temps de jeu (arbitraire)
-        TIME_STEP = 0.5 
+        # dt est le temps écoulé en secondes depuis la dernière update
+        TIME_STEP = dt 
         for unit in self.units_by_id.values():
             # cooldown uniquement si vivant
             if unit.is_alive:
@@ -176,7 +189,7 @@ class Engine:
                         unit.target_id = None
                     except Exception:
                         pass
-                    self._handle_movement(unit, target_pos)
+                    self._handle_movement(unit, target_pos, dt)
 
         # 2. Attaques (Après mouvements)
         for action_type, unit_id, data in actions:
@@ -328,7 +341,7 @@ class Engine:
         except Exception:
             pass
 
-    def _handle_movement(self, unit: Unit, target_pos: tuple[float, float]):
+    def _handle_movement(self, unit: Unit, target_pos: tuple[float, float], dt: float):
         """Calcule et applique le mouvement."""
         old_pos = unit.pos
         # Conserver last_pos pour l'orientation des sprites
@@ -342,7 +355,9 @@ class Engine:
 
         if distance < 0.01: return
 
-        move_dist = min(distance, unit.speed)
+        # Vitesse ajustée par le delta time
+        move_dist = min(distance, unit.speed * dt)
+        
         norm_x = vector_x / distance
         norm_y = vector_y / distance
         potential_pos = (old_pos[0] + norm_x * move_dist, old_pos[1] + norm_y * move_dist)

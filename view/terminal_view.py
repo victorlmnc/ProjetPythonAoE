@@ -71,7 +71,7 @@ class TerminalView:
                 return sys.stdin.read(1).lower()
         return None
 
-    def display(self, armies: list[Army], turn: int, paused: bool = False) -> str | None:
+    def display(self, armies: list[Army], time_elapsed: float, paused: bool = False) -> str | None:
         """
         Génère et affiche la frame courante.
         Retourne une commande si une touche spéciale est pressée.
@@ -84,7 +84,7 @@ class TerminalView:
             command = "toggle_pause"
         elif key == '\t' or key == 'tab':
             # Générer un snapshot HTML instantané
-            self._generate_html_snapshot(armies, turn)
+            self._generate_html_snapshot(armies, int(time_elapsed))
             print(f"{self.YELLOW}>>> Snapshot HTML généré !{self.RESET}")
         elif key == 'q':
             command = "quit"
@@ -106,7 +106,7 @@ class TerminalView:
         
         # 3. Afficher le header
         status = f"{self.RED}[PAUSE]{self.RESET}" if paused else f"{self.GREEN}[EN COURS]{self.RESET}"
-        print(f"--- TOUR {turn} --- {status}")
+        print(f"--- TEMPS {time_elapsed:.1f}s --- {status}")
         print(f"Contrôles: [P] Pause | [TAB] Snapshot HTML | [ZS] Scroll (haut-bas) | [Q] Quitter")
         print(f"Scroll: ({self.scroll_x}, {self.scroll_y})\n")
         
@@ -155,8 +155,17 @@ class TerminalView:
         # Affichage des stats rapides avec Nom du Général
         gen1 = armies[0].general.__class__.__name__
         gen2 = armies[1].general.__class__.__name__
-        stats = f"Armée 1 [{gen1}] (Bleu): {self._count_alive(armies[0])} | "
-        stats += f"Armée 2 [{gen2}] (Rouge): {self._count_alive(armies[1])}"
+        
+        alive1 = self._count_alive(armies[0])
+        total1 = len(armies[0].units)
+        pct1 = (alive1 / total1 * 100) if total1 > 0 else 0
+        
+        alive2 = self._count_alive(armies[1])
+        total2 = len(armies[1].units)
+        pct2 = (alive2 / total2 * 100) if total2 > 0 else 0
+
+        stats = f"Armée 1 [{gen1}] (Bleu): {alive1}/{total1} ({pct1:.0f}%) | "
+        stats += f"Armée 2 [{gen2}] (Rouge): {alive2}/{total2} ({pct2:.0f}%)"
         output_lines.append(stats)
         
         print("\n".join(output_lines))
@@ -166,13 +175,13 @@ class TerminalView:
         
         return command
 
-    def _generate_html_snapshot(self, armies: list[Army], turn: int):
+    def _generate_html_snapshot(self, armies: list[Army], time_seconds: int):
         """
         Génère un fichier HTML instantané listant toutes les unités et leurs stats.
         Requis par le PDF (touche TAB).
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"saves/snapshot_turn{turn}_{timestamp}.html"
+        filename = f"saves/snapshot_time_{time_seconds}s_{timestamp}.html"
         
         # Créer le dossier saves si nécessaire
         os.makedirs("saves", exist_ok=True)
@@ -180,7 +189,7 @@ class TerminalView:
         html = [
             "<!DOCTYPE html>",
             "<html><head><meta charset='UTF-8'>",
-            f"<title>MedievAIl - Snapshot Tour {turn}</title>",
+            f"<title>MedievAIl - Snapshot Temps {time_seconds}s</title>",
             "<style>",
             "body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }",
             "h1 { color: #e94560; }",
@@ -192,7 +201,7 @@ class TerminalView:
             ".dead { color: #666; text-decoration: line-through; }",
             "</style>",
             "</head><body>",
-            f"<h1>🏰 MedievAIl - Snapshot Tour {turn}</h1>",
+            f"<h1>🏰 MedievAIl - Snapshot Temps {time_seconds}s</h1>",
             f"<p>Généré le {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
         ]
         
