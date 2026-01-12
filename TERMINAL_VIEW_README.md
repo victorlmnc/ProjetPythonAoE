@@ -17,7 +17,7 @@ La visualisation en terminal permet de suivre en temps réel l'évolution du jeu
 - **P** : Pause/Reprendre le jeu
 - **TAB** : Ouvrir la page HTML avec tous les détails (unités, stats, IA)
 - **Esc** : Quitter le jeu
-- **F9** : Changer la vue (si disponible)
+- **F9** : Changer la vue
 - **F11** : Sauvegarde rapide
 - **F12** : Chargement rapide
 

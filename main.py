@@ -92,19 +92,19 @@ Exemples d'utilisation:
                            help="Nombre maximum de ticks (defaut: 1000)")
 
     # =========================================================================
-    # Commande: battle tourney -G <AI1> <AI2>... -S <SCEN1>... [-N=10]
+    # Commande: battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 ...] [-N=10] [-na]
     # =========================================================================
     tourney_parser = subparsers.add_parser("tourney", help="Lancer un tournoi automatique")
-    tourney_parser.add_argument("-G", "--generals", nargs='+', required=True,
-                               help="Liste des généraux à faire combattre")
-    tourney_parser.add_argument("-S", "--scenarios", nargs='+', required=True,
-                               help="Liste des scénarios (fichiers .map)")
-    tourney_parser.add_argument("-A", "--armies", nargs='+', default=None,
-                               help="Liste des fichiers d'armées")
+    tourney_parser.add_argument("-G", "--generals", nargs='+', default=None,
+                               help="Généraux à combattre (défaut: tous)")
+    tourney_parser.add_argument("-S", "--scenarios", nargs='+', default=None,
+                               help="Scénarios .scen/.map (défaut: tous)")
+    tourney_parser.add_argument("-A", "--army", type=str, default=None,
+                               help="Fichier armée à utiliser (ex: armies/armee_bleue.txt)")
     tourney_parser.add_argument("-N", "--rounds", type=int, default=10,
                                help="Nombre de rounds par matchup (défaut: 10)")
-    tourney_parser.add_argument("--na", action="store_true",
-                               help="No-animation: mode headless sans affichage")
+    tourney_parser.add_argument("-na", "--no-alternate", action="store_true",
+                               help="Ne pas alterner les positions (joueur 0/1)")
 
     # =========================================================================
     # Commande: battle plot <AI> <plotter> <scenario> <range>
@@ -305,21 +305,65 @@ def run_battle(args):
 def run_tourney(args):
     """
     Exécute un tournoi automatique.
-    Format: battle tourney -G <AI1> <AI2>... -S <SCEN1>... [-N=10]
+    Format: battle tourney [-G AI1 AI2...] [-S SCEN1...] [-N=10] [-na]
     """
-    print("--- MedievAIl: Tournoi ---")
-    print(f"Généraux: {args.generals}")
-    print(f"Scénarios: {args.scenarios}")
-    print(f"Rounds: {args.rounds}")
+    import glob
     
-    # Les armées sont gérées par le Tournament
-    # Si pas d'armées spécifiées, utiliser des armées par défaut
-    if args.armies is None:
-        # Créer des fichiers d'armées temporaires ou utiliser des défauts
-        args.armies = ["armies/armee_bleue.txt", "armies/armee_rouge.txt"]
-        print(f"Armées par défaut: {args.armies}")
+    print("=" * 60)
+    print("MedievAIl: Tournoi Automatique")
+    print("=" * 60)
     
-    tournament = Tournament(args.generals, args.scenarios, args.armies, args.rounds)
+    # Auto-découverte des généraux si non spécifiés
+    if args.generals is None:
+        generals = list(GENERAL_CLASS_MAP.keys())
+        print(f"Généraux (auto): {generals}")
+    else:
+        # Vérifier que les généraux existent
+        for g in args.generals:
+            if g not in GENERAL_CLASS_MAP:
+                print(f"Erreur: Général inconnu '{g}'")
+                print(f"Disponibles: {list(GENERAL_CLASS_MAP.keys())}")
+                sys.exit(1)
+        generals = args.generals
+        print(f"Généraux: {generals}")
+    
+    # Auto-découverte des scénarios si non spécifiés
+    if args.scenarios is None:
+        scenarios = []
+        # Chercher dans scenarios/
+        scenarios.extend(glob.glob("scenarios/*.scen"))
+        scenarios.extend(glob.glob("scenarios/*.map"))
+        # Chercher dans maps/
+        scenarios.extend(glob.glob("maps/*.map"))
+        scenarios.extend(glob.glob("maps/*.scen"))
+        if not scenarios:
+            print("Erreur: Aucun scénario trouvé dans scenarios/ ou maps/")
+            sys.exit(1)
+        print(f"Scénarios (auto): {scenarios}")
+    else:
+        # Vérifier que les fichiers existent
+        for s in args.scenarios:
+            if not os.path.exists(s):
+                print(f"Erreur: Fichier scénario introuvable '{s}'")
+                sys.exit(1)
+        scenarios = args.scenarios
+        print(f"Scénarios: {scenarios}")
+    
+    print(f"Rounds par matchup: {args.rounds}")
+    print(f"Alternance positions: {'Non' if args.no_alternate else 'Oui'}")
+    if args.army:
+        print(f"Armee: {args.army}")
+    else:
+        print("Armee: 10 Knights (defaut)")
+    print("=" * 60)
+    
+    tournament = Tournament(
+        generals, 
+        scenarios, 
+        rounds=args.rounds,
+        alternate_positions=not args.no_alternate,
+        army_file=args.army
+    )
     tournament.run()
 
 
@@ -516,13 +560,13 @@ def run_legacy_battle(args):
 
 def run_play(args):
     """
-    🎮 Commande simplifiée pour lancer une partie rapidement.
+    Commande simplifiee pour lancer une partie rapidement.
     Format: python main.py play [-t] [-u Knight] [-n 10] [-ai DAFT KAISER]
     """
     print("=" * 50)
-    print("🏰 MedievAIl - Partie Rapide")
+    print("MedievAIl - Partie Rapide")
     print("=" * 50)
-    print(f"Unités   : {args.count}x {args.units} par camp")
+    print(f"Unites   : {args.count}x {args.units} par camp")
     print(f"IAs      : {args.generals[0]} vs {args.generals[1]}")
     print(f"Mode     : {'Terminal' if args.terminal else 'Pygame 2.5D'}")
     print("=" * 50)
