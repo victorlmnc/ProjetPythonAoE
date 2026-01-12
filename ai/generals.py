@@ -1,7 +1,7 @@
 # ai/generals_impl.py
 from ai.general import General, Action
 from core.map import Map
-from core.unit import Unit, Crossbowman
+from core.unit import Unit
 import random
 import math
 
@@ -74,242 +74,133 @@ class MajorDAFT(General):
 
 class ColonelKAISER(General):
     """
-    IA Stratégique Avancée - Version 2.0: Plus agressive et cohésive.
-    
-    Principes:
-    - Marche groupée vers l'ennemi (pas de fuite excessive)
-    - Formation en ligne: Mêlée devant, Distance derrière
-    - Focus fire: Concentrer les attaques sur les cibles faibles
-    - Priorité aux kills: Finir les unités blessées
+    IA Stratégique (Req 3).
+    - Évaluation des menaces (counters)
+    - Formations (archers derrière)
+    - Kiting pour les unités à distance
+    - Focus fire intelligent
     """
-    
-    # === CONFIGURATION ===
-    MELEE_THRESHOLD = 2.0  # En dessous = unité de mêlée
-    FORMATION_SPACING = 1.8  # Espacement entre unités
-    ENGAGE_RANGE = 12.0  # Distance pour ignorer la formation et charger
-    
+    # Constantes pour la configuration de l'IA
+    KITING_RANGE_PERCENTAGE = 0.5  # Les unités à distance fuient si un ennemi est à 50% de leur portée
+    MELEE_ATTACK_RANGE = 2  # Portée maximale pour être considéré comme une unité de mêlée
+    RANGED_FORMATION_OFFSET = 2  # Les unités à distance essaient de rester à 2 unités derrière le centre
+    TARGET_EVALUATION_RANGE_MULTIPLIER = 1.5  # Ne considère que les cibles dans 150% de la ligne de vue
+    LOW_HP_BONUS_MULTIPLIER = 1.5  # Bonus de score pour attaquer les cibles qui peuvent être tuées en 2 coups
+    EPSILON = 0.1  # Pour éviter la division par zéro
+
     def __init__(self, army_id: int):
         super().__init__(army_id)
-        # Mémoire des cibles pour éviter le switch permanent
         self.target_memory: dict[int, int] = {}
-        
+
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
-        """Décide des actions pour toutes les unités de l'armée."""
-        if not my_units or not enemy_units:
-            return []
-        
         actions = []
-        alive_enemies = [e for e in enemy_units if e.is_alive]
-        if not alive_enemies:
+        if not enemy_units or not my_units:
             return []
+
+        enemy_lookup = {u.unit_id: u for u in enemy_units}
         
-        # === 1. ANALYSE STRATÉGIQUE ===
-        army_center = self._get_army_center(my_units)
-        enemy_center = self._get_army_center(alive_enemies)
-        
-        # Direction vers l'ennemi
-        direction = self._normalize(
-            enemy_center[0] - army_center[0],
-            enemy_center[1] - army_center[1]
-        )
-        
-        # Distance globale
-        global_distance = math.sqrt(
-            (enemy_center[0] - army_center[0])**2 + 
-            (enemy_center[1] - army_center[1])**2
-        )
-        
-        # === 2. SÉPARER MÊLÉE / DISTANCE ===
-        melee_units = [u for u in my_units if u.attack_range <= self.MELEE_THRESHOLD]
-        ranged_units = [u for u in my_units if u.attack_range > self.MELEE_THRESHOLD]
-        
-        # Trier par ID pour placement déterministe
-        melee_units.sort(key=lambda u: u.unit_id)
-        ranged_units.sort(key=lambda u: u.unit_id)
-        
-        # === 3. CALCULER LES SLOTS DE FORMATION ===
-        formation_slots = self._calculate_line_formation(
-            melee_units, ranged_units, army_center, direction
-        )
-        
-        # === 4. IDENTIFIER LES CIBLES PRIORITAIRES (FOCUS FIRE) ===
-        priority_targets = self._get_priority_targets(alive_enemies, my_units, current_map)
-        
-        # === 5. DÉCIDER POUR CHAQUE UNITÉ ===
+        melee_units = [u for u in my_units if u.attack_range <= self.MELEE_ATTACK_RANGE]
+        ranged_units = [u for u in my_units if u.attack_range > self.MELEE_ATTACK_RANGE]
+
+        avg_pos_x = sum(u.pos[0] for u in my_units) / len(my_units)
+        avg_pos_y = sum(u.pos[1] for u in my_units) / len(my_units)
+        army_centroid = (avg_pos_x, avg_pos_y)
+
         for unit in my_units:
-            action = self._decide_unit_action(
-                unit, alive_enemies, priority_targets, 
-                formation_slots, direction, global_distance, current_map
-            )
-            if action:
-                actions.append(action)
-        
+            if unit in ranged_units:
+                # limiter la recherche de menace aux unités proches
+                threat_candidates = current_map.get_units_in_radius(unit.pos, unit.line_of_sight)
+                threat = self.find_closest_enemy(unit, threat_candidates)
+                if threat:
+                    dist = unit._calculate_distance(threat)
+                    safety_distance = unit.attack_range * self.KITING_RANGE_PERCENTAGE
+                    
+                    if dist < safety_distance and threat.attack_range <= self.MELEE_ATTACK_RANGE:
+                        flee_pos = self._calculate_flee_position(unit, threat)
+                        actions.append(("move", unit.unit_id, flee_pos))
+                        continue
+
+            target = self._find_best_target(unit, enemy_units, enemy_lookup, current_map)
+
+            if target:
+                if unit.can_attack(target):
+                    actions.append(("attack", unit.unit_id, target.unit_id))
+                else:
+                    if unit in melee_units:
+                        actions.append(("move", unit.unit_id, target.pos))
+                    elif unit in ranged_units:
+                        move_pos = self._calculate_formation_position(unit, target, army_centroid)
+                        actions.append(("move", unit.unit_id, move_pos))
+            else:
+                 # Fallback: Avancer vers l'ennemi le plus proche si aucun visible
+                 closest_any = self.find_closest_enemy(unit, enemy_units)
+                 if closest_any:
+                      actions.append(("move", unit.unit_id, closest_any.pos))
+                 else:
+                      actions.append(("move", unit.unit_id, army_centroid))
+
         return actions
-    
-    def _get_army_center(self, units: list[Unit]) -> tuple[float, float]:
-        """Calcule le centre de masse d'un groupe d'unités."""
-        if not units:
-            return (0.0, 0.0)
-        x = sum(u.pos[0] for u in units) / len(units)
-        y = sum(u.pos[1] for u in units) / len(units)
-        return (x, y)
-    
-    def _normalize(self, dx: float, dy: float) -> tuple[float, float]:
-        """Normalise un vecteur direction."""
-        dist = math.sqrt(dx*dx + dy*dy)
-        if dist < 0.001:
-            return (1.0, 0.0)
-        return (dx / dist, dy / dist)
-    
-    def _calculate_line_formation(
-        self, 
-        melee: list[Unit], 
-        ranged: list[Unit], 
-        center: tuple[float, float], 
-        direction: tuple[float, float]
-    ) -> dict[int, tuple[float, float]]:
+
+    def _find_best_target(self, unit: Unit, enemy_units: list[Unit], enemy_lookup: dict, current_map: Map) -> Unit | None:
         """
-        Formation en LIGNE: Mêlée devant, Distance derrière.
-        Bien aligné et visuellement propre.
+        Sélectionne la meilleure cible selon une heuristique de 'valeur'.
+        Score = (Dégâts infligés / Dégâts reçus) * Bonus de proximité * Bonus Kill
         """
-        slots = {}
-        dx, dy = direction
-        # Perpendiculaire (pour étaler la ligne)
-        perp_x, perp_y = -dy, dx
-        
-        spacing = self.FORMATION_SPACING
-        
-        # === LIGNE DE MÊLÉE (DEVANT) ===
-        n_melee = len(melee)
-        for i, unit in enumerate(melee):
-            # Centrer la ligne
-            offset = (i - (n_melee - 1) / 2) * spacing
-            # Position = centre + offset perpendiculaire + avance vers l'ennemi
-            x = center[0] + perp_x * offset + dx * 2.0
-            y = center[1] + perp_y * offset + dy * 2.0
-            slots[unit.unit_id] = (x, y)
-        
-        # === LIGNE DE DISTANCE (DERRIÈRE) ===
-        n_ranged = len(ranged)
-        for i, unit in enumerate(ranged):
-            offset = (i - (n_ranged - 1) / 2) * spacing
-            # Derrière la mêlée (recul de 3 unités)
-            x = center[0] + perp_x * offset - dx * 3.0
-            y = center[1] + perp_y * offset - dy * 3.0
-            slots[unit.unit_id] = (x, y)
-        
-        return slots
-    
-    def _get_priority_targets(
-        self, 
-        enemies: list[Unit], 
-        my_units: list[Unit],
-        current_map: Map
-    ) -> list[Unit]:
-        """
-        Trie les ennemis par priorité pour focus fire.
-        Priorité: Faible HP > Haute menace > Distance proche
-        """
-        if not enemies:
-            return []
-        
-        # Calculer un score pour chaque ennemi
-        scored = []
-        my_center = self._get_army_center(my_units)
-        
-        for enemy in enemies:
-            score = 0.0
-            
-            # Bonus ÉNORME pour les unités presque mortes (kill secure)
-            hp_ratio = enemy.current_hp / enemy.max_hp
-            if hp_ratio < 0.3:
-                score += 100  # Priorité absolue
-            elif hp_ratio < 0.5:
-                score += 50
-            
-            # Bonus pour les unités à distance (archers = menace)
-            if enemy.attack_range > self.MELEE_THRESHOLD:
-                score += 20
-            
-            # Bonus pour la proximité
-            dist = math.sqrt(
-                (enemy.pos[0] - my_center[0])**2 + 
-                (enemy.pos[1] - my_center[1])**2
-            )
-            score += max(0, 30 - dist)  # Plus proche = mieux
-            
-            # Malus pour les gros tanks (longs à tuer)
-            if enemy.max_hp > 100:
-                score -= 10
-            
-            scored.append((score, enemy))
-        
-        # Trier par score décroissant
-        scored.sort(key=lambda x: -x[0])
-        return [e for _, e in scored]
-    
-    def _decide_unit_action(
-        self,
-        unit: Unit,
-        enemies: list[Unit],
-        priority_targets: list[Unit],
-        formation_slots: dict[int, tuple[float, float]],
-        direction: tuple[float, float],
-        global_distance: float,
-        current_map: Map
-    ) -> tuple | None:
-        """Décide l'action d'une unité individuelle."""
-        
-        # === A. TROUVER LA MEILLEURE CIBLE ===
-        target = self._select_target(unit, enemies, priority_targets, current_map)
-        
-        if not target:
-            slot = formation_slots.get(unit.unit_id)
-            if slot:
-                return ("move", unit.unit_id, slot)
-            return None
-        
-        # === B. PEUT ATTAQUER? → ATTAQUER! ===
-        if unit.can_attack(target):
-            return ("attack", unit.unit_id, target.unit_id)
-        
-        # === C. SINON → CHARGER VERS LA CIBLE ===
-        # Pas de formation, pas de recul, juste ATTAQUER
-        return ("move", unit.unit_id, target.pos)
-    
-    def _select_target(
-        self, 
-        unit: Unit, 
-        enemies: list[Unit], 
-        priority_targets: list[Unit],
-        current_map: Map
-    ) -> Unit | None:
-        """
-        Sélectionne la meilleure cible pour une unité.
-        Utilise la mémoire pour éviter le switch permanent.
-        """
-        # Vérifier si on a déjà une cible valide
+        best_target = None
+        max_score = -1
+
         if unit.unit_id in self.target_memory:
-            old_target_id = self.target_memory[unit.unit_id]
-            for enemy in enemies:
-                if enemy.unit_id == old_target_id and enemy.is_alive:
-                    # Garder cette cible si elle est encore raisonnable
-                    dist = unit._calculate_distance(enemy)
-                    if dist < unit.line_of_sight * 2:
-                        return enemy
-            # Cible invalide, oublier
-            del self.target_memory[unit.unit_id]
+            candidate = enemy_lookup.get(self.target_memory[unit.unit_id])
+            if candidate and candidate.is_alive:
+                return candidate
+            else:
+                del self.target_memory[unit.unit_id]
+
+        # Limiter la recherche aux unités proches (spatial partition via la map)
+        search_radius = unit.line_of_sight * self.TARGET_EVALUATION_RANGE_MULTIPLIER
+        nearby_candidates = current_map.get_nearby_units(unit, search_radius)
+        for enemy in nearby_candidates:
+            if not enemy.is_alive or enemy.army_id == unit.army_id:
+                continue
+
+            dist = unit._calculate_distance(enemy)
+
+            my_damage = unit.calculate_damage(enemy, current_map)
+            enemy_damage = enemy.calculate_damage(unit, current_map)
+            score = my_damage / (enemy_damage + self.EPSILON)
+
+            proximity_bonus = 1 / (1 + dist)
+            final_score = score * proximity_bonus
+
+            if enemy.current_hp < my_damage * 2:
+                final_score *= self.LOW_HP_BONUS_MULTIPLIER
+
+            if final_score > max_score:
+                max_score = final_score
+                best_target = enemy
+
+        if best_target:
+            self.target_memory[unit.unit_id] = best_target.unit_id
+
+        return best_target
+
+    def _calculate_flee_position(self, unit: Unit, threat: Unit) -> tuple[float, float]:
+        dx = unit.pos[0] - threat.pos[0]
+        dy = unit.pos[1] - threat.pos[1]
+        dist = math.sqrt(dx**2 + dy**2)
+        if dist == 0: dist = self.EPSILON
         
-        # Chercher parmi les cibles prioritaires
-        for target in priority_targets:
-            dist = unit._calculate_distance(target)
-            # Préférer les cibles à portée ou proches
-            if dist < unit.line_of_sight * 1.5:
-                self.target_memory[unit.unit_id] = target.unit_id
-                return target
-        
-        # Fallback: l'ennemi le plus proche
-        closest = self.find_closest_enemy(unit, enemies)
-        if closest:
-            self.target_memory[unit.unit_id] = closest.unit_id
-        return closest
+        nx = unit.pos[0] + (dx / dist) * unit.speed
+        ny = unit.pos[1] + (dy / dist) * unit.speed
+        return (nx, ny)
+
+    def _calculate_formation_position(self, unit: Unit, target: Unit, army_centroid: tuple) -> tuple[float, float]:
+        dir_x = target.pos[0] - army_centroid[0]
+        dir_y = target.pos[1] - army_centroid[1]
+        dist = math.sqrt(dir_x**2 + dir_y**2)
+        if dist == 0: dist = self.EPSILON
+
+        pos_x = army_centroid[0] + (dir_x / dist) * (dist - self.RANGED_FORMATION_OFFSET)
+        pos_y = army_centroid[1] + (dir_y / dist) * (dist - self.RANGED_FORMATION_OFFSET)
+
+        return (pos_x, pos_y)
