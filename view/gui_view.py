@@ -785,7 +785,7 @@ class PygameView:
                     rows = len(frames_orient)
                     
                     # Calculer l'orientation basée sur vx/vy
-                    if abs(vx) > 0.5 or abs(vy) > 0.5:
+                    if abs(vx) > 2.0 or abs(vy) > 2.0:
                         angle = math.degrees(math.atan2(vy, vx)) % 360
                         sector = 360.0 / max(1, rows)
                         orient_idx = int((angle + sector/2) // sector) % rows
@@ -974,10 +974,10 @@ class PygameView:
             # Position armies at top corners for VS-style display
             for i, army in enumerate(armies):
                 alive = sum(1 for u in army.units if u.is_alive)
-                total = len(army.units)
+                total = getattr(army, 'initial_count', len(army.units))
                 percent = (alive / total * 100) if total > 0 else 0
                 total_hp = sum(u.current_hp for u in army.units if u.is_alive)
-                max_total_hp = sum(u.max_hp for u in army.units)
+                max_total_hp = getattr(army, 'initial_total_hp', sum(u.max_hp for u in army.units))
                 hp_percent = (total_hp / max_total_hp) if max_total_hp > 0 else 0
                 general_name = army.general.__class__.__name__
                 
@@ -987,11 +987,11 @@ class PygameView:
                 # Utiliser army.army_id pour correctement associer position et couleur
                 team = army.army_id  # 0 = bleu (gauche), 1 = rouge (droite)
                 
-                # Position: left for army 0, right for army 1
+                # Position: right for army 0 (blue), left for army 1 (red) - correspond à la carte
                 if team == 0:
-                    panel_x = 15
+                    panel_x = self.screen_w - panel_w - 15  # Bleu à droite
                 else:
-                    panel_x = self.screen_w - panel_w - 15
+                    panel_x = 15  # Rouge à gauche
                 panel_y = 10
                 
                 # Team colors with glow effect (basé sur army_id, pas index)
@@ -1014,13 +1014,13 @@ class PygameView:
                     pygame.draw.line(panel, (shade, shade, shade + 5, min(255, alpha)), (0, y), (panel_w, y))
                 
                 # Glowing border on team side
-                border_side = 0 if team == 0 else panel_w - 5
+                border_side = panel_w - 5 if team == 0 else 0
                 for glow in range(5):
                     alpha = 150 - glow * 30
-                    pygame.draw.rect(panel, (*glow_color, max(0, alpha)), (border_side + (glow if team == 1 else -glow), 0, 5 - glow, panel_h))
+                    pygame.draw.rect(panel, (*glow_color, max(0, alpha)), (border_side + (glow if team == 0 else -glow), 0, 5 - glow, panel_h))
                 
                 # Main team color bar
-                pygame.draw.rect(panel, main_color, (0 if team == 0 else panel_w - 5, 0, 5, panel_h))
+                pygame.draw.rect(panel, main_color, (panel_w - 5 if team == 0 else 0, 0, 5, panel_h))
                 
                 # Outer border
                 pygame.draw.rect(panel, (60, 60, 70), (0, 0, panel_w, panel_h), 1)
@@ -1073,30 +1073,43 @@ class PygameView:
                 
                 # Count units by type
                 unit_counts = {}
+                initial_breakdown = getattr(army, 'initial_units_breakdown', {})
+                
+                # Compter les vivants actuels
+                current_alive = {}
                 for u in army.units:
-                    name = u.__class__.__name__
-                    if name not in unit_counts:
-                        unit_counts[name] = {'alive': 0, 'total': 0}
-                    unit_counts[name]['total'] += 1
                     if u.is_alive:
-                        unit_counts[name]['alive'] += 1
+                         name = u.__class__.__name__
+                         current_alive[name] = current_alive.get(name, 0) + 1
+                
+                # Fusionner avec les totaux initiaux
+                all_types = set(initial_breakdown.keys()) | set(current_alive.keys())
+                
+                for name in all_types:
+                    total = initial_breakdown.get(name, 0)
+                    # Fallback si pas de stats initiales (ex: unités spawnées ou vieux save)
+                    if total == 0:
+                         total = sum(1 for u in army.units if u.__class__.__name__ == name)
+                    
+                    alive = current_alive.get(name, 0)
+                    unit_counts[name] = {'alive': alive, 'total': total}
                 
                 # Calculate panel height
                 num_types = len(unit_counts)
                 detail_panel_height = 28 + num_types * 18
                 
-                # Position: under respective army (left for 0, right for 1)
+                # Position: right for army 0 (blue), left for army 1 (red)
                 if team == 0:
-                    detail_x = 15
-                else:
                     detail_x = self.screen_w - detail_panel_width - 15
+                else:
+                    detail_x = 15
                 detail_y = 100  # Under army panels
                 
                 # Panel background
                 panel = pygame.Surface((detail_panel_width, detail_panel_height), pygame.SRCALPHA)
                 panel.fill((20, 20, 25, 200))
                 pygame.draw.rect(panel, (40, 40, 50), (0, 0, detail_panel_width, detail_panel_height), 1)
-                border_x = 0 if i == 0 else detail_panel_width - 3
+                border_x = detail_panel_width - 3 if team == 0 else 0
                 pygame.draw.rect(panel, team_color, (border_x, 0, 3, detail_panel_height))
                 
                 # Header
@@ -1232,23 +1245,35 @@ class PygameView:
             alive_units = [u for u in army.units if u.is_alive]
             dead_units = [u for u in army.units if not u.is_alive]
             alive = len(alive_units)
-            total = len(army.units)
+            total = getattr(army, 'initial_count', len(army.units))
             hp_remaining = sum(u.current_hp for u in alive_units)
-            max_hp = sum(u.max_hp for u in army.units)
+            max_hp = getattr(army, 'initial_total_hp', sum(u.max_hp for u in army.units))
             hp_lost = max_hp - hp_remaining
             
             # Stats par type d'unité
             unit_types = {}
+            initial_bd = getattr(army, 'initial_units_breakdown', {})
+            
+            # Initialiser avec les totaux
+            for name, count in initial_bd.items():
+                unit_types[name] = {'alive': 0, 'dead': count, 'hp': 0, 'max_hp': 0}
+
             for u in army.units:
                 name = u.__class__.__name__
                 if name not in unit_types:
                     unit_types[name] = {'alive': 0, 'dead': 0, 'hp': 0, 'max_hp': 0}
+                
                 unit_types[name]['max_hp'] += u.max_hp
                 if u.is_alive:
                     unit_types[name]['alive'] += 1
                     unit_types[name]['hp'] += u.current_hp
-                else:
-                    unit_types[name]['dead'] += 1
+                    if name in initial_bd:
+                        unit_types[name]['dead'] = initial_bd[name] - unit_types[name]['alive'] 
+                else: 
+                     # Si l'unité morte est encore dans la liste (ex: animation mort non finie)
+                     # Le dead count est déjà géré par l'initialisation sauf si hors initial_bd
+                     if name not in initial_bd:
+                        unit_types[name]['dead'] += 1
             
             stats.append({
                 'army_id': army.army_id,  # Pour la couleur correcte
@@ -1342,7 +1367,7 @@ class PygameView:
             for i, s in enumerate(stats):
                 team = s['army_id']  # Utiliser army_id pas l'index
                 # Position de la colonne - plus d'espace au milieu
-                col_x = 25 if team == 0 else panel_w - col_w - 25
+                col_x = panel_w - col_w - 25 if team == 0 else 25
                 base_y = 90
                 
                 # Couleurs équipe (basées sur army_id)
