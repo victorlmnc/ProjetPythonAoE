@@ -8,16 +8,36 @@ import math
 # (req 3)
 class CaptainBRAINDEAD(General):
     """
-    IA Niveau 0: Ne fait absolument rien.
-    Les unités ne bougent pas et n'attaquent que si un ennemi entre
-    dans leur champ de vision (comportement géré par le moteur de jeu).
+    IA Niveau 0: Le bon capitaine revient d'une lobotomie réussie.
+    Il n'est pas en état de donner des ordres tactiques.
+    Les unités agissent individuellement : elles attaquent les ennemis
+    dans leur champ de vision (Line of Sight) et s'en approchent si besoin,
+    mais ne cherchent pas le combat si elles sont laissées seules.
     """
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
-        # Conformément à la spec, cette IA ne prend AUCUNE décision.
-        # Le moteur de jeu gérera la riposte automatique si une unité
-        # est attaquée ou si un ennemi entre dans sa Line of Sight.
-        return []
+        actions = []
+        
+        for unit in my_units:
+            # 1. "Individual action": Recherche uniquement dans la ligne de vue de l'unité.
+            # Contrairement à MajorDAFT, cette IA n'utilise JAMAIS la liste globale 'enemy_units'
+            # pour trouver des cibles lointaines (pas de "seek out a fight").
+            nearby_enemies = current_map.get_units_in_radius(unit.pos, unit.line_of_sight)
+            
+            # Filtre pour ne garder que les ennemis
+            nearby_enemies = [e for e in nearby_enemies if e.army_id != self.army_id]
 
+            if nearby_enemies:
+                # 2. Si des ennemis sont visibles, l'unité engage le plus proche.
+                closest_enemy = self.find_closest_enemy(unit, nearby_enemies)
+                
+                if closest_enemy:
+                    if unit.can_attack(closest_enemy):
+                        # L'unité attaque si elle est à portée.
+                        actions.append(("attack", unit.unit_id, closest_enemy.unit_id))
+                    else:
+                        # L'unité s'approche pour engager l'ennemi qu'elle voit.
+                        actions.append(("move", unit.unit_id, closest_enemy.pos))
+        return actions
 # (req 3)
 class MajorDAFT(General):
     """
