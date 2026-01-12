@@ -175,7 +175,7 @@ class Engine:
 
         print("\n--- FIN DE LA PARTIE ---")
         if self.winner is not None:
-            print(f"Le vainqueur est l'Armée {self.winner}!")
+            print(f"Le vainqueur est l'Armee {self.winner + 1}!")
         elif self.turn_count >= max_turns:
             print("Limite de ticks atteinte. Egalite.")
         else:
@@ -535,7 +535,7 @@ class Engine:
                     # La Wonder ennemie est détruite -> Victoire !
                     self.game_over = True
                     self.winner = army.army_id
-                    print(f"La Wonder de l'Armée {enemy_idx} a été détruite !")
+                    print(f"La Wonder de l'Armee {enemy_idx + 1} a ete detruite !")
                     return True
         
         # Vérification standard: élimination de toutes les unités

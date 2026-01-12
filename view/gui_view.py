@@ -50,7 +50,7 @@ SPRITE_FRAME_HEIGHT = 72
 UNIT_DISPLAY_SCALE = 2.5 
 
 class PygameView:
-    def __init__(self, game_map: Map):
+    def __init__(self, game_map: Map, armies: list = None):
         pygame.init()
         pygame.display.set_caption("MedievAIl - Isometric View")
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
@@ -59,16 +59,18 @@ class PygameView:
         self.font = pygame.font.SysFont('Arial', 16, bold=True)
         self.ui_font = pygame.font.SysFont('Arial', 24, bold=True)
         
+        # Store armies for selective sprite loading
+        self._armies = armies
+        
         # --- Dynamic screen dimensions (for resize/fullscreen support) ---
         self.screen_w = SCREEN_WIDTH
         self.screen_h = SCREEN_HEIGHT
 
-        # --- Zoom Settings ---
-        # --- Zoom Settings ---
+        # --- Zoom Settings (optimized - 4 levels) ---
         self.min_zoom = 0.2  # déZoom loin
-        self.max_zoom = 2.5
-        # Discrete zoom levels for caching (performance optimization)
-        self.zoom_levels = [0.2, 0.4, 0.5, 0.6, 0.8, 1.0, 1.25, 1.5, 2.0, 2.5]
+        self.max_zoom = 2.0  # Zoom proche
+        # Discrete zoom levels for caching (reduced for faster loading)
+        self.zoom_levels = [0.2, 0.5, 1.0, 2.0]
         self.zoom = self.min_zoom  # Demarrer dezoome au max
         # Cache for pre-scaled sprites at each zoom level
         self._zoom_cache: dict[float, dict] = {}
@@ -353,13 +355,30 @@ class PygameView:
         
         # Chargement des assets d'unités : par unité, par couleur, par état.
         # Structure stockée : self.orig_units[unit_class][color][state] = frames[row][col]
-        unit_configs = {
+        all_unit_configs = {
             Knight: "knight",
             Crossbowman: "crossbowman",
             Pikeman: "pikeman",
             LongSwordsman: "longswordman",
             LightCavalry: "knight", # Fallback to knight sprites
         }
+        
+        # OPTIMIZATION: Only load sprites for units present in armies
+        needed_unit_classes = set()
+        if self._armies:
+            for army in self._armies:
+                for unit in army.units:
+                    needed_unit_classes.add(unit.__class__)
+                    # Also add fallback classes
+                    if unit.__class__ == LightCavalry:
+                        needed_unit_classes.add(Knight)  # LightCavalry uses Knight sprites
+        
+        # If no armies provided, load all (fallback behavior)
+        if not needed_unit_classes:
+            unit_configs = all_unit_configs
+        else:
+            unit_configs = {k: v for k, v in all_unit_configs.items() if k in needed_unit_classes}
+            print(f"Chargement optimise: {len(unit_configs)} types d'unites")
 
         states_grid = {
             'death': (24, 30),
@@ -539,17 +558,40 @@ class PygameView:
                 self.scroll_y = self.drag_scroll_start_y - dy
                 self._clamp_camera()
             
-            # --- GESTION DU ZOOM (MOUSEWHEEL) ---
+            # --- GESTION DU ZOOM (MOUSEWHEEL) - Centré sur souris ---
             if event.type == pygame.MOUSEWHEEL:
                 old_zoom = self.zoom
-                if event.y > 0: # Scroll UP -> Zoom IN
-                    self.zoom = min(self.zoom + 0.1, self.max_zoom)
-                elif event.y < 0: # Scroll DOWN -> Zoom OUT
-                    self.zoom = max(self.zoom - 0.1, self.min_zoom)
+                # Trouver l'index du niveau de zoom actuel
+                current_idx = self.zoom_levels.index(self._get_cached_zoom_level(self.zoom))
                 
-                if self.zoom != old_zoom:
+                if event.y > 0:  # Scroll UP -> Zoom IN (niveau suivant)
+                    new_idx = min(current_idx + 1, len(self.zoom_levels) - 1)
+                elif event.y < 0:  # Scroll DOWN -> Zoom OUT (niveau précédent)
+                    new_idx = max(current_idx - 1, 0)
+                else:
+                    new_idx = current_idx
+                
+                new_zoom = self.zoom_levels[new_idx]
+                
+                if new_zoom != old_zoom:
+                    # Position souris à l'écran
+                    mouse_x, mouse_y = pygame.mouse.get_pos()
+                    
+                    # Convertir position souris en coordonnées monde (avant zoom)
+                    world_x, world_y = self.iso_to_cart(mouse_x, mouse_y)
+                    
+                    # Appliquer le nouveau zoom
+                    self.zoom = new_zoom
                     self.update_zoom_metrics()
                     self._rescale_assets()
+                    
+                    # Recalculer où cette position monde apparaît maintenant
+                    new_screen_x, new_screen_y = self.cart_to_iso(world_x, world_y)
+                    
+                    # Ajuster le scroll pour garder le point sous la souris
+                    self.scroll_x += new_screen_x - mouse_x
+                    self.scroll_y += new_screen_y - mouse_y
+                    self._clamp_camera()
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE: return "quit"
@@ -576,9 +618,12 @@ class PygameView:
                 if event.key == pygame.K_F11: return "quick_save"  # Sauvegarde rapide
                 if event.key == pygame.K_F12: return "quick_load"  # Chargement rapide
 
-                # --- Req 10 (Variable Speed L.422) ---
-                if event.key == pygame.K_KP_PLUS or event.key == pygame.K_PLUS: return "speed_up"
-                if event.key == pygame.K_KP_MINUS or event.key == pygame.K_MINUS: return "speed_down"
+                # --- Req 10 (Variable Speed) ---
+                # Claviers portables: PageUp/PageDown (universel) + touches = et 0
+                if event.key in (pygame.K_KP_PLUS, pygame.K_PAGEUP, pygame.K_EQUALS): 
+                    return "speed_up"
+                if event.key in (pygame.K_KP_MINUS, pygame.K_PAGEDOWN, pygame.K_0): 
+                    return "speed_down"
         return None
 
     def draw_map(self):
@@ -668,9 +713,10 @@ class PygameView:
                 # Inclure aussi les unités mortes récentes pour afficher l'animation de mort
                 visible_units.append((army.army_id, unit))
 
-        # Tri stable avec unit_id comme tiebreaker pour éviter le clignotement
-        visible_units.sort(key=lambda p: (p[1].pos[1], p[1].pos[0], p[1].unit_id))
-
+        # ANTI-VIBRATION: Tri par positions arrondies au dixième + unit_id stable
+        # Cela évite les changements d'ordre de dessin quand les positions changent légèrement
+        visible_units.sort(key=lambda p: (round(p[1].pos[1], 1), round(p[1].pos[0], 1), p[1].unit_id))
+        
         for army_id, unit in visible_units:
             # Ne pas afficher les unités dont l'animation de mort est terminée
             if not unit.is_alive:
@@ -735,13 +781,32 @@ class PygameView:
                         vx = u_xs - l_xs
                         vy = u_ys - l_ys
 
-                    if abs(vx) < 1e-3 and abs(vy) < 1e-3:
-                        orient_idx = 0
-                    else:
+                    # Calculer l'orientation basée sur la direction
+                    rows = len(frames_orient)
+                    
+                    # Calculer l'orientation basée sur vx/vy
+                    if abs(vx) > 0.5 or abs(vy) > 0.5:
                         angle = math.degrees(math.atan2(vy, vx)) % 360
-                        rows = len(frames_orient)
                         sector = 360.0 / max(1, rows)
                         orient_idx = int((angle + sector/2) // sector) % rows
+                        unit._last_orient = orient_idx
+                    else:
+                        # Pas de mouvement significatif
+                        if hasattr(unit, '_last_orient'):
+                            orient_idx = unit._last_orient % rows
+                        else:
+                            # Orientation initiale vers le centre de la carte
+                            map_center_x, map_center_y = self.map.width / 2, self.map.height / 2
+                            cx, cy = self.cart_to_iso(map_center_x, map_center_y)
+                            ux, uy = self.cart_to_iso(unit.pos[0], unit.pos[1])
+                            dx, dy = cx - ux, cy - uy
+                            if abs(dx) > 0.1 or abs(dy) > 0.1:
+                                angle = math.degrees(math.atan2(dy, dx)) % 360
+                                sector = 360.0 / max(1, rows)
+                                orient_idx = int((angle + sector/2) // sector) % rows
+                            else:
+                                orient_idx = 0
+                            unit._last_orient = orient_idx
 
                     nframes = len(frames_orient[orient_idx]) if frames_orient[orient_idx] else 0
                     if nframes > 0:
@@ -806,10 +871,11 @@ class PygameView:
 
             if self.show_hp_bars and unit.is_alive:
                 hp_ratio = unit.current_hp / unit.max_hp if unit.max_hp > 0 else 0
-                bar_width = int(24 * self.zoom)
-                bar_height = int(4 * self.zoom)
-                pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, hp_y, bar_width, bar_height))
-                pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, hp_y, int(bar_width * hp_ratio), bar_height))
+                bar_width = int(16 * self.zoom)  # Plus petit
+                bar_height = max(2, int(2 * self.zoom))  # Plus fin
+                bar_y = hp_y + 8  # Plus proche du perso
+                pygame.draw.rect(self.screen, RED, (screen_x - bar_width//2, bar_y, bar_width, bar_height))
+                pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, bar_y, int(bar_width * hp_ratio), bar_height))
 
 
     def draw_ui(self, time_elapsed, paused, armies):
@@ -835,31 +901,33 @@ class PygameView:
             self.screen.blit(overlay, (0, 0))
             
             # Main pause panel
-            panel_w, panel_h = 450, 400
+            panel_w, panel_h = 600, 550
             panel_x = self.screen_w // 2 - panel_w // 2
             panel_y = self.screen_h // 2 - panel_h // 2
             
             pause_panel = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
             pause_panel.fill((20, 22, 28, 240))
-            pygame.draw.rect(pause_panel, (70, 130, 220), (0, 0, panel_w, panel_h), 2)
+            pygame.draw.rect(pause_panel, (70, 130, 220), (0, 0, panel_w, panel_h), 3)
             
             # Title
-            title = self.ui_font.render("PAUSE", True, (255, 200, 100))
+            title_font = pygame.font.SysFont('Arial', 36, bold=True)
+            title = title_font.render("PAUSE", True, (255, 200, 100))
             pause_panel.blit(title, (panel_w//2 - title.get_width()//2, 15))
             
             # Separator
-            pygame.draw.line(pause_panel, (60, 60, 70), (20, 50), (panel_w - 20, 50), 1)
+            pygame.draw.line(pause_panel, (60, 60, 70), (25, 60), (panel_w - 25, 60), 2)
             
-            # Controls sections
+            # Controls sections (SIMPLIFIED)
             controls = [
                 ("NAVIGATION", [
-                    ("Fleches/ZQSD/Clic droit", "Deplacer camera"),
+                    ("Fleches / ZQSD / Clic droit", "Deplacer camera"),
                     ("Molette souris", "Zoom +/-"),
                     ("Maj + fleches", "Deplacement rapide"),
                 ]),
                 ("JEU", [
                     ("Espace", "Pause / Reprendre"),
-                    ("+/-", "Vitesse simulation"),
+                    ("= / à", "Accelerer / Ralentir"),
+                    ("+ / -", "Accelerer / Ralentir (sur pavé numérique)"),
                     ("Echap", "Quitter"),
                 ]),
                 ("AFFICHAGE", [
@@ -874,25 +942,26 @@ class PygameView:
                 ]),
             ]
             
-            y_offset = 60
-            small_font = pygame.font.SysFont('Arial', 13)
+            y_offset = 75
+            section_font = pygame.font.SysFont('Arial', 20, bold=True)
+            control_font = pygame.font.SysFont('Arial', 17)
             
             for section_name, section_controls in controls:
-                # Section header
-                section_txt = self.font.render(section_name, True, (150, 180, 220))
-                pause_panel.blit(section_txt, (20, y_offset))
-                y_offset += 20
+                # Section header (BIGGER)
+                section_txt = section_font.render(section_name, True, (150, 180, 220))
+                pause_panel.blit(section_txt, (25, y_offset))
+                y_offset += 28
                 
                 for key, desc in section_controls:
-                    # Key
-                    key_txt = small_font.render(key, True, (180, 180, 180))
-                    pause_panel.blit(key_txt, (30, y_offset))
+                    # Key (BIGGER)
+                    key_txt = control_font.render(key, True, (200, 200, 200))
+                    pause_panel.blit(key_txt, (40, y_offset))
                     # Description
-                    desc_txt = small_font.render(desc, True, (120, 120, 130))
-                    pause_panel.blit(desc_txt, (200, y_offset))
-                    y_offset += 16
+                    desc_txt = control_font.render(desc, True, (140, 140, 150))
+                    pause_panel.blit(desc_txt, (260, y_offset))
+                    y_offset += 22
                 
-                y_offset += 6  # Space between sections
+                y_offset += 10  # Space between sections
             
             # Resume hint at bottom
             resume_txt = self.font.render("Appuyez sur ESPACE pour reprendre", True, (100, 200, 100))
@@ -915,15 +984,18 @@ class PygameView:
                 # Panel dimensions
                 panel_w, panel_h = 260, 85
                 
+                # Utiliser army.army_id pour correctement associer position et couleur
+                team = army.army_id  # 0 = bleu (gauche), 1 = rouge (droite)
+                
                 # Position: left for army 0, right for army 1
-                if i == 0:
+                if team == 0:
                     panel_x = 15
                 else:
                     panel_x = self.screen_w - panel_w - 15
                 panel_y = 10
                 
-                # Team colors with glow effect
-                if i == 0:
+                # Team colors with glow effect (basé sur army_id, pas index)
+                if team == 0:
                     main_color = (50, 120, 200)
                     glow_color = (80, 150, 255)
                     bar_color = (100, 180, 255)
@@ -942,20 +1014,20 @@ class PygameView:
                     pygame.draw.line(panel, (shade, shade, shade + 5, min(255, alpha)), (0, y), (panel_w, y))
                 
                 # Glowing border on team side
-                border_side = 0 if i == 0 else panel_w - 5
+                border_side = 0 if team == 0 else panel_w - 5
                 for glow in range(5):
                     alpha = 150 - glow * 30
-                    pygame.draw.rect(panel, (*glow_color, max(0, alpha)), (border_side + (glow if i == 1 else -glow), 0, 5 - glow, panel_h))
+                    pygame.draw.rect(panel, (*glow_color, max(0, alpha)), (border_side + (glow if team == 1 else -glow), 0, 5 - glow, panel_h))
                 
                 # Main team color bar
-                pygame.draw.rect(panel, main_color, (0 if i == 0 else panel_w - 5, 0, 5, panel_h))
+                pygame.draw.rect(panel, main_color, (0 if team == 0 else panel_w - 5, 0, 5, panel_h))
                 
                 # Outer border
                 pygame.draw.rect(panel, (60, 60, 70), (0, 0, panel_w, panel_h), 1)
                 
                 # Army name and general
-                name_x = 15 if i == 0 else 10
-                title = self.ui_font.render(f"ARMEE {i+1}", True, glow_color)
+                name_x = 15 if team == 0 else 10
+                title = self.ui_font.render(f"ARMEE {team+1}", True, glow_color)
                 panel.blit(title, (name_x, 8))
                 
                 general_txt = self.font.render(general_name, True, (180, 180, 180))
@@ -995,8 +1067,9 @@ class PygameView:
             detail_panel_width = 180
             
             for i, army in enumerate(armies):
-                team_color = (70, 130, 220) if i == 0 else (220, 70, 70)
-                accent_color = (100, 160, 255) if i == 0 else (255, 100, 100)
+                team = army.army_id  # Utiliser army_id pas l'index
+                team_color = (70, 130, 220) if team == 0 else (220, 70, 70)
+                accent_color = (100, 160, 255) if team == 0 else (255, 100, 100)
                 
                 # Count units by type
                 unit_counts = {}
@@ -1013,7 +1086,7 @@ class PygameView:
                 detail_panel_height = 28 + num_types * 18
                 
                 # Position: under respective army (left for 0, right for 1)
-                if i == 0:
+                if team == 0:
                     detail_x = 15
                 else:
                     detail_x = self.screen_w - detail_panel_width - 15
@@ -1133,21 +1206,9 @@ class PygameView:
         # Si le jeu est en pause, ne pas avancer les animations
         if not paused:
             try:
-                # Seuil de zoom pour désactiver les animations de marche pour éviter les vibrations
-                # Condition: Zoom loin (< 0.6) ET Vitesse faible (< 4.0)
-                # Si le jeu va vite, on laisse les animations car l'accélération masque les vibrations
-                disable_walk_anim = (self.zoom < 0.6) and (speed_multiplier < 4.0)
-                
                 for army in armies:
                     for unit in army.units:
                         try:
-                            # Ne pas animer la marche si on est trop dézoomé (évite les vibrations)
-                            if disable_walk_anim and getattr(unit, 'statut', '') == 'walk':
-                                # On n'appelle pas tick_animation, mais on s'assure qu'on est à l'index 0
-                                # pour avoir une image statique propre
-                                unit.anim_index = 0
-                                continue
-                            
                             unit.tick_animation(anim_delta)
                         except Exception:
                             pass
@@ -1190,6 +1251,7 @@ class PygameView:
                     unit_types[name]['dead'] += 1
             
             stats.append({
+                'army_id': army.army_id,  # Pour la couleur correcte
                 'name': f"Armee {army.army_id + 1}",
                 'general': army.general.__class__.__name__,
                 'alive': alive,
@@ -1278,12 +1340,13 @@ class PygameView:
             col_w = (panel_w - 50 - gap) // 2
             
             for i, s in enumerate(stats):
+                team = s['army_id']  # Utiliser army_id pas l'index
                 # Position de la colonne - plus d'espace au milieu
-                col_x = 25 if i == 0 else panel_w - col_w - 25
+                col_x = 25 if team == 0 else panel_w - col_w - 25
                 base_y = 90
                 
-                # Couleurs équipe
-                if i == 0:
+                # Couleurs équipe (basées sur army_id)
+                if team == 0:
                     team_color = (80, 140, 220)
                     accent = (100, 170, 255)
                     bar_color = (70, 140, 220)
@@ -1292,7 +1355,7 @@ class PygameView:
                     accent = (255, 110, 110)
                     bar_color = (220, 70, 70)
                 
-                is_winner = (winner_id == i)
+                is_winner = (winner_id == team)
                 
                 # Fond de colonne légèrement coloré
                 col_bg = pygame.Surface((col_w, 370), pygame.SRCALPHA)
