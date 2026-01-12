@@ -6,7 +6,7 @@ from PIL import Image
 
 from core.map import Map
 from core.army import Army
-# Import de toutes les classes d'unités pour le mappage des sprites
+# Import de toutes les classes d'unités pour le mappage des sprites 
 from core.unit import (
     Knight, Pikeman, Crossbowman, LongSwordsman, LightCavalry, 
     Castle, Wonder, Unit
@@ -39,7 +39,7 @@ TERRAIN_COLORS = {
 WATER_COLOR = (60, 100, 200)
 OBSTACLE_COLOR = (100, 100, 100) # Gris pour les obstacles
 
-MINIMAP_SIZE = 200
+MINIMAP_SIZE = 280
 MINIMAP_MARGIN = 20
 
 # Taille d'une seule frame dans VOS spritesheets (estimee).
@@ -150,6 +150,49 @@ class PygameView:
         self._last_anim_tick = pygame.time.get_ticks()
         # Facteur pour ralentir l'animation cote vue (>1 = plus lent)
         self.anim_time_scale = 0.5
+    def _get_minimap_metrics(self):
+        """Calcule les métriques pour le dessin et l'interaction avec la minimap."""
+        mm_center_x = self.screen_w - MINIMAP_SIZE / 2 - MINIMAP_MARGIN
+        mm_center_y = self.screen_h - MINIMAP_SIZE / 2 - MINIMAP_MARGIN
+        max_dim = self.map.width + self.map.height
+        scale_mm = (MINIMAP_SIZE * 0.8) / max_dim
+        # Offset pour centrer verticalement le losange dans le carré
+        offset_y_mm = (self.map.width + self.map.height) * scale_mm * 0.25
+        return mm_center_x, mm_center_y, scale_mm, offset_y_mm
+
+    def _cart_to_mm(self, cx, cy):
+        """Convertit les coordonnées grille en coordonnées écran sur la minimap."""
+        mm_cx, mm_cy, scale, offset_y = self._get_minimap_metrics()
+        mx = mm_cx + (cx - cy) * scale
+        my = mm_cy + (cx + cy) * scale * 0.5 - offset_y
+        return int(mx), int(my)
+
+    def _mm_to_cart(self, mx, my):
+        """Convertit les coordonnées écran de la minimap en coordonnées grille."""
+        mm_cx, mm_cy, scale, offset_y = self._get_minimap_metrics()
+        term1 = (mx - mm_cx) / scale
+        term2 = (my - mm_cy + offset_y) / (scale * 0.5)
+        cx = (term1 + term2) / 2
+        cy = (term2 - term1) / 2
+        return cx, cy
+
+    def _get_minimap_rect(self):
+        """Retourne le rectangle englobant de la minimap pour la détection de collision."""
+        return pygame.Rect(
+            self.screen_w - MINIMAP_SIZE - MINIMAP_MARGIN,
+            self.screen_h - MINIMAP_SIZE - MINIMAP_MARGIN,
+            MINIMAP_SIZE,
+            MINIMAP_SIZE
+        )
+
+    def _center_camera_on_grid(self, gx, gy):
+        """Centre la caméra sur une coordonnée spécifique de la carte."""
+        iso_x = (gx - gy) * self.tile_half_w
+        iso_y = (gx + gy) * self.tile_half_h
+        # Positionner scroll_x/y pour que iso_x/y arrive au centre de l'écran
+        self.scroll_x = iso_x + self.offset_x - self.screen_w / 2
+        self.scroll_y = iso_y + self.offset_y - self.screen_h / 2
+        self._clamp_camera()
 
     def _show_loading_screen(self, step_text: str, current_step: int, total_steps: int):
         """Affiche un écran de chargement avec progression."""
@@ -536,7 +579,13 @@ class PygameView:
                 self.screen_h = event.h
                 self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
                 self.update_zoom_metrics()  # Recalculate offsets for new size
-            
+            if (event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.MOUSEMOTION) and \
+               pygame.mouse.get_pressed()[0]: # Bouton gauche
+                if self.show_minimap:
+                    mx, my = pygame.mouse.get_pos()
+                    if self._get_minimap_rect().collidepoint(mx, my):
+                        gx, gy = self._mm_to_cart(mx, my)
+                        self._center_camera_on_grid(gx, gy)
             
             # --- DRAG SOURIS pour scroll (Clic droit + glisser) ---
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:  # Clic droit
@@ -1154,61 +1203,27 @@ class PygameView:
 
         # Minimap (F3/M toggle)
         if self.show_minimap:
-            # Centre de la minimap
-            mm_center_x = self.screen_w - MINIMAP_SIZE/2 - 20
-            mm_center_y = self.screen_h - MINIMAP_SIZE/2 - 20
+            p1 = self._cart_to_mm(0, 0)
+            p2 = self._cart_to_mm(self.map.width, 0)
+            p3 = self._cart_to_mm(self.map.width, self.map.height)
+            p4 = self._cart_to_mm(0, self.map.height)
             
-            # Facteur d'échelle pour faire rentrer la map (diagonale W+H) dans MINIMAP_SIZE
-            # Map Dimensions: W, H
-            # Diagonale Isométrique Max ~ W + H (en "unités de grille")
-            # Marges de sécurité
-            max_dim = self.map.width + self.map.height
-            scale_mm = (MINIMAP_SIZE * 0.8) / max_dim
-            
-            # Fonction locale pour projeter sur la minimap
-            def cart_to_mm(cx, cy):
-                # Iso projection standard mais centrée sur mm_center
-                # x_iso = (x - y)
-                # y_iso = (x + y)
-                iso_x = (cx - cy) * scale_mm
-                iso_y = (cx + cy) * scale_mm * 0.5 # Aplatissement standard 2:1
-                return int(mm_center_x + iso_x), int(mm_center_y + iso_y - (self.map.width + self.map.height)*scale_mm*0.25)
-                # Le -offset Y sert à centrer approximativement le losange
+            pygame.draw.polygon(self.screen, (20, 20, 20), [p1, p2, p3, p4])
+            pygame.draw.polygon(self.screen, (100, 100, 100), [p1, p2, p3, p4], 2)
 
-            # 1. Dessiner le losange de fond (Grille 0,0 -> W,0 -> W,H -> 0,H)
-            p1 = cart_to_mm(0, 0)
-            p2 = cart_to_mm(self.map.width, 0)
-            p3 = cart_to_mm(self.map.width, self.map.height)
-            p4 = cart_to_mm(0, self.map.height)
-            
-            pygame.draw.polygon(self.screen, (20, 20, 20), [p1, p2, p3, p4]) # Fond sombre
-            pygame.draw.polygon(self.screen, (100, 100, 100), [p1, p2, p3, p4], 2) # Bordure
-
-            # 2. Dessiner les unités
             for army in armies:
                 c = BLUE if army.army_id == 0 else RED
                 for u in army.units:
                     if u.is_alive:
-                        mx, my = cart_to_mm(u.pos[0], u.pos[1])
-                        # Petit point
+                        mx, my = self._cart_to_mm(u.pos[0], u.pos[1])
                         pygame.draw.circle(self.screen, c, (mx, my), 2)
 
-            # 3. Dessiner le rectangle de vue caméra (Viewport)
-            # On projette les 4 coins de l'écran vers le monde (grid), puis vers la minimap
-            corners_screen = [
-                (0, 0),
-                (self.screen_w, 0),
-                (self.screen_w, self.screen_h),
-                (0, self.screen_h)
-            ]
-            
+            corners_screen = [(0, 0), (self.screen_w, 0), (self.screen_w, self.screen_h), (0, self.screen_h)]
             poly_points = []
             for sx, sy in corners_screen:
                 gx, gy = self.iso_to_cart(sx, sy)
-                # Clamp aux bords pour éviter que le rect parte à l'infini graphiquement
-                gx = max(0, min(self.map.width, gx))
-                gy = max(0, min(self.map.height, gy))
-                poly_points.append(cart_to_mm(gx, gy))
+                gx, gy = max(0, min(self.map.width, gx)), max(0, min(self.map.height, gy))
+                poly_points.append(self._cart_to_mm(gx, gy))
             
             if len(poly_points) == 4:
                 pygame.draw.polygon(self.screen, WHITE, poly_points, 1)
