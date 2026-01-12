@@ -43,7 +43,7 @@ class Engine:
                 self.units_by_id[unit.unit_id] = unit
                 self.map.add_unit(unit)
 
-    def run_game(self, max_turns: int = 1000, view: Optional[Any] = None, logic_speed: int = 2):
+    def run_game(self, max_turns: int = 2000, view: Optional[Any] = None, logic_speed: int = 2):
         """
         Boucle principale du jeu.
         logic_speed : Diviseur de frame.
@@ -119,8 +119,35 @@ class Engine:
                     else:
                         print(f"Aucune sauvegarde trouvee: {QUICK_SAVE_PATH}")
                 elif command == "switch_view":
-                    # F9 - Basculer entre vues (pour info, nécessiterait une refonte)
-                    print("Switch View: Non implémenté (nécessite de relancer avec -t)")
+                    # F9 - Basculer dynamiquement entre les vues
+                    try:
+                        # Nettoyer la vue actuelle
+                        if hasattr(view, 'cleanup'):
+                            view.cleanup()
+                        
+                        # Determiner vers quelle vue basculer
+                        from view.terminal_view import TerminalView
+                        from view.gui_view import PygameView
+                        
+                        if isinstance(view, TerminalView):
+                            # Passer vers Pygame
+                            print("\nBasculement vers la vue Pygame 2.5D...")
+                            view = PygameView(self.map, self.armies)
+                        else:
+                            # Passer vers Terminal
+                            print("\nBasculement vers la vue Terminal...")
+                            view = TerminalView(self.map)
+                        
+                        # Mettre a jour view_present
+                        self.view_present = bool(view)
+                    except Exception as e:
+                        print(f"Erreur lors du changement de vue: {e}")
+                        # En cas d'erreur, essayer de restaurer une vue terminal
+                        try:
+                            from view.terminal_view import TerminalView
+                            view = TerminalView(self.map)
+                        except:
+                            pass
                 elif command == "speed_up":
                     # Augmenter la vitesse de simulation (x2, x4, x8, max x16)
                     game_speed_multiplier = min(16.0, game_speed_multiplier * 2)
