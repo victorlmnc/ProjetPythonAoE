@@ -851,7 +851,8 @@ class PygameView:
                                 sector = 360.0 / max(1, rows)
                                 orient_idx = int((angle + sector/2) // sector) % rows
                             else:
-                                orient_idx = 0
+                                # Keep last orientation if not moving
+                                orient_idx = getattr(unit, '_last_orient', 0)
                             unit._last_orient = orient_idx
 
                     nframes = len(frames_orient[orient_idx]) if frames_orient[orient_idx] else 0
@@ -1078,6 +1079,12 @@ class PygameView:
                 
                 general_txt = self.font.render(general_name, True, (180, 180, 180))
                 panel.blit(general_txt, (name_x, 32))
+                
+                # Formation status (Req)
+                formation_mode = getattr(army.general, 'formation_mode', '')
+                if formation_mode:
+                    fmt_txt = self.font.render(f"     Strat: {formation_mode}", True, (150, 200, 150))
+                    panel.blit(fmt_txt, (name_x + 90, 32))
                 
                 # Stats row
                 stats_y = 52
