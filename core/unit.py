@@ -1,5 +1,6 @@
 # core/unit.py
 import math
+import random
 import logging
 from typing import Optional
 
@@ -61,14 +62,16 @@ class Unit:
         self.pos: tuple[float, float] = pos
         self.is_alive: bool = True
         # Animation control (index + speed in ms per frame)
-        self.anim_index: int = 0
+        # Décalage aléatoire pour désynchroniser les animations entre unités
+        self.anim_index: int = random.randint(0, 29)
         self.anim_speed: int = 150  # milliseconds per frame (lower = faster)
-        self.anim_elapsed: int = 0  # accumulated milliseconds
+        self.anim_elapsed: int = random.randint(0, 100)  # Léger décalage temporel
         # Nombre de frames par état (colonnes). Valeur par défaut = 30.
         self.anim_frames_per_state: dict[str, int] = {
             'attack': 30,
             'walk': 30,
             'idle': 30,
+            'death': 30,  # Animation de mort - ne boucle pas
         }
         # Indicateur que l'animation de mort est terminée (ne plus afficher)
         self.death_anim_finished: bool = False

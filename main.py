@@ -290,7 +290,7 @@ def run_battle(args):
     if args.terminal:
         view = TerminalView(engine.map)
     else:
-        view = PygameView(engine.map)
+        view = PygameView(engine.map, [army1, army2])
     
     try:
         engine.run_game(max_turns=args.max_turns, view=view)
@@ -463,7 +463,7 @@ def run_lanchester(args):
     if args.terminal:
         view = TerminalView(engine.map)
     else:
-        view = PygameView(engine.map)
+        view = PygameView(engine.map, [army1, army2])
     
     speed = 1 if args.terminal else 2
     engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
@@ -477,20 +477,23 @@ def run_legacy_battle(args):
     print("--- Mode Legacy ---")
     
     engine = None
+    armies = None
     
     if args.load_game:
         engine = load_game_from_save(args.load_game)
+        armies = engine.armies  # Get armies from loaded save
     else:
         game_map = load_map_from_file(args.map)
         army1 = load_army_from_file(args.army1, army_id=0)
         army2 = load_army_from_file(args.army2, army_id=1)
         engine = Engine(game_map, army1, army2)
+        armies = [army1, army2]
     
     view = None
     if args.view == "terminal":
         view = TerminalView(engine.map)
     elif args.view == "pygame":
-        view = PygameView(engine.map)
+        view = PygameView(engine.map, armies)
     
     try:
         speed = 1 if args.view == "terminal" else 2
@@ -559,7 +562,7 @@ def run_play(args):
     if args.terminal:
         view = TerminalView(engine.map)
     else:
-        view = PygameView(engine.map)
+        view = PygameView(engine.map, [army1, army2])
     
     try:
         speed = 1 if args.terminal else 2
