@@ -332,7 +332,7 @@ class PygameView:
     def _load_sprites(self, total_steps: int = 17):
         """
         Charge tous les assets graphiques nécessaires dans self.orig_*.
-        Ensuite, génère les versions scalées.
+        Gère les extensions .webp et .png dynamiquement.
         """
         BASE_PATH = "assets" 
         
@@ -353,32 +353,27 @@ class PygameView:
             is_spritesheet=False
         ) 
         
-        # Chargement des assets d'unités : par unité, par couleur, par état.
-        # Structure stockée : self.orig_units[unit_class][color][state] = frames[row][col]
+        # Mapping des classes vers les dossiers d'assets
         all_unit_configs = {
             Knight: "knight",
             Crossbowman: "crossbowman",
             Pikeman: "pikeman",
             LongSwordsman: "longswordman",
-            LightCavalry: "knight", # Fallback to knight sprites
+            LightCavalry: "knight", # Fallback sur les sprites de chevalier
         }
         
-        # OPTIMIZATION: Only load sprites for units present in armies
+        # Optimisation : charger uniquement les unités présentes
         needed_unit_classes = set()
         if self._armies:
             for army in self._armies:
                 for unit in army.units:
                     needed_unit_classes.add(unit.__class__)
-                    # Also add fallback classes
                     if unit.__class__ == LightCavalry:
-                        needed_unit_classes.add(Knight)  # LightCavalry uses Knight sprites
+                        needed_unit_classes.add(Knight)
         
-        # If no armies provided, load all (fallback behavior)
-        if not needed_unit_classes:
-            unit_configs = all_unit_configs
-        else:
-            unit_configs = {k: v for k, v in all_unit_configs.items() if k in needed_unit_classes}
-            print(f"Chargement optimise: {len(unit_configs)} types d'unites")
+        unit_configs = all_unit_configs if not needed_unit_classes else {
+            k: v for k, v in all_unit_configs.items() if k in needed_unit_classes
+        }
 
         states_grid = {
             'death': (24, 30),
@@ -389,23 +384,25 @@ class PygameView:
 
         self.orig_units = {}
         for idx, (u_class, name) in enumerate(unit_configs.items()):
-            # Update loading screen for each unit type
             self._show_loading_screen(f"Sprites: {name}", idx + 1, total_steps)
             
             self.orig_units[u_class] = {'blue': {}, 'red': {}}
             for color_folder, prefix in (('blue', 'b'), ('red', 'r')):
                 for state, (rows, cols) in states_grid.items():
-                    # Filename pattern observed: b_knight_walk.webp
-                    filename = f"{prefix}_{name}_{state}.webp"
-                    path = os.path.join(BASE_PATH, 'units', name, color_folder, filename)
-                    frames = self._load_spritesheet_grid(path, rows, cols)
-                    if frames:
-                        self.orig_units[u_class][color_folder][state] = frames
-                    else:
-                        # no frames found for this state/color
-                        self.orig_units[u_class][color_folder][state] = None
+                    frames = None
+                    # Correction : Essayer .webp puis .png pour supporter le Crossbowman
+                    for ext in [".webp", ".png"]:
+                        filename = f"{prefix}_{name}_{state}{ext}"
+                        path = os.path.join(BASE_PATH, 'units', name, color_folder, filename)
+                        
+                        if os.path.exists(path):
+                            frames = self._load_spritesheet_grid(path, rows, cols)
+                            if frames:
+                                break # Fichier trouvé et chargé
+                    
+                    self.orig_units[u_class][color_folder][state] = frames
 
-        # 2. Génération des sprites à la taille actuelle
+        # 2. Génération des sprites redimensionnés
         self._rescale_assets()
 
     def _get_cached_zoom_level(self, zoom: float) -> float:
@@ -1453,7 +1450,11 @@ class PygameView:
                     ut_txt = self.font.render(f"{unit_name}: {ut['alive']}/{ut['alive']+ut['dead']}", True, status_color)
                     panel.blit(ut_txt, (col_x + 16, type_y))
                     
-
+                    # Mini barre HP
+                    ut_hp_pct = (ut['hp'] / ut['max_hp']) if ut['max_hp'] > 0 else 0
+                    mini_bar_x = col_x + 130
+                    pygame.draw.rect(panel, (30, 30, 35), (mini_bar_x, type_y + 3, 60, 6))
+                    pygame.draw.rect(panel, status_color, (mini_bar_x, type_y + 3, int(60 * ut_hp_pct), 6))
                     
                     type_y += 18
             
