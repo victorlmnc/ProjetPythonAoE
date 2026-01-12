@@ -21,27 +21,30 @@ from engine import Engine
 
 class Tournament:
     """
-    Exécute un tournoi round-robin entre généraux sur plusieurs scénarios.
+    Execute un tournoi round-robin entre generaux sur plusieurs scenarios.
     
-    Fonctionnalités:
-    - Matchups réflexifs (X vs X) pour détecter les biais de position
-    - Alternance des positions (joueur 0 / joueur 1) par défaut
+    Fonctionnalites:
+    - Matchups entre generaux differents
+    - Alternance des positions (joueur 0 / joueur 1) par defaut
     - Rapport HTML avec 4 matrices de scores
     """
     
     def __init__(self, general_names: list[str], scenario_paths: list[str], 
-                 rounds: int = 10, alternate_positions: bool = True):
+                 rounds: int = 10, alternate_positions: bool = True,
+                 army_file: str = None):
         """
         Args:
-            general_names: Liste des noms de généraux à combattre
-            scenario_paths: Liste des chemins vers les scénarios (.scen, .map)
+            general_names: Liste des noms de generaux a combattre
+            scenario_paths: Liste des chemins vers les scenarios (.scen, .map)
             rounds: Nombre de rounds par matchup
             alternate_positions: Si True, alterne les positions (P0/P1) sur les rounds
+            army_file: Fichier armee a utiliser (defaut: 10 Knights)
         """
         self.general_names = general_names
         self.scenario_paths = scenario_paths
         self.rounds = rounds
         self.alternate_positions = alternate_positions
+        self.army_file = army_file
         
         # Historique des matchs
         # Format: {"scenario": str, "gen_p0": str, "gen_p1": str, "winner": str|None}
@@ -51,7 +54,8 @@ class Tournament:
         """
         Exécute le tournoi complet et génère le rapport.
         """
-        total_matchups = len(self.scenario_paths) * len(self.general_names) ** 2 * self.rounds
+        n_gens = len(self.general_names)
+        total_matchups = len(self.scenario_paths) * n_gens * (n_gens - 1) * self.rounds
         current = 0
         
         print(f"\nTotal de matchs a jouer: {total_matchups}")
@@ -61,8 +65,8 @@ class Tournament:
             scenario_name = os.path.basename(scenario_path)
             print(f"\n[SCENARIO] {scenario_name}")
             
-            # Tous les pairs incluant réflexifs (A vs A, A vs B, B vs A, B vs B, ...)
-            for gen1_name, gen2_name in itertools.product(self.general_names, repeat=2):
+            # Toutes les paires sans reflexifs (A vs B, B vs A, mais pas A vs A)
+            for gen1_name, gen2_name in itertools.permutations(self.general_names, 2):
                 
                 for round_num in range(self.rounds):
                     current += 1
@@ -120,7 +124,12 @@ class Tournament:
                     game_map, army1, army2 = load_scenario(scenario_path, p0_name, p1_name)
                 elif scenario_path.endswith('.map'):
                     game_map = load_map_from_file(scenario_path)
-                    army1, army2 = self._create_default_armies(game_map, p0_name, p1_name)
+                    if self.army_file:
+                        # Utiliser le fichier armee specifie
+                        army1, army2 = self._create_armies_from_file(game_map, p0_name, p1_name)
+                    else:
+                        # Armee par defaut (10 Knights)
+                        army1, army2 = self._create_default_armies(game_map, p0_name, p1_name)
                 else:
                     sys.stdout = old_stdout
                     return None
@@ -160,6 +169,41 @@ class Tournament:
             units0.append(Knight(i, 0, (cx - 8 + (i % 5), cy - 2 + (i // 5))))
             # Armee 1: a droite du centre
             units1.append(Knight(10000 + i, 1, (cx + 4 + (i % 5), cy - 2 + (i // 5))))
+        
+        army0 = Army(0, units0, gen0_cls(0))
+        army1 = Army(1, units1, gen1_cls(1))
+        
+        return army0, army1
+    
+    def _create_armies_from_file(self, game_map: Map, p0_name: str, p1_name: str):
+        """Cree des armees a partir d'un fichier armee specifie"""
+        from core.army import Army
+        from utils.loaders import load_army_from_file
+        
+        gen0_cls = GENERAL_CLASS_MAP[p0_name]
+        gen1_cls = GENERAL_CLASS_MAP[p1_name]
+        
+        # Charger la configuration d'armee depuis le fichier
+        # On utilise le meme fichier pour les deux armees mais avec des generaux differents
+        base_army = load_army_from_file(self.army_file, 0, p0_name)
+        
+        # Positions proches du centre
+        w, h = game_map.width, game_map.height
+        cx, cy = w // 2, h // 2
+        
+        units0 = []
+        units1 = []
+        
+        # Recree les unites avec des positions centrees
+        unit_types = [type(u) for u in base_army.units]
+        n_units = len(unit_types)
+        
+        for i, unit_cls in enumerate(unit_types):
+            # Armee 0: a gauche du centre
+            row, col = i // 5, i % 5
+            units0.append(unit_cls(i, 0, (cx - 8 + col, cy - 2 + row)))
+            # Armee 1: a droite du centre
+            units1.append(unit_cls(10000 + i, 1, (cx + 4 + col, cy - 2 + row)))
         
         army0 = Army(0, units0, gen0_cls(0))
         army1 = Army(1, units1, gen1_cls(1))

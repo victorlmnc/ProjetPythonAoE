@@ -99,6 +99,8 @@ Exemples d'utilisation:
                                help="Généraux à combattre (défaut: tous)")
     tourney_parser.add_argument("-S", "--scenarios", nargs='+', default=None,
                                help="Scénarios .scen/.map (défaut: tous)")
+    tourney_parser.add_argument("-A", "--army", type=str, default=None,
+                               help="Fichier armée à utiliser (ex: armies/armee_bleue.txt)")
     tourney_parser.add_argument("-N", "--rounds", type=int, default=10,
                                help="Nombre de rounds par matchup (défaut: 10)")
     tourney_parser.add_argument("-na", "--no-alternate", action="store_true",
@@ -349,13 +351,18 @@ def run_tourney(args):
     
     print(f"Rounds par matchup: {args.rounds}")
     print(f"Alternance positions: {'Non' if args.no_alternate else 'Oui'}")
+    if args.army:
+        print(f"Armee: {args.army}")
+    else:
+        print("Armee: 10 Knights (defaut)")
     print("=" * 60)
     
     tournament = Tournament(
         generals, 
         scenarios, 
         rounds=args.rounds,
-        alternate_positions=not args.no_alternate
+        alternate_positions=not args.no_alternate,
+        army_file=args.army
     )
     tournament.run()
 
