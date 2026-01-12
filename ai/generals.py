@@ -79,18 +79,37 @@ class ColonelKAISER(General):
     - Formations (archers derrière)
     - Kiting pour les unités à distance
     - Focus fire intelligent
+    - Synchronisation de l'avance (attend le regroupement)
     """
     # Constantes pour la configuration de l'IA
     KITING_RANGE_PERCENTAGE = 0.5  # Les unités à distance fuient si un ennemi est à 50% de leur portée
     MELEE_ATTACK_RANGE = 2  # Portée maximale pour être considéré comme une unité de mêlée
-    RANGED_FORMATION_OFFSET = 2  # Les unités à distance essaient de rester à 2 unités derrière le centre
+    RANGED_FORMATION_OFFSET = 3  # Les unités à distance restent à 3 unités derrière le front de mêlée
     TARGET_EVALUATION_RANGE_MULTIPLIER = 1.5  # Ne considère que les cibles dans 150% de la ligne de vue
     LOW_HP_BONUS_MULTIPLIER = 1.5  # Bonus de score pour attaquer les cibles qui peuvent être tuées en 2 coups
     EPSILON = 0.1  # Pour éviter la division par zéro
+    FORMATION_COHESION_RADIUS = 8  # Rayon maximum pour considérer l'armée regroupée
+    RANGED_BEHIND_MELEE_DISTANCE = 4  # Distance à laquelle les tireurs restent derrière les mêlées
 
     def __init__(self, army_id: int):
         super().__init__(army_id)
         self.target_memory: dict[int, int] = {}
+
+    def _is_army_regrouped(self, my_units: list[Unit], centroid: tuple[float, float]) -> bool:
+        """Vérifie si toutes les unités sont suffisamment proches du centroid."""
+        for unit in my_units:
+            dist = math.sqrt((unit.pos[0] - centroid[0])**2 + (unit.pos[1] - centroid[1])**2)
+            if dist > self.FORMATION_COHESION_RADIUS:
+                return False
+        return True
+
+    def _get_melee_front_position(self, melee_units: list[Unit], enemy_units: list[Unit]) -> tuple[float, float] | None:
+        """Calcule la position du front de mêlée (centroid des mêlées)."""
+        if not melee_units:
+            return None
+        avg_x = sum(u.pos[0] for u in melee_units) / len(melee_units)
+        avg_y = sum(u.pos[1] for u in melee_units) / len(melee_units)
+        return (avg_x, avg_y)
 
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
         actions = []
@@ -106,9 +125,20 @@ class ColonelKAISER(General):
         avg_pos_y = sum(u.pos[1] for u in my_units) / len(my_units)
         army_centroid = (avg_pos_x, avg_pos_y)
 
+        # Calculer la position du front de mêlée
+        melee_front = self._get_melee_front_position(melee_units, enemy_units)
+
+        # Vérifier si l'armée est regroupée
+        is_regrouped = self._is_army_regrouped(my_units, army_centroid)
+
+        # Trouver l'ennemi le plus proche globalement pour déterminer la direction d'avance
+        closest_global_enemy = self.find_closest_enemy(Unit.__new__(Unit), enemy_units) if enemy_units else None
+        if closest_global_enemy is None and enemy_units:
+            closest_global_enemy = enemy_units[0]
+
         for unit in my_units:
+            # Gestion du kiting pour les unités à distance
             if unit in ranged_units:
-                # limiter la recherche de menace aux unités proches
                 threat_candidates = current_map.get_units_in_radius(unit.pos, unit.line_of_sight)
                 threat = self.find_closest_enemy(unit, threat_candidates)
                 if threat:
@@ -124,20 +154,42 @@ class ColonelKAISER(General):
 
             if target:
                 if unit.can_attack(target):
+                    # L'unité peut attaquer, elle attaque !
                     actions.append(("attack", unit.unit_id, target.unit_id))
                 else:
+                    # L'unité ne peut pas attaquer, décision de mouvement
                     if unit in melee_units:
-                        actions.append(("move", unit.unit_id, target.pos))
+                        if is_regrouped:
+                            # L'armée est regroupée, les mêlées avancent
+                            actions.append(("move", unit.unit_id, target.pos))
+                        else:
+                            # L'armée n'est pas regroupée, les mêlées attendent au centroid
+                            dist_to_centroid = math.sqrt((unit.pos[0] - army_centroid[0])**2 + (unit.pos[1] - army_centroid[1])**2)
+                            if dist_to_centroid > 1:  # Si pas encore au centroid
+                                actions.append(("move", unit.unit_id, army_centroid))
+                            # Sinon, reste sur place (pas d'action)
                     elif unit in ranged_units:
-                        move_pos = self._calculate_formation_position(unit, target, army_centroid)
-                        actions.append(("move", unit.unit_id, move_pos))
+                        # Les tireurs restent derrière le front de mêlée
+                        if melee_front and closest_global_enemy:
+                            move_pos = self._calculate_ranged_formation_position(unit, melee_front, closest_global_enemy)
+                            actions.append(("move", unit.unit_id, move_pos))
+                        else:
+                            # Pas de front de mêlée, se positionner en retrait du centroid
+                            move_pos = self._calculate_formation_position(unit, target, army_centroid)
+                            actions.append(("move", unit.unit_id, move_pos))
             else:
-                 # Fallback: Avancer vers l'ennemi le plus proche si aucun visible
-                 closest_any = self.find_closest_enemy(unit, enemy_units)
-                 if closest_any:
-                      actions.append(("move", unit.unit_id, closest_any.pos))
-                 else:
-                      actions.append(("move", unit.unit_id, army_centroid))
+                # Fallback: Avancer vers l'ennemi le plus proche si aucun visible
+                closest_any = self.find_closest_enemy(unit, enemy_units)
+                if closest_any:
+                    if unit in melee_units and not is_regrouped:
+                        # Attendre le regroupement
+                        dist_to_centroid = math.sqrt((unit.pos[0] - army_centroid[0])**2 + (unit.pos[1] - army_centroid[1])**2)
+                        if dist_to_centroid > 1:
+                            actions.append(("move", unit.unit_id, army_centroid))
+                    else:
+                        actions.append(("move", unit.unit_id, closest_any.pos))
+                else:
+                    actions.append(("move", unit.unit_id, army_centroid))
 
         return actions
 
@@ -203,4 +255,26 @@ class ColonelKAISER(General):
         pos_x = army_centroid[0] + (dir_x / dist) * (dist - self.RANGED_FORMATION_OFFSET)
         pos_y = army_centroid[1] + (dir_y / dist) * (dist - self.RANGED_FORMATION_OFFSET)
 
+        return (pos_x, pos_y)
+
+    def _calculate_ranged_formation_position(self, unit: Unit, melee_front: tuple[float, float], enemy: Unit) -> tuple[float, float]:
+        """
+        Calcule la position pour une unité à distance: derrière le front de mêlée, 
+        en restant à une distance RANGED_BEHIND_MELEE_DISTANCE dans la direction opposée à l'ennemi.
+        """
+        # Direction du front de mêlée vers l'ennemi
+        dir_x = enemy.pos[0] - melee_front[0]
+        dir_y = enemy.pos[1] - melee_front[1]
+        dist = math.sqrt(dir_x**2 + dir_y**2)
+        if dist == 0: 
+            dist = self.EPSILON
+        
+        # Normaliser la direction
+        norm_x = dir_x / dist
+        norm_y = dir_y / dist
+        
+        # Position derrière le front de mêlée (direction opposée à l'ennemi)
+        pos_x = melee_front[0] - norm_x * self.RANGED_BEHIND_MELEE_DISTANCE
+        pos_y = melee_front[1] - norm_y * self.RANGED_BEHIND_MELEE_DISTANCE
+        
         return (pos_x, pos_y)

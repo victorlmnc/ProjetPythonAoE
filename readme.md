@@ -126,3 +126,4 @@ Wonder, 55.0, 55.0, 1
 
 
 python main.py play -u Knight Crossbowman Pikeman -n 50 -ai ColonelKAISER ColonelKAISER --map-size 200x200
+python scripts/verify_kaiser.py
