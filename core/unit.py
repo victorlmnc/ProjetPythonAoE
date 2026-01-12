@@ -85,6 +85,10 @@ class Unit:
             ms = int(delta_ms)
         except Exception:
             return
+
+        # Enforce death state consistency
+        if not self.is_alive:
+            self.statut = 'death'
             
         # --- CALCUL DYNAMIQUE DU TEMPS PAR FRAME ---
         state = getattr(self, 'statut', 'idle')
@@ -94,19 +98,14 @@ class Unit:
         ms_per_frame = 150 # ~6.6 FPS idle
         
         if state == 'attack':
-            # L'animation doit durer exactement reload_time
-            # reload_time est en secondes
             total_duration_ms = self.reload_time * 1000
             if frames_count > 0:
                 ms_per_frame = total_duration_ms / frames_count
             else:
-                ms_per_frame = 100 # Fallback
+                ms_per_frame = 100
                 
         elif state == 'walk':
-            # L'animation accélère avec la vitesse de déplacement
-            # Base : disons qu'à speed=1.0, le cycle dure 800ms
             BASE_WALK_CYCLE_MS = 800 
-            # Plus speed est grand, plus cycle est court
             cycle_duration = BASE_WALK_CYCLE_MS / max(0.1, self.speed)
             if frames_count > 0:
                 ms_per_frame = cycle_duration / frames_count
@@ -114,7 +113,6 @@ class Unit:
                 ms_per_frame = 80
         
         elif state == 'death':
-            # Animation de mort : dure environ 1.5 secondes
             DEATH_DURATION_MS = 1500
             if frames_count > 0:
                 ms_per_frame = DEATH_DURATION_MS / frames_count
@@ -122,10 +120,8 @@ class Unit:
                 ms_per_frame = 100
         
         elif state == 'idle':
-            # Idle plus lent pour économiser les ressources
             ms_per_frame = 150
         
-        # Protection contre divisions par zéro ou valeurs aberrantes
         ms_per_frame = max(10, ms_per_frame) 
         
         self.anim_elapsed += ms
@@ -133,6 +129,9 @@ class Unit:
         if self.anim_elapsed >= ms_per_frame:
             advance = int(self.anim_elapsed // ms_per_frame)
             self.anim_index = self.anim_index + advance
+            
+            # Reset elapsed but keep remainder for smooth timing
+            self.anim_elapsed = self.anim_elapsed % ms_per_frame
 
             # Si un compteur 'play once' existe (ex: attaque), le diminuer
             try:
@@ -141,24 +140,17 @@ class Unit:
             except Exception:
                 pass
 
-            # Si l'unité est morte et en état 'death', ne pas boucler l'animation
+            # LOGIC DE BOUCLE / CLAMP
             if frames_count > 0:
-                if getattr(self, 'statut', None) == 'death' and not getattr(self, 'is_alive', True):
-                    # Cap l'index sur la dernière frame au lieu de boucler
+                # CAS SPÉCIAL : MORT
+                if state == 'death' or not self.is_alive:
+                    # Ne jamais boucler l'animation de mort
                     if self.anim_index >= frames_count:
                         self.anim_index = frames_count - 1
-                    # Marquer l'animation de mort comme terminée si nous sommes
-                    # sur la dernière frame (permettre au renderer de cacher).
-                    try:
-                        if self.anim_index >= frames_count - 1:
-                            self.death_anim_finished = True
-                    except Exception:
-                        pass
+                        self.death_anim_finished = True
                 else:
-                    # Boucler normalement
+                    # CAS STANDARD : BOUCLE
                     self.anim_index = self.anim_index % frames_count
-
-            self.anim_elapsed = self.anim_elapsed % ms_per_frame
 
     def __repr__(self) -> str:
         pos_str = f"({self.pos[0]:.1f}, {self.pos[1]:.1f})"

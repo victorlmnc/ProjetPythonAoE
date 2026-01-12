@@ -443,39 +443,51 @@ class Engine:
 
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
         """Gère le chevauchement avec une logique de glissement pour éviter les blocages en ligne."""
-        final_pos = potential_pos
+        final_x, final_y = potential_pos
         nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius + 2.0)
 
         for other_unit in nearby_units:
             if other_unit == moving_unit or not other_unit.is_alive: 
                 continue
 
-            dx = final_pos[0] - other_unit.pos[0]
-            dy = final_pos[1] - other_unit.pos[1]
-            dist_centers = math.sqrt(dx**2 + dy**2)
+            dx = final_x - other_unit.pos[0]
+            dy = final_y - other_unit.pos[1]
+            dist_sq = dx*dx + dy*dy
             sum_radii = moving_unit.hitbox_radius + other_unit.hitbox_radius
+            
+            # Optimization: check squared distance
+            if dist_sq < (sum_radii * sum_radii):
+                dist = math.sqrt(dist_sq)
+                
+                # Prevent division by zero
+                if dist < 0.001:
+                    dist = 0.001
+                    dx = 0.01  # Arbitrary small push
+                    dy = 0.0
+                
+                # Calculate overlap
+                # Use a small margin (0.95) to allow slight overlap and prevent jitter
+                overlap = (sum_radii * 0.95) - dist
+                
+                if overlap > 0:
+                    # Normal vector
+                    nx, ny = dx / dist, dy / dist
+                    
+                    # Side-step vector (tangent)
+                    sx, sy = -ny, nx
+                    
+                    # Apply push: mostly back (normal), some side (tangent) to slide
+                    push_factor = 0.4
+                    slide_factor = 0.6
+                    
+                    final_x += (nx * push_factor + sx * slide_factor) * overlap
+                    final_y += (ny * push_factor + sy * slide_factor) * overlap
 
-            # FIX: Utilisation d'une marge de 0.98 pour autoriser un infime chevauchement
-            # Cela stabilise les calculs de collision et empêche les unités de "trembler" sur place.
-            if dist_centers < sum_radii * 0.98:
-                overlap = (sum_radii * 0.98) - dist_centers
-                if dist_centers == 0: dist_centers = 0.01
-                
-                nx, ny = dx / dist_centers, dy / dist_centers
-                
-                # FIX: Logique de Side-Stepping (Glissement latéral)
-                # Si on percute un allié, on ne se contente pas de reculer.
-                # On calcule un vecteur perpendiculaire pour "glisser" autour de lui.
-                side_x, side_y = -ny, nx 
-                
-                # On applique 40% de poussée arrière et 60% de glissement latéral
-                # Cela permet aux colonnes de troupes de se déformer fluidement au lieu de se bloquer.
-                final_pos = (
-                    final_pos[0] + nx * overlap * 0.4 + side_x * overlap * 0.6,
-                    final_pos[1] + ny * overlap * 0.4 + side_y * overlap * 0.6
-                )
-
-        return final_pos
+        # Clamp to map bounds to prevent artifacts
+        final_x = max(0, min(self.map.width, final_x))
+        final_y = max(0, min(self.map.height, final_y))
+        
+        return (final_x, final_y)
     def _reap_dead_units(self):
         """Retire les unités mortes."""
         # Si nous avons une vue (animations côté client), laisser la
