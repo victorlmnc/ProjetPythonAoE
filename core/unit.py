@@ -269,7 +269,51 @@ class Unit:
                     del self.target_id
                 except Exception:
                     pass
-            logger.info("%s EST MORT!", self)
+    def to_dict(self) -> dict:
+        """Sérialise l'unité en dictionnaire."""
+        return {
+            'type': self.__class__.__name__,
+            'unit_id': self.unit_id,
+            'army_id': self.army_id,
+            'pos': self.pos,
+            'hp': self.current_hp,
+            'cooldown': self.current_cooldown,
+            'is_alive': self.is_alive
+        }
+
+    @staticmethod
+    def from_dict(data: dict) -> 'Unit':
+        """
+        Reconstruit une unité depuis un dictionnaire.
+        Factory method qui instancie la bonne sous-classe.
+        """
+        # Import local pour éviter l'import circulaire
+        from core.definitions import UNIT_CLASS_MAP
+        
+        unit_type = data['type']
+        unit_class = UNIT_CLASS_MAP.get(unit_type)
+        
+        if not unit_class:
+            raise ValueError(f"Type d'unité inconnu lors du chargement: {unit_type}")
+            
+        # Instanciation (appelle __init__ qui remet les stats de base)
+        # Note: on passe la position sauvegardée
+        unit = unit_class(
+            unit_id=data['unit_id'],
+            army_id=data['army_id'],
+            pos=tuple(data['pos'])
+        )
+        
+        # Restauration de l'état dynamique
+        unit.current_hp = data['hp']
+        unit.current_cooldown = data['cooldown']
+        unit.is_alive = data['is_alive']
+        
+        if not unit.is_alive:
+            unit.statut = 'death'
+            unit.death_anim_finished = True # Skip anim si chargé mort
+            
+        return unit
 
 
 # --- Unités Spécifiques (Stats AoE2 Âge des Châteaux) ---

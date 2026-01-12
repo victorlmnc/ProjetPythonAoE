@@ -226,7 +226,7 @@ def run_battle(args):
                head = f.read(100)
                if "SIZE:" in head or "UNITS:" in head:
                    is_unified = True
-        except:
+        except Exception:
             pass
 
     if is_unified:
@@ -347,13 +347,22 @@ def run_plot(args):
         sys.exit(1)
     
     # Évaluation sécurisée du range
+    # Évaluation sécurisée du range
     try:
-        safe_dict = {"range": range, "__builtins__": {}}
-        test_range = eval(args.range, safe_dict)
-        values = list(test_range)
-        print(f"Valeurs N     : {values}")
+        import re
+        # Regex pour parser range(start, stop, step)
+        match = re.match(r"range\((\d+),\s*(\d+)(?:,\s*(\d+))?\)", args.range)
+        if match:
+            start = int(match.group(1))
+            stop = int(match.group(2))
+            step = int(match.group(3)) if match.group(3) else 1
+            values = list(range(start, stop, step))
+            print(f"Valeurs N     : {values}")
+        else:
+            raise ValueError("Format invalide. Attendu: range(start, stop, step)")
+
     except Exception as e:
-        print(f"Erreur: Impossible de parser le range '{args.range}'")
+        print(f"Erreur: Impossible de parser le range '{args.range}': {e}")
         print(f"Exemple valide: 'range(5, 50, 5)'")
         sys.exit(1)
     

@@ -30,7 +30,8 @@ def custom_battle_scenario(comp1: dict[str, int],
                            map_size: tuple[int, int] = (120, 120)):
     
     width, height = map_size
-    spacing = 1.5
+    # FIX 1: Increased spacing to 2.5 to accommodate Elephants and prevent "stuck" collisions
+    spacing = 2.5 
     
     def get_unit_range(name: str) -> float:
         cls = UNIT_CLASS_MAP.get(name)
@@ -38,64 +39,55 @@ def custom_battle_scenario(comp1: dict[str, int],
         dummy = cls(unit_id=0, army_id=0, pos=(0, 0))
         return dummy.attack_range
 
-    # --- ARMEE 1 (TOP) ---
-    army1_units = []
-    total_n1 = sum(comp1.values())
-    cols1 = int(math.ceil(math.sqrt(total_n1))) if total_n1 > 0 else 1
-    rows_count1 = math.ceil(total_n1 / cols1) if total_n1 > 0 else 1
-    block_w1 = (cols1 - 1) * spacing
-    block_h1 = (rows_count1 - 1) * spacing
+    # Helper to calculate block dimensions
+    def get_block_dims(total_n):
+        if total_n <= 0: return 1, 0, 0
+        cols = int(math.ceil(math.sqrt(total_n)))
+        rows = math.ceil(total_n / cols)
+        return cols, (cols - 1) * spacing, (rows - 1) * spacing
+
+    # FIX 2: Dynamic half_gap that respects map boundaries
+    cols1, block_w1, block_h1 = get_block_dims(sum(comp1.values()))
+    cols2, block_w2, block_h2 = get_block_dims(sum(comp2.values()))
     
-    half_gap = 40 if height >= 90 else max(5, height // 2 - 10)
+    # Ensure a 5-unit margin from the top and bottom edges
+    max_block_h = max(block_h1, block_h2)
+    safe_half_gap = min(height / 2 - 5, height / 2 - max_block_h - 5)
+    half_gap = max(5, safe_half_gap) if height < 90 else 35
+
     center_x, center_y = width / 2, height / 2
     
+    # --- ARMEE 1 (TOP/BLUE) ---
+    army1_units = []
     start_x1 = center_x - block_w1 / 2
-    start_y1 = center_y - half_gap - block_h1 # Top row of the block
+    start_y1 = max(2, center_y - half_gap - block_h1) # Avoid Y=0 clamp
     
-    # Sort: Higher range units first (row 0 is the "back" for Army 1)
     sorted_types1 = sorted(comp1.keys(), key=get_unit_range, reverse=True)
-    
     current_idx = 0
     for unit_name in sorted_types1:
-        count = comp1[unit_name]
         u_class = UNIT_CLASS_MAP[unit_name]
-        for _ in range(count):
+        for _ in range(comp1[unit_name]):
             row, col = divmod(current_idx, cols1)
+            # Front line is the highest row index
             pos_x = start_x1 + col * spacing
-            pos_y = start_y1 + row * spacing # row 0 = furthest from center
-            
-            unit = u_class(unit_id=current_idx, army_id=0, pos=(pos_x, pos_y))
-            army1_units.append(unit)
+            pos_y = start_y1 + row * spacing
+            army1_units.append(u_class(unit_id=current_idx, army_id=0, pos=(pos_x, pos_y)))
             current_idx += 1
 
-    # --- ARMEE 2 (BOTTOM) ---
+    # --- ARMEE 2 (BOTTOM/RED) ---
     army2_units = []
-    total_n2 = sum(comp2.values())
-    cols2 = int(math.ceil(math.sqrt(total_n2))) if total_n2 > 0 else 1
-    rows_count2 = math.ceil(total_n2 / cols2) if total_n2 > 0 else 1
-    block_w2 = (cols2 - 1) * spacing
-    block_h2 = (rows_count2 - 1) * spacing
-    
     start_x2 = center_x + block_w2 / 2
-    start_y2 = center_y + half_gap + block_h2 # Bottom row of the block
+    start_y2 = min(height - 2, center_y + half_gap + block_h2) # Avoid Y=height clamp
 
-    # Sort: Higher range units first (row 0 is the "back" for Army 2)
     sorted_types2 = sorted(comp2.keys(), key=get_unit_range, reverse=True)
-
     current_idx_2 = 0
     for unit_name in sorted_types2:
-        count = comp2[unit_name]
         u_class = UNIT_CLASS_MAP[unit_name]
-        for _ in range(count):
+        for _ in range(comp2[unit_name]):
             row, col = divmod(current_idx_2, cols2)
             pos_x = start_x2 - col * spacing
-            pos_y = start_y2 - row * spacing # row 0 = furthest from center
-            
-            unit = u_class(unit_id=10000 + current_idx_2, army_id=1, pos=(pos_x, pos_y))
-            army2_units.append(unit)
+            pos_y = start_y2 - row * spacing
+            army2_units.append(u_class(unit_id=10000 + current_idx_2, army_id=1, pos=(pos_x, pos_y)))
             current_idx_2 += 1
 
-    army1 = Army(army_id=0, units=army1_units, general=general_class1(army_id=0))
-    army2 = Army(army_id=1, units=army2_units, general=general_class2(army_id=1))
-
-    return army1, army2
+    return Army(0, army1_units, general_class1(0)), Army(1, army2_units, general_class2(1))

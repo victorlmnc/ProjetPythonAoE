@@ -123,3 +123,6 @@ Wonder, 55.0, 55.0, 1
 - **`scenarios/`** : Fichiers de définition des batailles (`.scen`, `.map`).
 - **`assets/`** : Ressources graphiques (Sprites).
 - **`utils/`** : Outils de chargement et de génération aléatoire.
+
+
+python main.py play -u Knight Crossbowman Pikeman -n 50 -ai ColonelKAISER ColonelKAISER --map-size 200x200

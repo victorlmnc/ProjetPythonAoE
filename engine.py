@@ -283,18 +283,25 @@ class Engine:
                 pass
 
         # 1. Mouvements (Prioritaires)
-        acted_units: set[int] = set()
-        for action_type, unit_id, data in actions:
-            if action_type == "move":
-                unit = self.units_by_id.get(unit_id)
-                target_pos = data
-                if unit and unit.is_alive:
-                    acted_units.add(unit_id)
-                    try:
-                        unit.target_id = None
-                    except Exception:
-                        pass
-                    self._handle_movement(unit, target_pos, dt)
+        move_actions = [a for a in actions if a[0] == "move"]
+        
+        def get_move_priority(action):
+            u = self.units_by_id.get(action[1])
+            if not u: return float('inf')
+            t_x, t_y = action[2]
+            # Priorité aux unités les plus proches de leur destination
+            return (u.pos[0] - t_x)**2 + (u.pos[1] - t_y)**2
+
+        move_actions.sort(key=get_move_priority)
+
+        for _, unit_id, target_pos in move_actions:
+            unit = self.units_by_id.get(unit_id)
+            if unit and unit.is_alive:
+                try:
+                    unit.target_id = None
+                except Exception:
+                    pass
+                self._handle_movement(unit, target_pos, dt)
 
         # 2. Attaques (Après mouvements)
         for action_type, unit_id, data in actions:
@@ -462,28 +469,40 @@ class Engine:
         return False
 
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
-        """Gère le chevauchement des unités."""
+        """Gère le chevauchement avec une logique de glissement pour éviter les blocages en ligne."""
         final_pos = potential_pos
-        nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius + 5.0)
+        nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius + 2.0)
 
         for other_unit in nearby_units:
-            if other_unit == moving_unit: continue
+            if other_unit == moving_unit or not other_unit.is_alive: 
+                continue
 
-            dist_centers = math.sqrt((final_pos[0] - other_unit.pos[0])**2 + (final_pos[1] - other_unit.pos[1])**2)
+            dx = final_pos[0] - other_unit.pos[0]
+            dy = final_pos[1] - other_unit.pos[1]
+            dist_centers = math.sqrt(dx**2 + dy**2)
             sum_radii = moving_unit.hitbox_radius + other_unit.hitbox_radius
 
-            if dist_centers < sum_radii:
-                overlap = sum_radii - dist_centers
-                if dist_centers == 0: 
-                    dist_centers = 0.01
-                    final_pos = (final_pos[0] + 0.01, final_pos[1])
-
-                push_x = (final_pos[0] - other_unit.pos[0]) / dist_centers
-                push_y = (final_pos[1] - other_unit.pos[1]) / dist_centers
-                final_pos = (final_pos[0] + push_x * overlap, final_pos[1] + push_y * overlap)
+            # FIX: Utilisation d'une marge de 0.98 pour autoriser un infime chevauchement
+            # Cela stabilise les calculs de collision et empêche les unités de "trembler" sur place.
+            if dist_centers < sum_radii * 0.98:
+                overlap = (sum_radii * 0.98) - dist_centers
+                if dist_centers == 0: dist_centers = 0.01
+                
+                nx, ny = dx / dist_centers, dy / dist_centers
+                
+                # FIX: Logique de Side-Stepping (Glissement latéral)
+                # Si on percute un allié, on ne se contente pas de reculer.
+                # On calcule un vecteur perpendiculaire pour "glisser" autour de lui.
+                side_x, side_y = -ny, nx 
+                
+                # On applique 40% de poussée arrière et 60% de glissement latéral
+                # Cela permet aux colonnes de troupes de se déformer fluidement au lieu de se bloquer.
+                final_pos = (
+                    final_pos[0] + nx * overlap * 0.4 + side_x * overlap * 0.6,
+                    final_pos[1] + ny * overlap * 0.4 + side_y * overlap * 0.6
+                )
 
         return final_pos
-
     def _reap_dead_units(self):
         """Retire les unités mortes."""
         # Si nous avons une vue (animations côté client), laisser la
@@ -528,12 +547,9 @@ class Engine:
                 except Exception:
                     pass
                 try:
-                    del self.units_by_id[unit_id]
+                   del self.units_by_id[unit_id]
                 except Exception:
-                    pass
-
-                # Retirer également de la liste d'unités de son armée pour
-                # empêcher la vue de continuer à l'afficher.
+                   pass
                 try:
                     for army in self.armies:
                         if unit in army.units:
@@ -541,6 +557,38 @@ class Engine:
                             break
                 except Exception:
                     pass
+
+    def to_dict(self) -> dict:
+        """Sérialise le moteur de jeu entier."""
+        return {
+            'map': self.map.to_dict(),
+            'army1': self.armies[0].to_dict(),
+            'army2': self.armies[1].to_dict(),
+            'turn_count': self.turn_count,
+            'time_elapsed': self.time_elapsed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Engine':
+        """Reconstruit le moteur de jeu."""
+        # Note: L'ordre de reconstruction est important
+        
+        # 1. Map
+        game_map = Map.from_dict(data['map'])
+        
+        # 2. Armies
+        army1 = Army.from_dict(data['army1'])
+        army2 = Army.from_dict(data['army2'])
+        
+        # 3. Engine (re-populate map spatial grid via __init__)
+        engine = cls(game_map, army1, army2)
+        
+        # 4. Restore state
+        engine.turn_count = data['turn_count']
+        engine.time_elapsed = data['time_elapsed']
+        
+        return engine
+
 
     def _check_game_over(self) -> bool:
         """
