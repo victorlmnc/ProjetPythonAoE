@@ -12,6 +12,14 @@ class Army:
         self.units: list[Unit] = units
         self.general: General = general
 
+        # Initial stats storage for accurate UI percentages
+        self.initial_count = len(units)
+        self.initial_total_hp = sum(u.max_hp for u in units)
+        self.initial_units_breakdown = {}
+        for u in units:
+            name = u.__class__.__name__
+            self.initial_units_breakdown[name] = self.initial_units_breakdown.get(name, 0) + 1
+
         # S'assure que le général est bien lié à cette armée
         self.general.army_id = army_id
 
