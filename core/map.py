@@ -130,3 +130,40 @@ class Map:
     def _calculate_distance(pos1: tuple[float, float], pos2: tuple[float, float]) -> float:
         """Calcule la distance euclidienne."""
         return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
+
+    def to_dict(self) -> dict:
+        """Sérialise la carte en dictionnaire."""
+        grid_data = []
+        for x in range(self.width):
+            row = []
+            for y in range(self.height):
+                tile = self.grid[x][y]
+                # Optimisation: ne sauvegarder que si non par défaut
+                if tile.terrain_type != "plain" or tile.elevation != 0:
+                     row.append({'x': x, 'y': y, 't': tile.terrain_type, 'e': tile.elevation})
+            if row:
+                grid_data.extend(row)
+        
+        return {
+            'width': self.width,
+            'height': self.height,
+            'grid': grid_data, # Sparse representation
+            'obstacles': self.obstacles
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Map':
+        """Reconstruit la carte depuis un dictionnaire."""
+        width = data['width']
+        height = data['height']
+        new_map = cls(width, height)
+        
+        # Restaurer la grille (sparse)
+        for tile_data in data.get('grid', []):
+            x, y = tile_data['x'], tile_data['y']
+            if 0 <= x < width and 0 <= y < height:
+                new_map.grid[x][y].terrain_type = tile_data.get('t', 'plain')
+                new_map.grid[x][y].elevation = tile_data.get('e', 0)
+        
+        new_map.obstacles = [tuple(obs) for obs in data.get('obstacles', [])]
+        return new_map

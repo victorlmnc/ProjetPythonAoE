@@ -520,12 +520,9 @@ class Engine:
                 except Exception:
                     pass
                 try:
-                    del self.units_by_id[unit_id]
+                   del self.units_by_id[unit_id]
                 except Exception:
-                    pass
-
-                # Retirer également de la liste d'unités de son armée pour
-                # empêcher la vue de continuer à l'afficher.
+                   pass
                 try:
                     for army in self.armies:
                         if unit in army.units:
@@ -533,6 +530,38 @@ class Engine:
                             break
                 except Exception:
                     pass
+
+    def to_dict(self) -> dict:
+        """Sérialise le moteur de jeu entier."""
+        return {
+            'map': self.map.to_dict(),
+            'army1': self.armies[0].to_dict(),
+            'army2': self.armies[1].to_dict(),
+            'turn_count': self.turn_count,
+            'time_elapsed': self.time_elapsed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Engine':
+        """Reconstruit le moteur de jeu."""
+        # Note: L'ordre de reconstruction est important
+        
+        # 1. Map
+        game_map = Map.from_dict(data['map'])
+        
+        # 2. Armies
+        army1 = Army.from_dict(data['army1'])
+        army2 = Army.from_dict(data['army2'])
+        
+        # 3. Engine (re-populate map spatial grid via __init__)
+        engine = cls(game_map, army1, army2)
+        
+        # 4. Restore state
+        engine.turn_count = data['turn_count']
+        engine.time_elapsed = data['time_elapsed']
+        
+        return engine
+
 
     def _check_game_over(self) -> bool:
         """

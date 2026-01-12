@@ -1465,11 +1465,7 @@ class PygameView:
                     ut_txt = self.font.render(f"{unit_name}: {ut['alive']}/{ut['alive']+ut['dead']}", True, status_color)
                     panel.blit(ut_txt, (col_x + 16, type_y))
                     
-                    # Mini barre HP
-                    ut_hp_pct = (ut['hp'] / ut['max_hp']) if ut['max_hp'] > 0 else 0
-                    mini_bar_x = col_x + 130
-                    pygame.draw.rect(panel, (30, 30, 35), (mini_bar_x, type_y + 3, 60, 6))
-                    pygame.draw.rect(panel, status_color, (mini_bar_x, type_y + 3, int(60 * ut_hp_pct), 6))
+
                     
                     type_y += 18
             
