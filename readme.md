@@ -41,8 +41,24 @@ python main.py run scenarios/compliance_test.scen MajorDAFT ColonelKAISER
 ### 3. Tournoi Automatique
 Faites s'affronter plusieurs IAs sur plusieurs scénarios pour déterminer le meilleur général.
 ```bash
-python main.py tourney -G <AI1> <AI2>... -S <Map1> <Map2>... [-N Rounds]
+battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-na]
 ```
+**Options :**
+- `-G` : Généraux à combattre (défaut: tous les généraux disponibles).
+- `-S` : Scénarios `.scen` ou `.map` (défaut: tous dans `scenarios/` et `maps/`).
+- `-N` : Nombre de rounds par matchup (défaut: 10).
+- `-na` : Désactiver l'alternance des positions (joueur 0/1).
+
+**Exemple :**
+```bash
+python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map -N 4
+```
+Le rapport HTML `tournament_report.html` contient :
+- Score global par général (% victoires)
+- Matrice Général vs Général
+- Matchups détaillés par scénario
+- Performance Général vs Scénario
+
 
 ### 4. Analyse Lanchester (Plot)
 Testez la loi de Lanchester (N unités vs 2N unités) et générez un graphique de performance.
@@ -66,7 +82,6 @@ L'interface Pygame (Vue 2.5D) propose de nombreuses commandes pour naviguer et a
 | **Panoramique (Drag)** | Maintenir **Clic Droit** et glisser |
 | **Zoom** | **Molette Souris** (Haut/Bas) |
 | **Pause / Reprendre** | **Espace** |
-| **Pas à Pas** | **S** (si en pause) |
 | **Accélérer / Ralentir** | **+** / **-** (Pavé Numérique) |
 | **Afficher Infos Armées** | **F1** (ou **1**) |
 | **Afficher Barres de Vie** | **F2** (ou **2**) |

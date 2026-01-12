@@ -43,14 +43,16 @@ class Engine:
                 self.units_by_id[unit.unit_id] = unit
                 self.map.add_unit(unit)
 
-    def run_game(self, max_turns: int = 2000, view: Optional[Any] = None, logic_speed: int = 2):
+    def run_game(self, max_turns: int = 2000, view: Optional[Any] = None, logic_speed: int = 2, quiet: bool = False):
         """
         Boucle principale du jeu.
         logic_speed : Diviseur de frame.
             - Avant: 15 (4 updates/sec)
             - Maintenant: 2 (30 updates/sec) pour fluidité
+        quiet: Si True, supprime les messages console (pour mode tournoi)
         """
-        print(f"Début de la partie sur une carte de {self.map.width}x{self.map.height}!")
+        if not quiet:
+            print(f"Debut de la partie sur une carte de {self.map.width}x{self.map.height}!")
 
         frame_counter = 0
         # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent (moins d'updates)
@@ -79,7 +81,8 @@ class Engine:
                     break
                 elif command == "toggle_pause":
                     self.paused = not self.paused
-                    print(f"Jeu {'en PAUSE' if self.paused else 'REPRIS'}")
+                    if not quiet:
+                        print(f"Jeu {'en PAUSE' if self.paused else 'REPRIS'}")
                 elif command == "step":
                     self.paused = True # Le pas-à-pas force la pause après
                     step_once = True
@@ -157,7 +160,7 @@ class Engine:
                     game_speed_multiplier = max(0.25, game_speed_multiplier / 2)
                     print(f"Vitesse de simulation: x{game_speed_multiplier}")
 
-            elif self.turn_count % 30 == 0: # Moins de spam en console
+            elif not quiet and self.turn_count % 30 == 0: # Moins de spam en console
                 print(f"\n--- TEMPS {self.time_elapsed:.1f}s ---")
 
             # --- 2. Blocage si en pause ---
@@ -200,13 +203,14 @@ class Engine:
             except Exception:
                 pass  # Si la méthode n'existe pas (mode terminal)
 
-        print("\n--- FIN DE LA PARTIE ---")
-        if self.winner is not None:
-            print(f"Le vainqueur est l'Armee {self.winner + 1}!")
-        elif self.turn_count >= max_turns:
-            print("Limite de ticks atteinte. Egalite.")
-        else:
-            print("Égalité.")
+        if not quiet:
+            print("\n--- FIN DE LA PARTIE ---")
+            if self.winner is not None:
+                print(f"Le vainqueur est l'Armee {self.winner + 1}!")
+            elif self.turn_count >= max_turns:
+                print("Limite de ticks atteinte. Egalite.")
+            else:
+                print("Egalite.")
 
     def _determine_unit_status(self, unit: Unit):
         """Updates the status of a unit based on its state and surroundings."""
