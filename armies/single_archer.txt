@@ -1,2 +1,0 @@
-GENERAL: ColonelKAISER
-Crossbowman, 35.0, 10.0

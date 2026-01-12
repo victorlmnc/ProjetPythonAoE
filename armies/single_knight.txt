@@ -1,2 +1,0 @@
-GENERAL: MajorDAFT
-Knight, 5.0, 10.0
