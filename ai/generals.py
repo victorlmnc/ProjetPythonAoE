@@ -38,7 +38,7 @@ class CaptainBRAINDEAD(General):
                         # L'unité s'approche pour engager l'ennemi qu'elle voit.
                         actions.append(("move", unit.unit_id, closest_enemy.pos))
         return actions
-# (req 3)
+
 class MajorDAFT(General):
     """
     IA simple: s'approche de l'ennemi le plus proche et attaque.
@@ -98,7 +98,7 @@ class ColonelKAISER(General):
             return []
 
         enemy_lookup = {u.unit_id: u for u in enemy_units}
-        
+
         melee_units = [u for u in my_units if u.attack_range <= self.MELEE_ATTACK_RANGE]
         ranged_units = [u for u in my_units if u.attack_range > self.MELEE_ATTACK_RANGE]
 
@@ -114,7 +114,7 @@ class ColonelKAISER(General):
                 if threat:
                     dist = unit._calculate_distance(threat)
                     safety_distance = unit.attack_range * self.KITING_RANGE_PERCENTAGE
-                    
+
                     if dist < safety_distance and threat.attack_range <= self.MELEE_ATTACK_RANGE:
                         flee_pos = self._calculate_flee_position(unit, threat)
                         actions.append(("move", unit.unit_id, flee_pos))
@@ -189,7 +189,7 @@ class ColonelKAISER(General):
         dy = unit.pos[1] - threat.pos[1]
         dist = math.sqrt(dx**2 + dy**2)
         if dist == 0: dist = self.EPSILON
-        
+
         nx = unit.pos[0] + (dx / dist) * unit.speed
         ny = unit.pos[1] + (dy / dist) * unit.speed
         return (nx, ny)
