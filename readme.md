@@ -1,7 +1,6 @@
 # MedievAIl - Battle GenerAIl Simulator 🏰⚔️
 
 Bienvenue dans **MedievAIl**, un simulateur de batailles épiques en temps réel (RTS) où des Intelligences Artificielles s'affrontent !
-Ce projet respecte strictement le cahier des charges "ProjetPython-1-20.pdf".
 
 ## 🚀 Installation
 
@@ -124,37 +123,62 @@ Wonder, 55.0, 55.0, 1
 ```
 ### 5. Entraînement IA (Mode Train)
 Entraîner les agents via l'apprentissage par renforcement (Reinforcement Learning) sur une carte générée procéduralement.
-
+```bash
 python main.py train [OPTIONS]
+```
+**Options :**
+- `--episodes <N>` : Nombre d'épisodes d'entraînement (défaut: 500).
+- `--map-size <N>` : Taille de la carte pour l'entraînement (défaut: 80).
+- `--units <N>` : Nombre d'unités par équipe pour l'entraînement (défaut: 40).
 
-Options :
-
---episodes <N> : Nombre d'épisodes d'entraînement (défaut: 500).
-
---map-size <N> : Taille de la carte pour l'entraînement (défaut: 80).
-
---units <N> : Nombre d'unités par équipe pour l'entraînement (défaut: 40).
-
-Exemple:
+**Exemple:**
 ```bash
 python main.py train --episodes 1000 --map-size 80 --units 40
 ```
+
 ### 6. Match de Démonstration (Mode Match)
 Lancer un match de démonstration graphique (GUI) utilisant les modèles RL préalablement entraînés.
-
+```bash
 python main.py match [OPTIONS]
+```
+**Options :**
+- `--map-size <N>` : Dimension de la carte (défaut: 120).
+- `--units <N>` : Nombre d'unités par équipe (défaut: 50).
+- `--maxturn <N>` : Limite de tours de jeu (-1 pour infini, défaut: 2000).
 
-Options :
-
---map-size <N> : Dimension de la carte (défaut: 120).
-
---units <N> : Nombre d'unités par équipe (défaut: 50).
-
---maxturn <N> : Limite de tours de jeu (-1 pour infini, défaut: 2000).
-
-Exemple :
+**Exemple :**
 ```bash
 python main.py match --map-size 150 --units 100 --maxturn -1
+```
+
+### 7. Création de Contenu (Mode Create)
+Générez facilement des cartes et des armées pour vos scénarios.
+```bash
+battle create <type> <filename> [OPTIONS]
+```
+**Options pour `map` :**
+- `--width`, `--height` : Dimensions (défaut: 60x60).
+- `--noise` : Facteur de bruit pour le terrain (0.0-1.0).
+
+**Options pour `army` :**
+- `--general` : IA à utiliser (défaut: MajorDAFT).
+- `--units` : Liste et nombre d'unités (ex: "Knight:10,Pikeman:5").
+- `--id` : ID de l'équipe (0 ou 1).
+
+**Exemple :**
+```bash
+python main.py create map maps/new_map.map --width 80 --height 80
+python main.py create army armies/my_army.txt --units "Knight:20,Archer:10"
+```
+
+---
+
+## 🛠️ Outils de Développement
+
+### Vérification de l'IA (Verify Kaiser)
+Un script de test intensif pour vérifier la supériorité stratégique de ColonelKAISER.
+```bash
+python scripts/verify_kaiser.py
 ```
 
 ---
@@ -172,7 +196,3 @@ python main.py match --map-size 150 --units 100 --maxturn -1
 - **`scenarios/`** : Fichiers de définition des batailles (`.scen`, `.map`).
 - **`assets/`** : Ressources graphiques (Sprites).
 - **`utils/`** : Outils de chargement et de génération aléatoire.
-
-
-python main.py play -u Knight Crossbowman Pikeman -n 50 -ai ColonelKAISER ColonelKAISER --map-size 200x200
-python scripts/verify_kaiser.py
