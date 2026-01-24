@@ -58,7 +58,7 @@ class Engine:
         # Vitesse de la logique : Plus ce chiffre est haut, plus le jeu est lent (moins d'updates)
         # Pour du temps réel fluide, on veut ~30 updates/sec => 60FPS / 2 = 30
         LOGIC_SPEED_DIVIDER = logic_speed
-        game_speed_multiplier = 1.0
+        game_speed_multiplier = 2.0
         step_once = False # Pour le mode pas-à-pas (touche S)
 
         # Indiquer la présence d'une vue externe (pour déléguer l'animation au rendu)

@@ -925,10 +925,16 @@ class PygameView:
                 pygame.draw.rect(self.screen, GREEN, (screen_x - bar_width//2, bar_y, int(bar_width * hp_ratio), bar_height))
 
 
-    def draw_ui(self, time_elapsed, paused, armies):
-        """Interface Utilisateur avec toggles F1-F4 - Design moderne."""
+    def draw_ui(self, time_elapsed: float, paused: bool, armies: list[Army], speed_multiplier: float = 1.0):
+        """Affiche l'interface utilisateur (temps, pause, stats)."""
         
         # --- TIME DISPLAY (Top center - always visible) ---
+        display_speed = speed_multiplier / 2.0
+        if display_speed != 1.0:
+            speed_str = f"x{int(display_speed)}" if display_speed.is_integer() else f"x{display_speed:.1f}"
+            speed_txt = self.ui_font.render(speed_str, True, (255, 200, 100))
+            self.screen.blit(speed_txt, (self.screen_w // 2 + 70, 12))
+
         minutes = int(time_elapsed) // 60
         seconds = int(time_elapsed) % 60
         time_str = f"Duree: {minutes:02d}:{seconds:02d}"
@@ -1250,7 +1256,7 @@ class PygameView:
         self.screen.fill(BG_COLOR)
         self.draw_map()
         self.draw_units(armies)
-        self.draw_ui(time_elapsed, paused, armies)
+        self.draw_ui(time_elapsed, paused, armies, speed_multiplier)
         pygame.display.flip()
         self.clock.tick(60)
         return cmd
