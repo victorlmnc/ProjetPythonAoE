@@ -8,6 +8,8 @@ Usage:
     battle tourney -G <AI1> <AI2> ... -S <SCEN1> <SCEN2> ... [-N=10]
     battle plot <AI> <plotter> <scenario> <range>
     battle lanchester <unit_type> <N> [-t]
+    battle match --map-size 150 --units 100 --maxturn -1
+    battle train --episodes 1000 --map-size 80
 """
 import argparse
 import sys
@@ -20,7 +22,7 @@ from core.map import Map
 from core.army import Army
 from engine import Engine
 from view.terminal_view import TerminalView
-from view.gui_view import PygameView 
+from view.gui_view import PygameView
 from utils.serialization import save_game, load_game
 from scripts.tournament import Tournament
 from utils.loaders import load_map_from_file, load_army_from_file
@@ -49,6 +51,8 @@ Exemples d'utilisation:
   battle tourney -G MajorDAFT ColonelKAISER -S scenarios/1v1.py -N 10
   battle lanchester Knight 10 -t
   battle plot MajorDAFT win_rate scenarios/1v1.py "range(5, 50, 5)"
+  battle match --map-size 150 --units 50
+  battle train --episodes 500
         """
     )
     subparsers = parser.add_subparsers(dest="command", help="Commandes disponibles")
@@ -58,94 +62,112 @@ Exemples d'utilisation:
     # =========================================================================
     play_parser = subparsers.add_parser("play", help="🎮 Lancer une partie rapidement (raccourci)")
     play_parser.add_argument("-t", "--terminal", action="store_true",
-                            help="Mode terminal ASCII")
+                             help="Mode terminal ASCII")
     play_parser.add_argument("-u", "--units", nargs='+', default=["Knight"],
-                            help="Type d'unité ou liste d'unités (ex: Knight Pikeman)")
+                             help="Type d'unité ou liste d'unités (ex: Knight Pikeman)")
     play_parser.add_argument("-n", "--count", type=int, default=10,
-                            help="Nombre d'unités par camp (défaut: 10)")
+                             help="Nombre d'unités par camp (défaut: 10)")
     play_parser.add_argument("-ai", "--generals", nargs=2, default=["MajorDAFT", "MajorDAFT"],
-                            help="IA des deux camps (défaut: MajorDAFT MajorDAFT)")
+                             help="IA des deux camps (défaut: MajorDAFT MajorDAFT)")
     play_parser.add_argument("--max_turns", type=int, default=2000,
-                            help="Nombre max de ticks")
+                             help="Nombre max de ticks")
     play_parser.add_argument("--map-size", type=str, default="120x120",
-                            help="Taille de la carte (ex: 60x60, 120x120...)")
+                             help="Taille de la carte (ex: 60x60, 120x120...)")
+
+    # =========================================================================
+    # Commande: MATCH (Demo RL Match with Custom Args)
+    # =========================================================================
+    # Usage: python main.py match --map-size 150 --units 100 --maxturn -1
+    match_parser = subparsers.add_parser("match", help="Run a GUI Demo Match using Trained RL Models")
+    match_parser.add_argument("--map-size", type=int, default=120, help="Map dimension (e.g. 120)")
+    match_parser.add_argument("--units", type=int, default=50, help="Number of units per team")
+    match_parser.add_argument("--maxturn", type=int, default=2000, help="Max turns limit (-1 for infinite)")
+
+    # =========================================================================
+    # Commande: TRAIN (Train RL Agent)
+    # =========================================================================
+    # Usage: python main.py train --episodes 1000 --map-size 80
+    train_parser = subparsers.add_parser("train", help="Train the RL Agents")
+    train_parser.add_argument("--episodes", type=int, default=500, help="Number of training episodes")
+    train_parser.add_argument("--map-size", type=int, default=80, help="Training map size")
+    train_parser.add_argument("--units", type=int, default=40, help="Units per team for training")
 
     # =========================================================================
     # Commande: battle run <scenario> <AI1> <AI2> [-t] [-d DATAFILE]
     # =========================================================================
     run_parser = subparsers.add_parser("run", help="Lancer une bataille unique")
-    run_parser.add_argument("scenario", type=str, 
-                           help="Chemin vers le scénario (.scen, .py ou .map + armées)")
-    run_parser.add_argument("AI1", type=str, 
-                           help="Nom du général de l'armée 1 (ex: MajorDAFT)")
-    run_parser.add_argument("AI2", type=str, 
-                           help="Nom du général de l'armée 2 (ex: ColonelKAISER)")
+    run_parser.add_argument("scenario", type=str,
+                            help="Chemin vers le scénario (.scen, .py ou .map + armées)")
+    run_parser.add_argument("AI1", type=str,
+                            help="Nom du général de l'armée 1 (ex: MajorDAFT)")
+    run_parser.add_argument("AI2", type=str,
+                            help="Nom du général de l'armée 2 (ex: ColonelKAISER)")
     run_parser.add_argument("-t", "--terminal", action="store_true",
-                           help="Mode terminal ASCII (défaut: mode 2.5D Pygame)")
+                            help="Mode terminal ASCII (défaut: mode 2.5D Pygame)")
     run_parser.add_argument("-d", "--datafile", type=str, default=None,
-                           help="Fichier de sauvegarde à charger ou sauvegarder")
+                            help="Fichier de sauvegarde à charger ou sauvegarder")
     run_parser.add_argument("--army1", type=str, default=None,
-                           help="Fichier armée 1 (optionnel si scénario .py)")
+                            help="Fichier armée 1 (optionnel si scénario .py)")
     run_parser.add_argument("--army2", type=str, default=None,
-                           help="Fichier armée 2 (optionnel si scénario .py)")
+                            help="Fichier armée 2 (optionnel si scénario .py)")
     run_parser.add_argument("--max_turns", type=int, default=1000,
-                           help="Nombre maximum de ticks (defaut: 1000)")
+                            help="Nombre maximum de ticks (defaut: 1000)")
 
     # =========================================================================
     # Commande: battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 ...] [-N=10] [-na]
     # =========================================================================
     tourney_parser = subparsers.add_parser("tourney", help="Lancer un tournoi automatique")
     tourney_parser.add_argument("-G", "--generals", nargs='+', default=None,
-                               help="Généraux à combattre (défaut: tous)")
+                                help="Généraux à combattre (défaut: tous)")
     tourney_parser.add_argument("-S", "--scenarios", nargs='+', default=None,
-                               help="Scénarios .scen/.map (défaut: tous)")
+                                help="Scénarios .scen/.map (défaut: tous)")
     tourney_parser.add_argument("-A", "--army", type=str, default=None,
-                               help="Fichier armée à utiliser (ex: armies/armee_bleue.txt)")
+                                help="Fichier armée à utiliser (ex: armies/armee_bleue.txt)")
     tourney_parser.add_argument("-N", "--rounds", type=int, default=10,
-                               help="Nombre de rounds par matchup (défaut: 10)")
+                                help="Nombre de rounds par matchup (défaut: 10)")
     tourney_parser.add_argument("-na", "--no-alternate", action="store_true",
-                               help="Ne pas alterner les positions (joueur 0/1)")
+                                help="Ne pas alterner les positions (joueur 0/1)")
 
     # =========================================================================
     # Commande: battle plot <AI> <plotter> <scenario> <range>
     # =========================================================================
     plot_parser = subparsers.add_parser("plot", help="Générer des graphiques de performance")
     plot_parser.add_argument("AI", type=str, help="Nom du général à tester")
-    plot_parser.add_argument("plotter", type=str, 
-                            help="Type de graphique (win_rate, damage, survival)")
+    plot_parser.add_argument("plotter", type=str,
+                             help="Type de graphique (win_rate, damage, survival)")
     plot_parser.add_argument("scenario", type=str, help="Scénario de base")
-    plot_parser.add_argument("range", type=str, 
-                            help="Range Python (ex: 'range(5, 50, 5)') - utilise eval()")
+    plot_parser.add_argument("range", type=str,
+                             help="Range Python (ex: 'range(5, 50, 5)') - utilise eval()")
     plot_parser.add_argument("--opponent", type=str, default="MajorDAFT",
-                            help="Adversaire pour les tests (défaut: MajorDAFT)")
+                             help="Adversaire pour les tests (défaut: MajorDAFT)")
 
     # =========================================================================
     # Commande: battle lanchester <unit_type> <N> [-t]
     # =========================================================================
-    lanchester_parser = subparsers.add_parser("lanchester", 
+    lanchester_parser = subparsers.add_parser("lanchester",
                                               help="Scénario Lanchester (N vs 2N)")
     lanchester_parser.add_argument("unit_type", type=str,
-                                  help="Type d'unité (Knight, Pikeman, etc.)")
+                                   help="Type d'unité (Knight, Pikeman, etc.)")
     lanchester_parser.add_argument("N", type=int,
-                                  help="Taille de la petite armée (l'autre = 2N)")
+                                   help="Taille de la petite armée (l'autre = 2N)")
     lanchester_parser.add_argument("-t", "--terminal", action="store_true",
-                                  help="Mode terminal ASCII")
+                                   help="Mode terminal ASCII")
     lanchester_parser.add_argument("--general", type=str, default="MajorDAFT",
-                                  help="Général à utiliser (défaut: MajorDAFT)")
+                                   help="Général à utiliser (défaut: MajorDAFT)")
     lanchester_parser.add_argument("--max_turns", type=int, default=1000,
-                                  help="Nombre maximum de ticks")
+                                   help="Nombre maximum de ticks")
 
     # =========================================================================
     # Commande legacy: battle (ancien format avec --map, --army1, etc.)
     # =========================================================================
-    legacy_parser = subparsers.add_parser("legacy", 
+    legacy_parser = subparsers.add_parser("legacy",
                                           help="Mode legacy (ancien format CLI)")
     legacy_parser.add_argument("--map", required=True, type=str)
     legacy_parser.add_argument("--army1", required=True, type=str)
     legacy_parser.add_argument("--army2", required=True, type=str)
     legacy_parser.add_argument("--load_game", type=str, default=None)
-    legacy_parser.add_argument("--view", type=str, default="terminal", 
-                              choices=["terminal", "pygame"])
+    legacy_parser.add_argument("--view", type=str, default="terminal",
+                               choices=["terminal", "pygame"])
     legacy_parser.add_argument("--max_turns", type=int, default=1000)
     legacy_parser.add_argument("--save_path", type=str, default=None)
 
@@ -174,7 +196,24 @@ Exemples d'utilisation:
     parsed_args = parser.parse_args(args)
 
     # Dispatch vers la bonne fonction
-    if parsed_args.command == "play":
+    if parsed_args.command == "match":
+        # Import lazy pour éviter circular import
+        from rl_modules.run_rl_match import run_gui_match
+        run_gui_match(
+            map_size=parsed_args.map_size,
+            units_per_team=parsed_args.units,
+            max_turns=parsed_args.maxturn
+        )
+
+    elif parsed_args.command == "train":
+        from rl_modules.trainer import train_agent
+        train_agent(
+            num_episodes=parsed_args.episodes,
+            map_size=parsed_args.map_size,
+            units_per_team=parsed_args.units
+        )
+
+    elif parsed_args.command == "play":
         run_play(parsed_args)
     elif parsed_args.command == "run":
         run_battle(parsed_args)
@@ -202,7 +241,7 @@ def run_battle(args):
     print(f"Général 1: {args.AI1}")
     print(f"Général 2: {args.AI2}")
     print(f"Mode: {'Terminal' if args.terminal else 'Pygame 2.5D'}")
-    
+
     # Vérifier les généraux
     if args.AI1 not in GENERAL_CLASS_MAP:
         print(f"Erreur: Général inconnu '{args.AI1}'")
@@ -211,10 +250,10 @@ def run_battle(args):
     if args.AI2 not in GENERAL_CLASS_MAP:
         print(f"Erreur: Général inconnu '{args.AI2}'")
         sys.exit(1)
-    
+
     gen1_class = GENERAL_CLASS_MAP[args.AI1]
     gen2_class = GENERAL_CLASS_MAP[args.AI2]
-    
+
     # Charger le scénario
     # Cas 1: Unified Scenario (.scen) ou détection de contenu
     is_unified = False
@@ -222,10 +261,10 @@ def run_battle(args):
         # Check simple de contenu pour différencier d'un simple fichier armée
         # (Pas parfait mais suffisant pour le prototype)
         try:
-           with open(args.scenario, 'r') as f:
-               head = f.read(100)
-               if "SIZE:" in head or "UNITS:" in head:
-                   is_unified = True
+            with open(args.scenario, 'r') as f:
+                head = f.read(100)
+                if "SIZE:" in head or "UNITS:" in head:
+                    is_unified = True
         except Exception:
             pass
 
@@ -248,7 +287,7 @@ def run_battle(args):
             game_map = load_map_from_file(args.scenario)
             army1 = load_army_from_file(args.army1, army_id=0, general_name=args.AI1)
             army2 = load_army_from_file(args.army2, army_id=1, general_name=args.AI2)
-    
+
     # Cas 3: Scénario Python (.py)
     else:
         # Scénario Python (.py) - Implémentation Req 3
@@ -258,45 +297,46 @@ def run_battle(args):
             spec = importlib.util.spec_from_file_location("scenario_module", args.scenario)
             if spec is None or spec.loader is None:
                 raise ImportError(f"Impossible de charger le fichier {args.scenario}")
-            
+
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            
+
             # Vérifier la présence de la fonction 'create_scenario'
             if not hasattr(module, "create_scenario"):
-                raise AttributeError("Le fichier .py doit contenir une fonction 'create_scenario(gen1_class, gen2_class)'.")
-            
+                raise AttributeError(
+                    "Le fichier .py doit contenir une fonction 'create_scenario(gen1_class, gen2_class)'.")
+
             # Exécuter la fonction
             result = module.create_scenario(gen1_class, gen2_class)
-            
+
             # Gestion des retours (Army1, Army2) ou (Army1, Army2, Map)
             if len(result) == 3:
                 army1, army2, game_map = result
             elif len(result) == 2:
                 army1, army2 = result
                 # Créer une map par défaut si non fournie (taille basée sur positions max ?)
-                game_map = Map(120, 120) 
+                game_map = Map(120, 120)
             else:
-                 raise ValueError("create_scenario doit renvoyer (army1, army2) ou (army1, army2, map)")
+                raise ValueError("create_scenario doit renvoyer (army1, army2) ou (army1, army2, map)")
 
         except Exception as e:
             print(f"Erreur lors du chargement du scénario Python: {e}")
             sys.exit(1)
-    
+
     engine = Engine(game_map, army1, army2)
-    
+
     # Choix de la vue
     view = None
     if args.terminal:
         view = TerminalView(engine.map)
     else:
         view = PygameView(engine.map, [army1, army2])
-    
+
     try:
         engine.run_game(max_turns=args.max_turns, view=view)
     except KeyboardInterrupt:
         print("\nSimulation interrompue.")
-    
+
     # Sauvegarde si demandé
     if args.datafile and args.datafile.endswith('.sav'):
         save_game(engine, args.datafile)
@@ -308,11 +348,11 @@ def run_tourney(args):
     Format: battle tourney [-G AI1 AI2...] [-S SCEN1...] [-N=10] [-na]
     """
     import glob
-    
+
     print("=" * 60)
     print("MedievAIl: Tournoi Automatique")
     print("=" * 60)
-    
+
     # Auto-découverte des généraux si non spécifiés
     if args.generals is None:
         generals = list(GENERAL_CLASS_MAP.keys())
@@ -326,7 +366,7 @@ def run_tourney(args):
                 sys.exit(1)
         generals = args.generals
         print(f"Généraux: {generals}")
-    
+
     # Auto-découverte des scénarios si non spécifiés
     if args.scenarios is None:
         scenarios = []
@@ -348,7 +388,7 @@ def run_tourney(args):
                 sys.exit(1)
         scenarios = args.scenarios
         print(f"Scénarios: {scenarios}")
-    
+
     print(f"Rounds par matchup: {args.rounds}")
     print(f"Alternance positions: {'Non' if args.no_alternate else 'Oui'}")
     if args.army:
@@ -356,10 +396,10 @@ def run_tourney(args):
     else:
         print("Armee: 10 Knights (defaut)")
     print("=" * 60)
-    
+
     tournament = Tournament(
-        generals, 
-        scenarios, 
+        generals,
+        scenarios,
         rounds=args.rounds,
         alternate_positions=not args.no_alternate,
         army_file=args.army
@@ -381,7 +421,7 @@ def run_plot(args):
     print(f"Scénario      : {args.scenario}")
     print(f"Range         : {args.range}")
     print(f"Adversaire    : {args.opponent}")
-    
+
     # Vérifier matplotlib
     try:
         import matplotlib.pyplot as plt
@@ -389,7 +429,7 @@ def run_plot(args):
         print("Erreur: matplotlib n'est pas installé.")
         print("Installez-le avec: pip install matplotlib")
         sys.exit(1)
-    
+
     # Évaluation sécurisée du range
     # Évaluation sécurisée du range
     try:
@@ -409,7 +449,7 @@ def run_plot(args):
         print(f"Erreur: Impossible de parser le range '{args.range}': {e}")
         print(f"Exemple valide: 'range(5, 50, 5)'")
         sys.exit(1)
-    
+
     # Vérifier les généraux
     ai_class = GENERAL_CLASS_MAP.get(args.AI)
     opponent_class = GENERAL_CLASS_MAP.get(args.opponent)
@@ -417,7 +457,7 @@ def run_plot(args):
         print(f"Erreur: Général inconnu")
         print(f"Disponibles: {list(GENERAL_CLASS_MAP.keys())}")
         sys.exit(1)
-    
+
     # Déterminer le type d'unité depuis le scénario
     unit_type = "Knight"  # Par défaut
     if "Knight" in args.scenario:
@@ -426,60 +466,60 @@ def run_plot(args):
         unit_type = "Pikeman"
     elif "Crossbow" in args.scenario:
         unit_type = "Crossbowman"
-    
+
     unit_class = UNIT_CLASS_MAP.get(unit_type)
-    
+
     print(f"Unité         : {unit_type}")
     print("-" * 60)
-    
+
     # Collecter les données
     results = {
         'N': values,
         'winner_casualties': [],  # Pertes du gagnant (armée 2N)
-        'loser_casualties': [],   # Pertes du perdant (armée N) = toujours N
+        'loser_casualties': [],  # Pertes du perdant (armée N) = toujours N
     }
-    
+
     for N in values:
-        print(f"  Test N={N} ({N} vs {2*N})...", end=" ", flush=True)
-        
+        print(f"  Test N={N} ({N} vs {2 * N})...", end=" ", flush=True)
+
         # Créer le scénario Lanchester
         army1, army2 = lanchester_scenario(unit_class, N, ai_class)
         game_map = Map(60, 60)
         engine = Engine(game_map, army1, army2)
-        
+
         # Exécuter sans vue (headless) -> Vitesse maximale
         engine.run_game(max_turns=2000, view=None, logic_speed=1)
-        
+
         # Calculer les pertes
         army1_alive = sum(1 for u in army1.units if u.is_alive)
         army2_alive = sum(1 for u in army2.units if u.is_alive)
-        
+
         # L'armée 2 (2N unités) devrait gagner
         winner_lost = (2 * N) - army2_alive
-        
+
         results['winner_casualties'].append(winner_lost)
         results['loser_casualties'].append(N)  # Le perdant perd toutes ses unités
-        
-        print(f"Gagnant perd {winner_lost}/{2*N}")
-    
+
+        print(f"Gagnant perd {winner_lost}/{2 * N}")
+
     print("-" * 60)
-    
+
     # Générer le graphique
     plt.figure(figsize=(10, 6))
     plt.plot(results['N'], results['winner_casualties'], 'b-o', label='Pertes du gagnant (2N)')
     plt.plot(results['N'], results['loser_casualties'], 'r--', label='Pertes du perdant (N)')
-    
+
     plt.xlabel('Taille de la petite armée (N)')
     plt.ylabel('Nombre de pertes')
     plt.title(f"Loi de Lanchester - {unit_type} (N vs 2N)")
     plt.legend()
     plt.grid(True, alpha=0.3)
-    
+
     # Sauvegarder le graphique
     output_path = f"lanchester_{unit_type.lower()}.png"
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     print(f"\n✅ Graphique sauvegardé: {output_path}")
-    
+
     # Afficher le graphique
     plt.show()
 
@@ -492,32 +532,32 @@ def run_lanchester(args):
     print("--- MedievAIl: Test de Lanchester ---")
     print(f"Unité: {args.unit_type}")
     print(f"Configuration: {args.N} vs {2 * args.N}")
-    
+
     unit_class = UNIT_CLASS_MAP.get(args.unit_type)
     if unit_class is None:
         print(f"Erreur: Type d'unité inconnu '{args.unit_type}'")
         print(f"Unités disponibles: {list(UNIT_CLASS_MAP.keys())}")
         sys.exit(1)
-    
+
     general_class = GENERAL_CLASS_MAP.get(args.general)
     if general_class is None:
         print(f"Erreur: Général inconnu '{args.general}'")
         sys.exit(1)
-    
+
     # Créer le scénario Lanchester
     army1, army2 = lanchester_scenario(unit_class, args.N, general_class)
-    
+
     # Créer une map par défaut
     game_map = Map(40, 40)
     engine = Engine(game_map, army1, army2)
-    
+
     # Choix de la vue
     view = None
     if args.terminal:
         view = TerminalView(engine.map)
     else:
         view = PygameView(engine.map, [army1, army2])
-    
+
     speed = 1 if args.terminal else 2
     engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
 
@@ -528,10 +568,10 @@ def run_legacy_battle(args):
     Format: battle legacy --map X --army1 Y --army2 Z
     """
     print("--- Mode Legacy ---")
-    
+
     engine = None
     armies = None
-    
+
     if args.load_game:
         engine = load_game_from_save(args.load_game)
         armies = engine.armies  # Get armies from loaded save
@@ -541,19 +581,19 @@ def run_legacy_battle(args):
         army2 = load_army_from_file(args.army2, army_id=1)
         engine = Engine(game_map, army1, army2)
         armies = [army1, army2]
-    
+
     view = None
     if args.view == "terminal":
         view = TerminalView(engine.map)
     elif args.view == "pygame":
         view = PygameView(engine.map, armies)
-    
+
     try:
         speed = 1 if args.view == "terminal" else 2
         engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
     except KeyboardInterrupt:
         print("\nSimulation interrompue.")
-    
+
     if args.save_path:
         save_game(engine, args.save_path)
 
@@ -570,7 +610,7 @@ def run_play(args):
     print(f"IAs      : {args.generals[0]} vs {args.generals[1]}")
     print(f"Mode     : {'Terminal' if args.terminal else 'Pygame 2.5D'}")
     print("=" * 50)
-    
+
     # Vérifier tous les types d'unités
     units_list = args.units if isinstance(args.units, list) else [args.units]
     for u_type in units_list:
@@ -578,7 +618,7 @@ def run_play(args):
             print(f"Erreur: Type d'unité inconnu '{u_type}'")
             print(f"Disponibles: {list(UNIT_CLASS_MAP.keys())}")
             sys.exit(1)
-    
+
     # Vérifier les généraux
     gen1_class = GENERAL_CLASS_MAP.get(args.generals[0])
     gen2_class = GENERAL_CLASS_MAP.get(args.generals[1])
@@ -586,7 +626,7 @@ def run_play(args):
         print(f"Erreur: Général inconnu")
         print(f"Disponibles: {list(GENERAL_CLASS_MAP.keys())}")
         sys.exit(1)
-    
+
     # Créer une carte par défaut
     try:
         w, h = map(int, args.map_size.lower().split('x'))
@@ -595,28 +635,28 @@ def run_play(args):
         w, h = 120, 120
 
     game_map = Map(w, h)
-    
+
     # Créer les armées avec les unités choisies (composition mixte)
     # Si plusieurs types, on divise le nombre total par le nombre de types
     # ou on met args.count de chaque type (plus simple pour le test)
     composition = {}
     for u_type in units_list:
         composition[u_type] = args.count  # args.count de CHAQUE type
-        
+
     army1, army2 = custom_battle_scenario(
         composition, composition,
         gen1_class, gen2_class,
         (game_map.width, game_map.height)
     )
-    
+
     engine = Engine(game_map, army1, army2)
-    
+
     # Choisir la vue
     if args.terminal:
         view = TerminalView(engine.map)
     else:
         view = PygameView(engine.map, [army1, army2])
-    
+
     try:
         speed = 1 if args.terminal else 2
         engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
@@ -630,7 +670,7 @@ def run_create(args):
     """
     if args.create_type == "map":
         generate_map_file(args.filename, args.width, args.height, args.noise)
-    
+
     elif args.create_type == "army":
         # Parse map size "WxH"
         try:
@@ -638,7 +678,7 @@ def run_create(args):
         except ValueError:
             print("Erreur: Format map_size incorrect (utiliser '60x60')")
             sys.exit(1)
-            
+
         # Parse units "Type:Count,Type:Count"
         units_config = {}
         try:
@@ -647,16 +687,16 @@ def run_create(args):
                 u_type, count = p.split(':')
                 units_config[u_type.strip()] = int(count)
         except ValueError:
-             print("Erreur: Format units incorrect (utiliser 'Knight:10,Pikeman:5')")
-             sys.exit(1)
-             
+            print("Erreur: Format units incorrect (utiliser 'Knight:10,Pikeman:5')")
+            sys.exit(1)
+
         # Verify general
         if args.general not in GENERAL_CLASS_MAP:
-             print(f"Erreur: Général '{args.general}' inconnu. Disponibles: {list(GENERAL_CLASS_MAP.keys())}")
-             sys.exit(1)
-             
+            print(f"Erreur: Général '{args.general}' inconnu. Disponibles: {list(GENERAL_CLASS_MAP.keys())}")
+            sys.exit(1)
+
         generate_army_file(args.filename, args.general, units_config, (w, h), args.id)
-    
+
     else:
         print("Spécifiez 'map' ou 'army'.")
 
