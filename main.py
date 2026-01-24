@@ -60,7 +60,7 @@ Exemples d'utilisation:
     # =========================================================================
     # Commande: play [-t] [-u UNIT COUNT] [-ai AI1 AI2] -- RACCOURCI SIMPLE
     # =========================================================================
-    play_parser = subparsers.add_parser("play", help="🎮 Lancer une partie rapidement (raccourci)")
+    play_parser = subparsers.add_parser("play", help="Lancer une partie rapidement (raccourci)")
     play_parser.add_argument("-t", "--terminal", action="store_true",
                              help="Mode terminal ASCII")
     play_parser.add_argument("-u", "--units", nargs='+', default=["Knight"],
@@ -69,8 +69,8 @@ Exemples d'utilisation:
                              help="Nombre d'unités par camp (défaut: 10)")
     play_parser.add_argument("-ai", "--generals", nargs=2, default=["MajorDAFT", "MajorDAFT"],
                              help="IA des deux camps (défaut: MajorDAFT MajorDAFT)")
-    play_parser.add_argument("--max_turns", type=int, default=2000,
-                             help="Nombre max de ticks")
+    play_parser.add_argument("--max_turns", type=int, default=6000,
+                             help="Nombre max de ticks (approx 3 min)")
     play_parser.add_argument("--map-size", type=str, default="120x120",
                              help="Taille de la carte (ex: 60x60, 120x120...)")
 
@@ -414,7 +414,7 @@ def run_plot(args):
     Utilise eval() pour parser le range (conforme au PDF).
     """
     print("=" * 60)
-    print("📊 MedievAIl: Génération de Graphiques Lanchester")
+    print("MedievAIl: Génération de Graphiques Lanchester")
     print("=" * 60)
     print(f"IA testée     : {args.AI}")
     print(f"Type de plot  : {args.plotter}")
@@ -518,7 +518,7 @@ def run_plot(args):
     # Sauvegarder le graphique
     output_path = f"lanchester_{unit_type.lower()}.png"
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    print(f"\n✅ Graphique sauvegardé: {output_path}")
+    print(f"\nGraphique sauvegardé: {output_path}")
 
     # Afficher le graphique
     plt.show()

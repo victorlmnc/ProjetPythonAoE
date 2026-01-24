@@ -1,8 +1,8 @@
-# MedievAIl - Battle GenerAIl Simulator 🏰⚔️
+# MedievAIl - Battle GenerAIl Simulator
 
 Bienvenue dans **MedievAIl**, un simulateur de batailles épiques en temps réel (RTS) où des Intelligences Artificielles s'affrontent !
 
-## 🚀 Installation
+## Installation
 
 Assurez-vous d'avoir Python 3.10+ et installez les dépendances :
 ```bash
@@ -11,7 +11,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🎮 Commandes Principales
+## Commandes Principales
 
 L'interface en ligne de commande (CLI) permet de lancer tous les modes de jeu.
 
@@ -71,7 +71,7 @@ python main.py plot MajorDAFT win_rate scenarios/1v1.map "range(10, 100, 10)"
 
 ---
 
-## 🎮 Contrôles (Interface Graphique)
+## Contrôles (Interface Graphique)
 
 L'interface Pygame (Vue 2.5D) propose de nombreuses commandes pour naviguer et analyser la bataille.
 
@@ -92,7 +92,7 @@ L'interface Pygame (Vue 2.5D) propose de nombreuses commandes pour naviguer et a
 
 ---
 
-## 📝 Format de Scénario (.scen)
+## Format de Scénario (.scen)
 
 Le format unifié `.scen` permet de définir la carte, les unités et les bâtiments dans un seul fichier texte facile à éditer.
 
@@ -173,7 +173,7 @@ python main.py create army armies/my_army.txt --units "Knight:20,Archer:10"
 
 ---
 
-## 🛠️ Outils de Développement
+## Outils de Développement
 
 ### Vérification de l'IA (Verify Kaiser)
 Un script de test intensif pour vérifier la supériorité stratégique de ColonelKAISER.
@@ -183,7 +183,7 @@ python scripts/verify_kaiser.py
 
 ---
 
-## 🏗️ Structure du Projet
+## Structure du Projet
 
 - **`main.py`** : Point d'entrée principal (CLI).
 - **`core/`** : Cœur de la simulation.

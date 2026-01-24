@@ -80,18 +80,18 @@ def run_test_case(case_name, units_config, map_size=(60, 60), max_turns=100000):
     # Check Result
     winner = engine.winner
     if winner == 0:
-        print("  ✅ RESOLUTION: ColonelKAISER WINS!")
+        print("  RESOLUTION: ColonelKAISER WINS!")
         return True
     elif winner == 1:
-        print("  ❌ RESOLUTION: MajorDAFT WINS (KAISER FAILED)")
+        print("  RESOLUTION: MajorDAFT WINS (KAISER FAILED)")
         return False
     else:
-        print("  ⚠️ RESOLUTION: DRAW (Time limit reached or mutual destruction)")
+        print("  RESOLUTION: DRAW (Time limit reached or mutual destruction)")
         return False # Draw is considered failure for "Verification that Kaiser ALWAYS wins"
 
 def main():
     print("==================================================")
-    print("   🛡️  ColonelKAISER Verification Protocol  🛡️   ")
+    print("   ColonelKAISER Verification Protocol   ")
     print("==================================================")
     print("Objet: Vérifier que ColonelKAISER bat tout le temps MajorDAFT")
     print("Conditions: Différentes armées, tailles, types d'unités (max 200/armée)")
@@ -153,11 +153,11 @@ def main():
             params_passed += 1
 
     print("\n==================================================")
-    print("   📊  FINAL REPORT  📊   ")
+    print("   FINAL REPORT   ")
     print("==================================================")
     for name, success in results:
         status = "PASSED" if success else "FAILED" 
-        print(f"[{'✅' if success else '❌'}] {name}: {status}")
+        print(f"[{'Pass' if success else 'Fail'}] {name}: {status}")
     
     print("--------------------------------------------------")
     print(f"Total Success Rate: {params_passed}/{len(test_cases)} ({params_passed/len(test_cases)*100:.1f}%)")

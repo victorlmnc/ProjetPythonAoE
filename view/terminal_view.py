@@ -46,8 +46,8 @@ class TerminalView:
     
     # Symboles
     SYMBOL_EMPTY = '.'
-    SYMBOL_TREE = '♣'
-    SYMBOL_ROCK = '▲'
+    SYMBOL_TREE = 'T'
+    SYMBOL_ROCK = 'R'
     
     def __init__(self, map_instance: Map):
         self.map = map_instance
@@ -331,10 +331,10 @@ class TerminalView:
             gen1 = armies[0].general.__class__.__name__
             gen2 = armies[1].general.__class__.__name__
             alive1 = self._count_alive(armies[0])
-            total1 = len(armies[0].units)
+            total1 = getattr(armies[0], 'initial_count', len(armies[0].units))
             pct1 = (alive1 / total1 * 100) if total1 > 0 else 0
             alive2 = self._count_alive(armies[1])
-            total2 = len(armies[1].units)
+            total2 = getattr(armies[1], 'initial_count', len(armies[1].units))
             pct2 = (alive2 / total2 * 100) if total2 > 0 else 0
             
             stats = f"Armée 1 [{gen1}]: {alive1}/{total1} ({pct1:.0f}%) | Armée 2 [{gen2}]: {alive2}/{total2} ({pct2:.0f}%)"
@@ -360,7 +360,7 @@ class TerminalView:
         """Fallback vers le rendu ANSI si curses indisponible."""
         os.system('cls' if os.name == 'nt' else 'clear')
         
-        status = f"{self.RED}[⏸ PAUSE]{self.RESET}" if paused else f"{self.GREEN}[▶ EN COURS]{self.RESET}"
+        status = f"{self.RED}[PAUSE]{self.RESET}" if paused else f"{self.GREEN}[EN COURS]{self.RESET}"
         print(f"=== TEMPS {time_elapsed:.1f}s === {status} ===")
         print(f"Contrôles: [P] Pause | [TAB] Infos | [ZQSD/↑↓←→] Scroll | [F9] Changer vue | [Esc] Quitter")
         print(f"Position affichage: ({self.scroll_x}, {self.scroll_y})\n")
@@ -398,10 +398,10 @@ class TerminalView:
         gen1 = armies[0].general.__class__.__name__
         gen2 = armies[1].general.__class__.__name__
         alive1 = self._count_alive(armies[0])
-        total1 = len(armies[0].units)
+        total1 = getattr(armies[0], 'initial_count', len(armies[0].units))
         pct1 = (alive1 / total1 * 100) if total1 > 0 else 0
         alive2 = self._count_alive(armies[1])
-        total2 = len(armies[1].units)
+        total2 = getattr(armies[1], 'initial_count', len(armies[1].units))
         pct2 = (alive2 / total2 * 100) if total2 > 0 else 0
 
         stats = f"Armée 1 [{gen1}] (Bleu): {alive1}/{total1} ({pct1:.0f}%) | "
@@ -461,7 +461,7 @@ class TerminalView:
             "</style>",
             "</head><body>",
             "<div class='container'>",
-            f"<h1>🏰 MedievAIl - État du jeu à {time_seconds}s</h1>",
+            f"<h1>MedievAIl - État du jeu à {time_seconds}s</h1>",
             f"<p>Généré le {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
         ]
         
@@ -474,7 +474,7 @@ class TerminalView:
             hp_percent = (total_hp / max_hp * 100) if max_hp > 0 else 0
             
             html.append(f"<div class='{color_class}'>")
-            html.append(f"<h2>⚔️ Armée {i+1} - {army.general.__class__.__name__}</h2>")
+            html.append(f"<h2>Armée {i+1} - {army.general.__class__.__name__}</h2>")
             
             html.append("<div class='stats-summary'>")
             html.append(f"<div class='stat-box {'red' if i == 1 else ''}'>")
@@ -503,7 +503,7 @@ class TerminalView:
             
             for unit in army.units:
                 status_class = "dead" if not unit.is_alive else "alive"
-                status_text = "🪦 Mort" if not unit.is_alive else "✓ Vivant"
+                status_text = "Mort" if not unit.is_alive else "Vivant"
                 armor_text = f"Mêlée: {unit.melee_armor} | Perçant: {unit.pierce_armor}"
                 hp_percent = (unit.current_hp / unit.max_hp * 100) if unit.max_hp > 0 else 0
                 task = getattr(unit, 'statut', 'Inactif')
@@ -526,7 +526,7 @@ class TerminalView:
             html.append("</div>")
         
         html.append("<footer>")
-        html.append("<p>💡 Utilisez les contrôles du terminal pour explorer la carte en temps réel</p>")
+        html.append("<p>Utilisez les contrôles du terminal pour explorer la carte en temps réel</p>")
         html.append("</footer>")
         html.append("</div></body></html>")
         
@@ -559,9 +559,9 @@ class TerminalView:
         elif isinstance(unit, CappedRam): symbol = 'M'
         elif isinstance(unit, Trebuchet): symbol = 'T'
         elif isinstance(unit, EliteWarElephant): symbol = 'W'
-        elif isinstance(unit, Monk): symbol = '✦'
-        elif isinstance(unit, Castle): symbol = '■'
-        elif isinstance(unit, Wonder): symbol = '◆'
+        elif isinstance(unit, Monk): symbol = '*'
+        elif isinstance(unit, Castle): symbol = '#'
+        elif isinstance(unit, Wonder): symbol = '*'
         else: return '?'
         
         # Convertir en minuscule si armée 2 (army_id == 1)

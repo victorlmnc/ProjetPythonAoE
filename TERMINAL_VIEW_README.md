@@ -1,14 +1,14 @@
 # Visualisation Carte en Terminal - Guide d'Utilisation
 
-## 📊 Vue d'ensemble
+## Vue d'ensemble
 
 La visualisation en terminal permet de suivre en temps réel l'évolution du jeu sur une petite carte. Elle utilise des symboles et des couleurs pour représenter les unités et les obstacles.
 
-## 🎮 Contrôles
+## Contrôles
 
 ### Mouvements et Scroll
 - **Z** : Scroll haut
-- **S** : Scroll bas  
+- **S** : Scroll bas
 - **Q** : Scroll gauche
 - **D** : Scroll droite
 - **Flèches directionnelles** : Alternative au ZQSD
@@ -21,11 +21,11 @@ La visualisation en terminal permet de suivre en temps réel l'évolution du jeu
 - **F11** : Sauvegarde rapide
 - **F12** : Chargement rapide
 
-## 🎨 Symboles et Couleurs
+## Symboles et Couleurs
 
 ### Couleurs
-- 🔵 **Bleu** : Armée 1
-- 🔴 **Rouge** : Armée 2
+- **(Bleu)** : Armée 1
+- **(Rouge)** : Armée 2
 
 ### Types d'unités (Symboles)
 | Symbole | Type |
@@ -42,16 +42,16 @@ La visualisation en terminal permet de suivre en temps réel l'évolution du jeu
 | **M** | CappedRam (Bélier) |
 | **T** | Trebuchet (Trébuchet) |
 | **W** | EliteWarElephant (Éléphant de guerre élite) |
-| **✦** | Monk (Moine) |
-| **■** | Castle (Château) |
-| **◆** | Wonder (Merveille) |
+| **\*** | Monk (Moine) |
+| **#** | Castle (Château) |
+| **\*** | Wonder (Merveille) |
 
 ### Obstacles
-- 🌳 **♣** (vert) : Arbre
-- 🪨 **▲** (gris) : Rocher
+- **T** (vert) : Arbre
+- **R** (gris) : Rocher
 - **·** (gris) : Terrain vide
 
-## 📋 Page de détails (TAB)
+## Page de détails (TAB)
 
 En appuyant sur TAB, une page HTML s'ouvre automatiquement avec :
 
@@ -73,22 +73,22 @@ En appuyant sur TAB, une page HTML s'ouvre automatiquement avec :
 ### État de l'IA
 Les fichiers HTML contiennent aussi des données sur l'état des généraux et leurs stratégies.
 
-## 🎯 Conseils d'utilisation
+## Conseils d'utilisation
 
-1. **Petites cartes** : La vue terminal est idéale pour des cartes ≤ 80x25
+1. **Petites cartes** : La vue terminal est idéale pour des cartes <= 80x25
 2. **Scroll** : Utilisez ZQSD pour explorer les zones non affichées
 3. **Pause** : Appuyez sur P pour pause le jeu et prendre du temps pour analyser
 4. **Détails** : TAB vous permet d'inspecter tous les dégâts et positions exactes
 5. **Couleurs** : Les couleurs ANSI permettent de distinguer rapidement les deux armées
 
-## 📊 Limitations
+## Limitations
 
 - Affichage limité à 80 caractères de largeur (terminal standard)
 - Affichage limité à 25 lignes de hauteur
 - Les unités se superposant dans la même case affichent seulement la dernière
 - Nécessite un terminal supportant les codes couleurs ANSI
 
-## 🔧 Fichiers générés
+## Fichiers générés
 
 À chaque appui sur TAB, un nouveau fichier HTML est créé dans le dossier `saves/` :
 ```
@@ -97,7 +97,7 @@ saves/snapshot_time_Xs_YYYYMMDD_HHMMSS.html
 
 Où X est le temps écoulé en secondes depuis le début du jeu.
 
-## 💡 Exemples de jeu
+## Exemples de jeu
 
 ### Observer une bataille
 1. Lancez le jeu avec `-t` pour le mode terminal
