@@ -122,6 +122,40 @@ STRUCTURES:
 Castle, 5.0, 5.0, 0
 Wonder, 55.0, 55.0, 1
 ```
+### 5. Entraînement IA (Mode Train)
+Entraîner les agents via l'apprentissage par renforcement (Reinforcement Learning) sur une carte générée procéduralement.
+
+python main.py train [OPTIONS]
+
+Options :
+
+--episodes <N> : Nombre d'épisodes d'entraînement (défaut: 500).
+
+--map-size <N> : Taille de la carte pour l'entraînement (défaut: 80).
+
+--units <N> : Nombre d'unités par équipe pour l'entraînement (défaut: 40).
+
+Exemple:
+```bash
+python main.py train --episodes 1000 --map-size 80 --units 40
+```
+### 6. Match de Démonstration (Mode Match)
+Lancer un match de démonstration graphique (GUI) utilisant les modèles RL préalablement entraînés.
+
+python main.py match [OPTIONS]
+
+Options :
+
+--map-size <N> : Dimension de la carte (défaut: 120).
+
+--units <N> : Nombre d'unités par équipe (défaut: 50).
+
+--maxturn <N> : Limite de tours de jeu (-1 pour infini, défaut: 2000).
+
+Exemple :
+```bash
+python main.py match --map-size 150 --units 100 --maxturn -1
+```
 
 ---
 
