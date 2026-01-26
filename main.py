@@ -688,6 +688,27 @@ def run_play(args):
 
     game_map = Map(w, h)
 
+    import random
+    import math
+    n_trees = int((w * h) * 0.06) # 6% de densité
+    
+    # Zone de combat au centre à éviter (carré central ~40% de la map)
+    center_x, center_y = w // 2, h // 2
+    combat_radius = min(w, h) * 0.25  # Rayon de la zone libre
+    
+    for _ in range(n_trees):
+        tx = random.randint(0, w-1)
+        ty = random.randint(0, h-1)
+        
+        # Distance au centre
+        dist_to_center = math.sqrt((tx - center_x)**2 + (ty - center_y)**2)
+        
+        # Placer les arbres UNIQUEMENT hors de la zone centrale de combat
+        if dist_to_center > combat_radius:
+            # Éviter aussi les tout bords (1 case)
+            if 1 < tx < w-1 and 1 < ty < h-1:
+                game_map.add_obstacle("Tree", tx, ty)
+
     # Créer les armées avec les unités choisies (composition mixte)
     # Si plusieurs types, on divise le nombre total par le nombre de types
     # ou on met args.count de chaque type (plus simple pour le test)

@@ -9,7 +9,8 @@ from core.army import Army
 # Import de toutes les classes d'unités pour le mappage des sprites 
 from core.unit import (
     Knight, Pikeman, Crossbowman, LongSwordsman, LightCavalry, 
-    Castle, Wonder, Unit
+    Castle, Wonder, Unit, EliteSkirmisher, CavalryArcher, Onager,
+    Trebuchet, EliteWarElephant, Monk, Scorpion, CappedRam
 )
 
 # --- CONSTANTES DE CONFIGURATION VUE ---
@@ -394,7 +395,16 @@ class PygameView:
             tree_path, 
             target_size=(60, 90), 
             is_spritesheet=False
-        ) 
+        )
+        
+        # Château (image statique)
+        castle_path = os.path.join(BASE_PATH, "resources/buildings/castle.png")
+        self.orig_castle = self._load_webp_asset(
+            castle_path, 
+            target_size=(160, 140), 
+            is_spritesheet=False
+        )
+        self.castle_sprite = self.orig_castle  # Cache initial 
         
         # Mapping des classes vers les dossiers d'assets
         all_unit_configs = {
@@ -402,7 +412,14 @@ class PygameView:
             Crossbowman: "crossbowman",
             Pikeman: "pikeman",
             LongSwordsman: "longswordman",
-            LightCavalry: "knight", # Fallback sur les sprites de chevalier
+            LightCavalry: "knight", # Fallback
+            EliteSkirmisher: "crossbowman", # Fallback
+            CavalryArcher: "crossbowman", # Fallback
+            Onager: "trebuchet", # Fallback si trebuchet existe, sinon null
+            Trebuchet: "trebuchet",
+            EliteWarElephant: "knight", # Fallback temporaire
+            Monk: "monk",
+            # Bâtiments: gérés séparément (images statiques, pas de spritesheet)
         }
         
         # Optimisation : charger uniquement les unités présentes
@@ -853,48 +870,44 @@ class PygameView:
                 self.screen.blit(surf, (draw_x, draw_y))
                 hp_y = unit_draw_y - surf.get_height() + 5
             else:
-                # fallback minimal: dessiner seulement si l'unité est vivante
+                # Fallback robuste
                 if unit.is_alive:
-                    color = BLUE if army_id == 0 else RED
+                    color = (50, 50, 255) if army_id == 0 else (255, 50, 50)
                     
-                    # Logique de dessin de fallback (Cercle vs Carré)
-                    # Si c'est un Bâtiment (hitbox > 0.6 ou type spécifique), on fait un carré/rectangle
-                    is_building = unit.hitbox_radius > 0.6
-                    
-                    if is_building:
-                        # Dessin de bâtiment (Carré 3D simple)
-                        size = int(unit.hitbox_radius * 2 * 32 * self.zoom) # 32 pixels/mètre approx
-                        rect_x = screen_x - size // 2
-                        rect_y = unit_draw_y - size
+                    # Distinction simple selon le type
+                    u_name = unit.__class__.__name__
+                    if u_name == 'Castle' and self.castle_sprite:
+                        # Affichage du château avec sa texture
+                        surf = self.castle_sprite
+                        draw_x = screen_x - surf.get_width() // 2
+                        draw_y = unit_draw_y - surf.get_height()
+                        self.screen.blit(surf, (draw_x, draw_y))
+                        hp_y = unit_draw_y - surf.get_height() + 10
+                    elif u_name in ['Castle', 'Wonder', 'Barracks'] or unit.hitbox_radius > 0.8:
+                        # Bâtiment : Carré (fallback si pas de texture)
+                        size = 40
+                        rect = pygame.Rect(screen_x - size//2, screen_y - size//2, size, size)
+                        pygame.draw.rect(self.screen, color, rect)
+                        pygame.draw.rect(self.screen, (255, 255, 255), rect, 2)
                         
-                        # Couleur spécifique pour Castle/Wonder
-                        if isinstance(unit, Castle):
-                            draw_color = (150, 150, 150) # Gris Pierre
-                        elif isinstance(unit, Wonder):
-                            draw_color = (255, 215, 0) # Or
-                        else:
-                            draw_color = color
-                            
-                        # Face avant
-                        pygame.draw.rect(self.screen, draw_color, (rect_x, rect_y, size, size))
-                        # Bordure
-                        pygame.draw.rect(self.screen, BLACK, (rect_x, rect_y, size, size), 2)
+                        # Lettre
+                        try:
+                            font_surf = self.small_font.render(u_name[0], True, (255, 255, 255))
+                            self.screen.blit(font_surf, (screen_x - font_surf.get_width()//2, screen_y - font_surf.get_height()//2))
+                        except: pass
                         
-                        # Marque de couleur du joueur
-                        mark_size = size // 4
-                        pygame.draw.rect(self.screen, color, (rect_x + size//2 - mark_size//2, rect_y + size//4, mark_size, mark_size))
-
-                        hp_y = rect_y - 10
+                        hp_y = screen_y - size//2 - 10
                     else:
-                        # Dessin d'unité standard (Cercle)
-                        radius = max(8, int(10 * self.zoom))
-                        circle_y = unit_draw_y - int(15 * self.zoom)
-                        pygame.draw.circle(self.screen, color, (screen_x, circle_y), radius)
-                        pygame.draw.circle(self.screen, WHITE, (screen_x, circle_y), radius, 2)
-                        hp_y = circle_y - radius - 5
+                        # Unité : Cercle
+                        pygame.draw.circle(self.screen, color, (int(screen_x), int(screen_y)), 10)
+                        pygame.draw.circle(self.screen, (255, 255, 255), (int(screen_x), int(screen_y)), 10, 1)
+                        
+                        if unit in self.selected_units:
+                             pygame.draw.circle(self.screen, (255, 255, 0), (int(screen_x), int(screen_y)), 14, 1)
+
+                        hp_y = screen_y - 15
                 else:
-                    # unité morte et pas de sprite: ne rien dessiner
-                    hp_y = unit_draw_y
+                     hp_y = screen_y
 
             if self.show_hp_bars and unit.is_alive:
                 hp_ratio = unit.current_hp / unit.max_hp if unit.max_hp > 0 else 0

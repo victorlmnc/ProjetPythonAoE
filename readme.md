@@ -18,7 +18,7 @@ L'interface en ligne de commande (CLI) permet de lancer tous les modes de jeu vi
 ### 1. Partie Rapide (Play)
 Lancer une bataille rapide entre deux généraux.
 ```bash
-python main.py play [OPTIONS]
+python main.py play (+ [OPTIONS] si voulu)
 ```
 **Options :**
 - `-u <UnitType>` : Choisir le type d'unité (ex: `-u Knight`, `-u Pikeman`...); (défaut: Knight).
@@ -27,8 +27,15 @@ python main.py play [OPTIONS]
 - `-t` : Mode Terminal (ASCII) au lieu de la vue 2.5D (défaut: vue 2.5D).
 - `--map-size 60x60` : Taille de la carte (défaut: 120x120).
 
+**Exemple complet avec options :**
+```bash
+python main.py play -u Knight Pikeman Crossbowman -n 50 -ai MajorDAFT ColonelKAISER --map-size 80x80
+```
+
+
+
 ### 2. Lancer un Scénario (Run)
-Exécuter un scénario spécifique depuis un fichier `.scen`, `.map` ou `.py`.
+Exécuter un scénario spécifique depuis un fichier `.scen`, `.map` ou `.py` (Pour créer un scénario, voir la section "Détails Techniques").
 ```bash
 python main.py run <ScenarioFile> <AI1> <AI2> [-t]
 ```
@@ -36,6 +43,8 @@ python main.py run <ScenarioFile> <AI1> <AI2> [-t]
 ```bash
 python main.py run scenarios/mega_battle.scen MajorDAFT ColonelKAISER
 ```
+
+
 
 ### 3. Tournoi Automatique (Tourney)
 Faire s'affronter plusieurs généraux sur plusieurs scénarios et générer un rapport HTML.
@@ -50,8 +59,10 @@ python main.py tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-n
 
 **Exemple :**
 ```bash
-python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map -N 4
+python main.py tourney -G MajorDAFT ColonelKAISER -S scenarios/mega_battle.scen -N 4
 ```
+
+
 
 ### 4. Scénario Lanchester (Lanchester)
 Tester la loi de Lanchester (N unités vs 2N unités).
@@ -62,9 +73,11 @@ python main.py lanchester <UnitType> <N> [-t]
 ```
 **Exemple :**
 ```bash
-python main.py lanchester Knight 10
-(Génère le fichier `lanchester_run_knight.png`)
+python main.py lanchester Knight 50
 ```
+(Génère automatiquementle fichier `lanchester_run_knight.png`)
+
+
 
 ### 5. Graphiques de Performance (Plot)
 Générer un graphique de performance (win rate, dégâts...) en fonction d'une variable.
@@ -80,6 +93,8 @@ python main.py plot <AI> <plotter> <Scenario> "<Range>"
 python main.py plot MajorDAFT win_rate scenarios/exemple.map "range(10, 100, 10)"
 ```
 
+
+
 ### 6. Entrainement RL (Train)
 Entraîner les agents avec l'apprentissage par renforcement.
 ```bash
@@ -90,8 +105,10 @@ python main.py train [OPTIONS]
 - `--map-size <N>` : Taille de la carte (défaut: 80).
 - `--units <N>` : Nombre d'unités (défaut: 40).
 
-### 7. Match de Démonstration (Match)
-Lancer un match graphique pré-configuré (souvent utilisé pour les démos).
+
+
+### 7. Match de Démonstration pour RL (Match)
+Lancer un match graphique pré-configuré.
 ```bash
 python main.py match [OPTIONS]
 ```
@@ -99,6 +116,12 @@ python main.py match [OPTIONS]
 - `--map-size <N>` : Dimension (défaut: 120).
 - `--units <N>` : Unités par équipe (défaut: 50).
 - `--maxturn <N>` : Limite de tours (-1 pour infini).
+**Exemple :**
+```bash
+python python main.py match --map-size 120 --units 40 --maxturn -1
+```
+
+
 
 ### 8. Création de Contenu (Create)
 Générer des cartes et des armées pour vos scénarios.
@@ -190,4 +213,4 @@ Wonder, 75, 75, 1
 
 
 
-Pour les détails de la vue terminal, voir le fichier TERMINAL_VIEW_README.md
+**Pour les détails de la vue terminal, voir le fichier TERMINAL_VIEW_README.md**

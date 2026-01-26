@@ -1,307 +1,463 @@
 SIZE: 120 120
 UNITS:
-Pikeman, 28.4, 6.1, 0
-Pikeman, 28.1, 39.1, 0
-Pikeman, 14.5, 43.4, 0
-Pikeman, 23.1, 31.0, 0
-Knight, 21.8, 37.9, 0
-Knight, 18.6, 10.8, 0
-Crossbowman, 22.4, 41.1, 0
-Pikeman, 15.2, 28.7, 0
-Pikeman, 28.4, 36.7, 0
-Pikeman, 13.4, 34.4, 0
-Crossbowman, 17.3, 30.8, 0
-Knight, 5.1, 12.2, 0
-Knight, 12.4, 40.1, 0
-Knight, 40.8, 13.7, 0
-Knight, 40.8, 6.3, 0
-Knight, 44.0, 43.4, 0
-Pikeman, 26.9, 37.9, 0
-Crossbowman, 42.6, 25.5, 0
-Pikeman, 21.0, 28.2, 0
-Knight, 15.6, 38.9, 0
-Crossbowman, 41.2, 5.8, 0
-Knight, 40.6, 21.2, 0
-Knight, 35.5, 10.7, 0
-Pikeman, 32.0, 11.8, 0
-Knight, 11.0, 30.7, 0
-Knight, 15.4, 14.3, 0
-Pikeman, 38.4, 41.3, 0
-Pikeman, 35.4, 31.1, 0
-Pikeman, 31.8, 44.3, 0
-Crossbowman, 7.0, 37.9, 0
-Crossbowman, 43.6, 6.2, 0
-Knight, 30.4, 13.8, 0
-Crossbowman, 37.4, 44.3, 0
-Crossbowman, 38.2, 13.8, 0
-Pikeman, 39.8, 37.3, 0
-Pikeman, 17.7, 9.5, 0
-Pikeman, 26.2, 43.3, 0
-Crossbowman, 26.0, 25.9, 0
-Crossbowman, 20.5, 10.4, 0
-Pikeman, 33.4, 21.2, 0
-Pikeman, 44.0, 10.7, 0
-Crossbowman, 15.8, 28.4, 0
-Crossbowman, 24.9, 7.3, 0
-Crossbowman, 9.2, 20.2, 0
-Pikeman, 10.8, 16.9, 0
-Crossbowman, 31.7, 44.8, 0
-Knight, 16.9, 34.6, 0
-Knight, 32.3, 22.6, 0
-Pikeman, 32.4, 38.3, 0
-Pikeman, 16.1, 17.6, 0
-Knight, 25.2, 39.7, 0
-Pikeman, 22.2, 29.5, 0
-Crossbowman, 40.3, 6.6, 0
-Knight, 17.2, 44.8, 0
-Pikeman, 34.2, 24.0, 0
-Pikeman, 20.1, 25.6, 0
-Knight, 14.3, 19.9, 0
-Pikeman, 30.6, 10.4, 0
-Knight, 31.3, 26.5, 0
-Pikeman, 31.8, 24.4, 0
-Crossbowman, 27.6, 31.8, 0
-Crossbowman, 37.2, 22.2, 0
-Pikeman, 23.2, 7.3, 0
-Crossbowman, 27.2, 27.7, 0
-Crossbowman, 5.6, 11.5, 0
-Knight, 32.9, 19.5, 0
-Knight, 42.0, 7.3, 0
-Pikeman, 30.6, 37.7, 0
-Crossbowman, 8.0, 31.5, 0
-Crossbowman, 39.5, 14.9, 0
-Knight, 39.3, 22.1, 0
-Pikeman, 15.5, 11.5, 0
-Knight, 9.9, 24.8, 0
-Knight, 5.3, 14.2, 0
-Crossbowman, 31.8, 32.8, 0
-Pikeman, 29.0, 31.1, 0
-Pikeman, 20.1, 28.8, 0
-Knight, 10.5, 27.7, 0
-Knight, 39.2, 20.3, 0
-Crossbowman, 18.6, 5.1, 0
-Pikeman, 37.4, 36.2, 0
-Knight, 21.2, 12.7, 0
-Knight, 15.4, 30.2, 0
-Pikeman, 23.3, 13.0, 0
-Crossbowman, 20.7, 11.0, 0
-Knight, 37.9, 40.8, 0
-Knight, 31.5, 32.1, 0
-Pikeman, 8.6, 13.6, 0
-Crossbowman, 31.3, 13.5, 0
-Crossbowman, 12.1, 17.2, 0
-Knight, 21.8, 19.4, 0
-Crossbowman, 22.3, 35.2, 0
-Pikeman, 32.2, 6.2, 0
-Knight, 32.4, 17.8, 0
-Crossbowman, 21.4, 41.5, 0
-Pikeman, 34.7, 15.0, 0
-Crossbowman, 36.4, 13.2, 0
-Crossbowman, 19.6, 42.3, 0
-Pikeman, 30.0, 11.1, 0
-Knight, 26.4, 33.3, 0
-Crossbowman, 18.0, 16.2, 0
-Knight, 28.7, 27.0, 0
-Crossbowman, 31.5, 9.8, 0
-Knight, 10.4, 10.9, 0
-Crossbowman, 8.2, 19.3, 0
-Pikeman, 12.6, 13.2, 0
-Knight, 12.3, 16.8, 0
-Pikeman, 30.8, 5.9, 0
-Pikeman, 29.9, 17.1, 0
-Knight, 14.4, 34.2, 0
-Knight, 9.2, 20.5, 0
-Crossbowman, 28.9, 26.6, 0
-Crossbowman, 8.5, 25.6, 0
-Crossbowman, 24.3, 42.7, 0
-Crossbowman, 42.0, 17.7, 0
-Pikeman, 23.4, 26.5, 0
-Knight, 17.3, 13.9, 0
-Pikeman, 9.7, 36.2, 0
-Crossbowman, 40.6, 43.0, 0
-Crossbowman, 16.6, 18.0, 0
-Crossbowman, 31.4, 10.1, 0
-Crossbowman, 33.0, 31.3, 0
-Knight, 5.7, 27.1, 0
-Crossbowman, 21.6, 23.3, 0
-Crossbowman, 38.0, 34.8, 0
-Pikeman, 24.0, 19.5, 0
-Pikeman, 11.9, 40.8, 0
-Pikeman, 39.8, 34.7, 0
-Pikeman, 26.7, 19.5, 0
-Pikeman, 26.9, 30.6, 0
-Knight, 26.4, 28.6, 0
-Crossbowman, 39.7, 42.0, 0
-Pikeman, 5.9, 32.2, 0
-Knight, 24.8, 44.0, 0
-Knight, 33.6, 28.2, 0
-Knight, 24.3, 25.7, 0
-Crossbowman, 38.5, 33.0, 0
-Crossbowman, 7.7, 7.5, 0
-Knight, 10.9, 40.2, 0
-Crossbowman, 36.4, 33.4, 0
-Crossbowman, 33.3, 21.1, 0
-Crossbowman, 13.9, 39.6, 0
-Crossbowman, 36.3, 14.9, 0
-Knight, 9.3, 5.7, 0
-Pikeman, 27.3, 40.5, 0
-Knight, 31.6, 22.1, 0
-Pikeman, 7.4, 39.5, 0
-Pikeman, 7.8, 11.2, 0
-Pikeman, 15.3, 15.1, 0
-Pikeman, 8.9, 27.3, 0
-Knight, 79.3, 101.9, 1
-Knight, 90.7, 76.8, 1
-Knight, 110.2, 103.7, 1
-Pikeman, 102.6, 77.0, 1
-Crossbowman, 112.6, 76.1, 1
-Pikeman, 107.1, 94.9, 1
-Knight, 90.5, 109.0, 1
-Knight, 89.2, 113.6, 1
-Pikeman, 77.3, 91.7, 1
-Pikeman, 101.0, 79.2, 1
-Knight, 80.9, 87.0, 1
-Pikeman, 98.5, 110.5, 1
-Knight, 90.4, 85.9, 1
-Knight, 78.1, 89.0, 1
-Knight, 77.6, 109.6, 1
-Pikeman, 107.1, 96.2, 1
-Crossbowman, 106.0, 82.6, 1
-Crossbowman, 101.0, 80.0, 1
-Pikeman, 95.2, 106.3, 1
-Knight, 95.2, 113.1, 1
-Knight, 107.6, 106.7, 1
-Knight, 80.8, 90.7, 1
-Knight, 111.8, 79.9, 1
-Knight, 103.7, 95.7, 1
-Knight, 81.9, 97.4, 1
-Knight, 86.0, 89.1, 1
-Pikeman, 84.6, 99.0, 1
-Pikeman, 96.9, 94.9, 1
-Knight, 82.9, 113.3, 1
-Knight, 96.1, 84.3, 1
-Knight, 86.5, 90.1, 1
-Pikeman, 110.3, 100.1, 1
-Knight, 77.9, 81.5, 1
-Crossbowman, 108.6, 97.7, 1
-Crossbowman, 99.1, 100.6, 1
-Knight, 104.7, 94.6, 1
-Crossbowman, 91.1, 102.2, 1
-Pikeman, 77.1, 106.0, 1
-Crossbowman, 90.5, 78.9, 1
-Pikeman, 82.7, 88.5, 1
-Knight, 92.0, 91.3, 1
-Pikeman, 79.9, 95.3, 1
-Crossbowman, 82.2, 91.4, 1
-Pikeman, 111.3, 89.2, 1
-Pikeman, 110.5, 83.4, 1
-Crossbowman, 104.0, 104.7, 1
-Crossbowman, 99.5, 86.3, 1
-Pikeman, 90.6, 79.9, 1
-Crossbowman, 106.2, 94.9, 1
-Knight, 78.6, 109.8, 1
-Crossbowman, 110.9, 114.8, 1
-Pikeman, 111.0, 110.6, 1
-Crossbowman, 109.9, 99.0, 1
-Pikeman, 99.2, 97.7, 1
-Pikeman, 111.9, 92.1, 1
-Crossbowman, 91.0, 112.8, 1
-Pikeman, 87.0, 100.4, 1
-Knight, 106.5, 109.9, 1
+Pikeman, 34.3, 19.6, 0
+Pikeman, 37.4, 39.5, 0
+Crossbowman, 34.0, 22.4, 0
+Crossbowman, 21.7, 12.5, 0
+Pikeman, 28.2, 32.7, 0
+Pikeman, 8.8, 39.8, 0
+Crossbowman, 5.1, 13.3, 0
+Pikeman, 19.7, 42.1, 0
+Crossbowman, 37.4, 6.7, 0
+Knight, 31.5, 22.5, 0
+Knight, 8.4, 12.7, 0
+Pikeman, 41.6, 16.6, 0
+Crossbowman, 37.4, 9.6, 0
+Crossbowman, 42.2, 42.8, 0
+Pikeman, 8.5, 32.7, 0
+Knight, 20.3, 25.3, 0
+Knight, 8.5, 26.4, 0
+Knight, 35.8, 21.9, 0
+Pikeman, 39.7, 31.5, 0
+Pikeman, 39.4, 19.6, 0
+Knight, 39.9, 17.9, 0
+Crossbowman, 37.9, 31.8, 0
+Knight, 27.3, 31.3, 0
+Crossbowman, 31.7, 7.2, 0
+Knight, 14.7, 10.5, 0
+Crossbowman, 31.2, 38.6, 0
+Crossbowman, 27.6, 25.4, 0
+Knight, 7.2, 25.0, 0
+Pikeman, 23.9, 7.7, 0
+Crossbowman, 21.2, 40.2, 0
+Crossbowman, 32.9, 15.5, 0
+Knight, 34.2, 17.0, 0
+Knight, 41.0, 24.3, 0
+Pikeman, 10.4, 14.8, 0
+Knight, 21.7, 37.7, 0
+Knight, 37.6, 32.5, 0
+Knight, 13.9, 20.7, 0
+Crossbowman, 39.2, 29.7, 0
+Pikeman, 39.7, 10.6, 0
+Knight, 29.1, 12.5, 0
+Knight, 29.8, 21.2, 0
+Knight, 19.5, 31.6, 0
+Knight, 23.9, 38.8, 0
+Pikeman, 11.7, 28.0, 0
+Crossbowman, 18.1, 26.5, 0
+Crossbowman, 40.6, 18.6, 0
+Pikeman, 19.2, 24.1, 0
+Knight, 23.8, 22.3, 0
+Pikeman, 39.9, 9.9, 0
+Knight, 26.5, 22.2, 0
+Pikeman, 27.5, 11.8, 0
+Pikeman, 5.8, 5.3, 0
+Knight, 10.3, 11.2, 0
+Crossbowman, 41.0, 21.2, 0
+Knight, 35.3, 30.3, 0
+Knight, 40.0, 17.6, 0
+Pikeman, 42.6, 38.6, 0
+Pikeman, 20.9, 39.6, 0
+Knight, 30.2, 42.4, 0
+Crossbowman, 11.2, 7.5, 0
+Knight, 44.8, 9.6, 0
+Knight, 13.4, 27.8, 0
+Pikeman, 29.5, 33.2, 0
+Knight, 41.8, 12.2, 0
+Crossbowman, 6.0, 12.5, 0
+Knight, 16.5, 36.6, 0
+Knight, 18.7, 38.4, 0
+Knight, 24.9, 22.7, 0
+Crossbowman, 15.1, 27.6, 0
+Crossbowman, 17.5, 27.9, 0
+Pikeman, 27.6, 7.9, 0
+Crossbowman, 31.8, 41.9, 0
+Knight, 6.6, 39.0, 0
+Pikeman, 17.0, 15.8, 0
+Knight, 9.3, 17.6, 0
+Knight, 30.8, 10.0, 0
+Pikeman, 34.8, 15.0, 0
+Knight, 15.4, 32.7, 0
+Knight, 6.3, 5.0, 0
+Pikeman, 25.3, 23.6, 0
+Crossbowman, 19.9, 5.7, 0
+Pikeman, 15.9, 16.3, 0
+Crossbowman, 18.7, 5.7, 0
+Pikeman, 14.8, 40.9, 0
+Crossbowman, 16.6, 10.2, 0
+Knight, 26.8, 17.4, 0
+Pikeman, 21.8, 26.4, 0
+Knight, 10.2, 6.3, 0
+Knight, 42.0, 35.3, 0
+Knight, 31.3, 23.5, 0
+Pikeman, 16.1, 31.9, 0
+Knight, 9.0, 27.2, 0
+Knight, 22.1, 33.2, 0
+Crossbowman, 6.9, 18.4, 0
+Pikeman, 28.8, 26.0, 0
+Pikeman, 39.4, 40.6, 0
+Pikeman, 5.4, 29.1, 0
+Knight, 22.8, 14.0, 0
+Knight, 26.1, 36.3, 0
+Crossbowman, 15.4, 19.7, 0
+Crossbowman, 14.1, 38.2, 0
+Knight, 10.3, 40.8, 0
+Pikeman, 18.2, 37.7, 0
+Knight, 35.4, 15.7, 0
+Knight, 27.0, 29.1, 0
+Pikeman, 5.1, 5.7, 0
+Crossbowman, 40.8, 14.7, 0
+Crossbowman, 29.3, 29.8, 0
+Knight, 27.6, 8.9, 0
+Crossbowman, 33.7, 10.1, 0
+Pikeman, 10.0, 29.3, 0
+Pikeman, 25.7, 13.2, 0
+Pikeman, 7.1, 19.5, 0
+Crossbowman, 11.3, 14.7, 0
+Knight, 12.1, 35.1, 0
+Crossbowman, 26.9, 17.8, 0
+Crossbowman, 11.6, 19.1, 0
+Pikeman, 19.3, 24.5, 0
+Pikeman, 29.1, 19.3, 0
+Pikeman, 21.0, 22.0, 0
+Crossbowman, 20.4, 39.5, 0
+Crossbowman, 9.3, 37.4, 0
+Knight, 28.1, 38.0, 0
+Knight, 35.3, 37.7, 0
+Crossbowman, 5.8, 27.0, 0
+Crossbowman, 9.9, 34.7, 0
+Pikeman, 7.6, 29.9, 0
+Crossbowman, 29.7, 22.4, 0
+Crossbowman, 32.4, 21.7, 0
+Pikeman, 32.0, 30.9, 0
+Pikeman, 6.1, 13.2, 0
+Pikeman, 18.6, 19.5, 0
+Pikeman, 10.1, 26.9, 0
+Knight, 35.3, 17.0, 0
+Pikeman, 9.6, 18.6, 0
+Knight, 7.8, 29.0, 0
+Crossbowman, 16.8, 7.4, 0
+Knight, 37.9, 38.9, 0
+Knight, 18.6, 29.1, 0
+Knight, 36.0, 6.5, 0
+Pikeman, 21.9, 16.8, 0
+Pikeman, 18.1, 27.5, 0
+Crossbowman, 23.9, 9.4, 0
+Knight, 10.6, 9.1, 0
+Knight, 37.2, 44.3, 0
+Crossbowman, 19.0, 32.8, 0
+Crossbowman, 42.1, 7.1, 0
+Knight, 5.7, 16.8, 0
+Knight, 41.1, 10.4, 0
+Pikeman, 15.0, 24.6, 0
+Pikeman, 77.0, 101.4, 1
+Pikeman, 111.2, 77.5, 1
+Knight, 91.3, 79.7, 1
+Knight, 110.5, 86.4, 1
+Pikeman, 82.9, 102.5, 1
+Pikeman, 76.2, 110.1, 1
+Pikeman, 112.7, 86.3, 1
+Knight, 78.7, 104.5, 1
+Knight, 97.6, 86.6, 1
+Crossbowman, 113.5, 79.7, 1
+Knight, 106.1, 89.8, 1
+Knight, 92.3, 96.0, 1
+Crossbowman, 109.7, 75.4, 1
+Pikeman, 95.3, 100.7, 1
+Pikeman, 107.7, 97.1, 1
+Pikeman, 87.8, 93.0, 1
+Crossbowman, 113.4, 96.9, 1
+Pikeman, 79.5, 103.1, 1
+Knight, 111.8, 95.1, 1
+Knight, 97.1, 79.4, 1
+Crossbowman, 110.6, 97.0, 1
+Crossbowman, 80.8, 86.0, 1
+Crossbowman, 87.9, 91.8, 1
+Knight, 84.1, 114.3, 1
+Pikeman, 82.6, 97.8, 1
+Crossbowman, 90.5, 86.1, 1
+Pikeman, 89.2, 78.9, 1
+Crossbowman, 84.8, 113.8, 1
+Knight, 81.7, 82.3, 1
+Crossbowman, 101.6, 100.0, 1
+Crossbowman, 98.9, 91.5, 1
+Pikeman, 81.5, 84.3, 1
+Pikeman, 81.4, 84.1, 1
+Pikeman, 94.8, 91.7, 1
+Pikeman, 98.6, 102.3, 1
+Crossbowman, 86.1, 97.2, 1
+Crossbowman, 110.6, 88.5, 1
+Crossbowman, 112.2, 83.5, 1
+Pikeman, 98.3, 112.9, 1
+Crossbowman, 105.6, 86.9, 1
+Knight, 75.3, 113.8, 1
+Crossbowman, 77.2, 86.7, 1
+Knight, 77.9, 108.1, 1
+Knight, 76.9, 80.4, 1
+Knight, 85.9, 84.3, 1
+Pikeman, 76.3, 75.5, 1
+Crossbowman, 103.3, 100.5, 1
+Knight, 97.8, 89.5, 1
+Crossbowman, 87.3, 90.4, 1
+Knight, 79.5, 104.2, 1
+Knight, 77.2, 81.9, 1
+Pikeman, 96.4, 114.7, 1
+Knight, 102.6, 87.7, 1
+Knight, 104.5, 88.2, 1
+Knight, 86.1, 80.2, 1
+Crossbowman, 99.7, 110.9, 1
+Knight, 95.3, 92.6, 1
+Crossbowman, 78.5, 108.8, 1
+Crossbowman, 82.5, 98.2, 1
+Crossbowman, 105.1, 96.1, 1
+Knight, 110.9, 95.0, 1
+Pikeman, 78.8, 104.2, 1
+Knight, 111.7, 112.4, 1
+Knight, 97.4, 109.0, 1
+Pikeman, 80.7, 79.3, 1
+Pikeman, 93.9, 81.6, 1
+Pikeman, 110.8, 95.1, 1
+Pikeman, 91.9, 91.0, 1
+Pikeman, 94.8, 89.7, 1
+Pikeman, 110.6, 84.0, 1
+Crossbowman, 110.3, 108.7, 1
+Pikeman, 77.0, 113.1, 1
+Knight, 80.9, 103.1, 1
+Pikeman, 104.0, 84.2, 1
+Pikeman, 89.9, 88.2, 1
+Crossbowman, 100.2, 89.5, 1
+Pikeman, 88.4, 86.1, 1
+Knight, 94.8, 82.6, 1
+Pikeman, 94.8, 89.3, 1
+Knight, 99.3, 108.0, 1
+Knight, 87.6, 104.2, 1
 Knight, 104.5, 114.9, 1
-Knight, 107.8, 101.3, 1
-Knight, 94.8, 84.8, 1
-Pikeman, 92.1, 110.3, 1
-Crossbowman, 108.5, 100.3, 1
-Pikeman, 114.4, 100.1, 1
-Pikeman, 109.4, 93.2, 1
-Pikeman, 108.5, 76.7, 1
-Knight, 81.8, 112.6, 1
-Knight, 87.2, 97.0, 1
-Pikeman, 96.5, 100.9, 1
-Knight, 92.3, 78.9, 1
-Knight, 106.3, 107.5, 1
-Pikeman, 88.9, 93.4, 1
-Crossbowman, 92.4, 107.2, 1
-Knight, 110.9, 83.8, 1
-Pikeman, 85.5, 106.0, 1
-Crossbowman, 106.6, 84.1, 1
-Pikeman, 80.7, 109.5, 1
-Crossbowman, 81.0, 92.5, 1
-Knight, 89.4, 102.0, 1
-Crossbowman, 89.5, 97.7, 1
-Knight, 100.6, 88.5, 1
-Knight, 77.3, 101.4, 1
-Knight, 79.6, 85.4, 1
-Pikeman, 111.4, 108.8, 1
-Crossbowman, 84.4, 82.1, 1
-Crossbowman, 85.2, 102.9, 1
-Crossbowman, 105.0, 88.0, 1
-Crossbowman, 107.2, 92.1, 1
-Pikeman, 84.6, 101.9, 1
-Pikeman, 96.9, 90.2, 1
-Knight, 99.3, 114.3, 1
-Knight, 103.7, 97.6, 1
-Pikeman, 81.9, 90.2, 1
-Pikeman, 78.0, 88.8, 1
-Knight, 101.8, 111.9, 1
-Crossbowman, 86.5, 105.2, 1
-Pikeman, 98.6, 93.6, 1
-Crossbowman, 91.0, 90.6, 1
-Knight, 111.4, 78.8, 1
-Pikeman, 90.8, 82.5, 1
-Crossbowman, 82.2, 107.9, 1
-Pikeman, 100.2, 98.1, 1
-Crossbowman, 114.2, 91.9, 1
-Knight, 104.5, 83.7, 1
-Pikeman, 112.2, 82.4, 1
-Crossbowman, 95.7, 106.3, 1
-Pikeman, 84.3, 103.5, 1
-Knight, 84.5, 93.3, 1
-Crossbowman, 108.5, 100.3, 1
-Crossbowman, 111.0, 98.4, 1
-Crossbowman, 102.0, 99.9, 1
-Knight, 100.3, 107.6, 1
-Knight, 105.7, 110.9, 1
-Crossbowman, 94.9, 82.7, 1
-Crossbowman, 86.9, 108.5, 1
-Knight, 87.2, 101.8, 1
-Pikeman, 80.4, 100.0, 1
-Pikeman, 96.1, 84.9, 1
-Crossbowman, 98.9, 97.4, 1
-Knight, 108.4, 78.1, 1
-Knight, 98.8, 80.9, 1
-Crossbowman, 105.6, 100.6, 1
-Knight, 84.3, 96.0, 1
-Knight, 97.9, 90.8, 1
-Crossbowman, 107.2, 82.8, 1
-Crossbowman, 86.9, 93.9, 1
-Pikeman, 83.9, 94.2, 1
-Pikeman, 89.3, 77.2, 1
-Crossbowman, 95.3, 81.1, 1
-Pikeman, 92.3, 83.3, 1
-Pikeman, 96.6, 100.3, 1
-Pikeman, 109.4, 77.2, 1
-Knight, 80.6, 89.8, 1
-Knight, 79.6, 92.0, 1
-Crossbowman, 97.9, 106.8, 1
-Crossbowman, 111.5, 83.4, 1
-Knight, 112.1, 106.9, 1
-Pikeman, 82.4, 106.5, 1
-Pikeman, 87.5, 76.8, 1
-Knight, 101.6, 95.6, 1
-Crossbowman, 114.6, 88.4, 1
-Crossbowman, 91.9, 104.9, 1
-Crossbowman, 81.9, 97.4, 1
-Crossbowman, 89.7, 96.2, 1
-Crossbowman, 106.8, 80.3, 1
-Pikeman, 106.3, 84.9, 1
-Pikeman, 105.7, 107.2, 1
-Crossbowman, 79.2, 106.5, 1
-Pikeman, 104.5, 95.9, 1
-Pikeman, 89.4, 104.3, 1
-STRUCTURES:
-Castle, 10, 10, 0
-Castle, 110, 110, 1
-Wonder, 5, 5, 0
-Wonder, 115, 115, 1
+Knight, 96.3, 87.3, 1
+Knight, 76.2, 91.1, 1
+Knight, 81.6, 88.1, 1
+Knight, 103.1, 85.1, 1
+Knight, 89.9, 88.8, 1
+Crossbowman, 100.4, 97.5, 1
+Crossbowman, 86.5, 89.1, 1
+Pikeman, 85.8, 88.9, 1
+Pikeman, 108.2, 77.8, 1
+Crossbowman, 101.4, 113.7, 1
+Pikeman, 80.1, 81.8, 1
+Knight, 108.5, 90.0, 1
+Pikeman, 101.5, 92.5, 1
+Pikeman, 94.1, 113.1, 1
+Knight, 93.1, 79.3, 1
+Crossbowman, 88.4, 79.1, 1
+Knight, 95.9, 107.3, 1
+Knight, 76.5, 93.6, 1
+Knight, 78.8, 75.0, 1
+Pikeman, 93.9, 96.1, 1
+Crossbowman, 103.8, 109.3, 1
+Crossbowman, 93.6, 102.4, 1
+Crossbowman, 89.5, 90.8, 1
+Pikeman, 102.7, 110.0, 1
+Knight, 76.0, 95.6, 1
+Pikeman, 101.1, 83.4, 1
+Crossbowman, 79.0, 105.7, 1
+Crossbowman, 96.3, 105.4, 1
+Pikeman, 87.3, 110.8, 1
+Pikeman, 94.5, 88.8, 1
+Pikeman, 78.9, 88.5, 1
+Pikeman, 103.8, 111.4, 1
+Pikeman, 103.0, 92.1, 1
+Crossbowman, 75.6, 99.4, 1
+Knight, 83.2, 98.3, 1
+Crossbowman, 107.8, 105.9, 1
+Pikeman, 89.8, 102.8, 1
+Pikeman, 76.0, 106.2, 1
+Crossbowman, 82.5, 109.4, 1
+Pikeman, 108.3, 101.8, 1
+Knight, 113.6, 112.6, 1
+Pikeman, 81.2, 84.6, 1
+Pikeman, 103.5, 102.4, 1
+Pikeman, 103.3, 110.9, 1
+Crossbowman, 85.6, 111.3, 1
+Pikeman, 99.9, 109.1, 1
+Knight, 83.6, 109.1, 1
+Knight, 83.4, 92.3, 1
+Pikeman, 97.5, 97.4, 1
+Pikeman, 104.3, 99.1, 1
+Pikeman, 111.1, 83.4, 1
+Crossbowman, 103.4, 105.9, 1
+Pikeman, 104.0, 79.4, 1
+Crossbowman, 102.6, 82.6, 1
+Crossbowman, 83.7, 87.9, 1
+Pikeman, 106.7, 104.1, 1
+Knight, 105.0, 76.6, 1
+Crossbowman, 94.7, 78.5, 1
+Pikeman, 91.2, 97.0, 1
+Crossbowman, 77.1, 92.9, 1
+Knight, 89.6, 90.0, 1
+Crossbowman, 111.8, 76.4, 1
+Crossbowman, 110.6, 85.7, 1
+Crossbowman, 104.2, 90.5, 1
+Knight, 93.3, 88.8, 1
+Knight, 103.4, 103.1, 1
+Crossbowman, 79.0, 80.7, 1
+Pikeman, 113.4, 106.5, 1
+RESOURCES:
+Tree, 47, 55
+Tree, 61, 60
+Tree, 55, 56
+Tree, 58, 66
+Tree, 46, 57
+Tree, 61, 57
+Tree, 61, 54
+Tree, 73, 64
+Tree, 63, 59
+Tree, 46, 61
+Tree, 57, 49
+Tree, 54, 63
+Tree, 65, 70
+Tree, 62, 61
+Tree, 50, 65
+Tree, 61, 69
+Tree, 59, 48
+Tree, 62, 56
+Tree, 55, 53
+Tree, 45, 60
+Tree, 57, 68
+Tree, 64, 60
+Tree, 56, 64
+Tree, 64, 68
+Tree, 67, 52
+Tree, 61, 58
+Tree, 59, 61
+Tree, 55, 61
+Tree, 52, 60
+Tree, 46, 57
+Tree, 63, 50
+Tree, 68, 63
+Tree, 50, 56
+Tree, 61, 57
+Tree, 50, 58
+Tree, 66, 69
+Tree, 61, 60
+Tree, 55, 47
+Tree, 73, 54
+Tree, 60, 51
+Tree, 62, 64
+Tree, 61, 61
+Tree, 56, 60
+Tree, 70, 53
+Tree, 53, 52
+Tree, 55, 56
+Tree, 57, 53
+Tree, 58, 54
+Tree, 60, 61
+Tree, 55, 52
+Tree, 54, 51
+Tree, 54, 59
+Tree, 60, 65
+Tree, 66, 67
+Tree, 65, 49
+Tree, 66, 62
+Tree, 56, 52
+Tree, 59, 59
+Tree, 54, 57
+Tree, 60, 70
+Tree, 61, 63
+Tree, 65, 71
+Tree, 51, 62
+Tree, 70, 55
+Tree, 65, 51
+Tree, 57, 58
+Tree, 59, 63
+Tree, 53, 63
+Tree, 65, 53
+Tree, 59, 64
+Tree, 63, 59
+Tree, 54, 57
+Tree, 63, 64
+Tree, 67, 55
+Tree, 60, 58
+Tree, 52, 67
+Tree, 56, 65
+Tree, 67, 50
+Tree, 52, 50
+Tree, 61, 59
+Tree, 68, 70
+Tree, 60, 59
+Tree, 62, 45
+Tree, 68, 54
+Tree, 70, 64
+Tree, 59, 66
+Tree, 66, 53
+Tree, 69, 59
+Tree, 62, 62
+Tree, 59, 53
+Tree, 65, 52
+Tree, 61, 61
+Tree, 56, 54
+Tree, 60, 60
+Tree, 56, 64
+Tree, 69, 51
+Tree, 62, 69
+Tree, 51, 63
+Tree, 61, 47
+Tree, 51, 55
+Tree, 86, 30
+Tree, 86, 29
+Tree, 87, 35
+Tree, 86, 29
+Tree, 90, 25
+Tree, 85, 32
+Tree, 86, 29
+Tree, 87, 30
+Tree, 90, 31
+Tree, 93, 29
+Tree, 85, 27
+Tree, 84, 31
+Tree, 86, 30
+Tree, 84, 28
+Tree, 93, 33
+Tree, 89, 30
+Tree, 87, 35
+Tree, 86, 30
+Tree, 88, 31
+Tree, 85, 32
+Tree, 29, 72
+Tree, 27, 74
+Tree, 33, 76
+Tree, 23, 76
+Tree, 27, 69
+Tree, 32, 78
+Tree, 28, 71
+Tree, 25, 76
+Tree, 32, 80
+Tree, 25, 69
+Tree, 29, 69
+Tree, 27, 77
+Tree, 34, 71
+Tree, 25, 68
+Tree, 31, 74
+Tree, 36, 70
+Tree, 32, 75
+Tree, 30, 71
+Tree, 31, 66
+Tree, 33, 78
+Tree, 70, 71
+Tree, 74, 69
+Tree, 80, 79
+Tree, 75, 73
+Tree, 75, 73
+Tree, 71, 76
+Tree, 75, 77
+Tree, 72, 73
+Tree, 76, 74
+Tree, 75, 73
+Tree, 78, 76
+Tree, 79, 74
+Tree, 75, 73
+Tree, 78, 78
+Tree, 77, 78
+Tree, 74, 72
+Tree, 83, 73
+Tree, 75, 73
+Tree, 70, 69
+Tree, 76, 74

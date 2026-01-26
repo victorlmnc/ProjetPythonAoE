@@ -25,6 +25,7 @@ def load_scenario(filepath: str, general1_name: str = "MajorDAFT", general2_name
     elevation_data = []
     units_data = [] # (TYPE, X, Y, OWNER_ID)
     structures_data = [] # (TYPE, X, Y, OWNER_ID)
+    resources_data = [] # (TYPE, X, Y)
     
     current_section = None
 
@@ -50,6 +51,9 @@ def load_scenario(filepath: str, general1_name: str = "MajorDAFT", general2_name
                 elif line.startswith("STRUCTURES:"):
                     current_section = "STRUCTURES"
 
+                elif line.startswith("RESOURCES:"):
+                    current_section = "RESOURCES"
+
                 elif current_section == "GRID":
                      pass
 
@@ -64,6 +68,15 @@ def load_scenario(filepath: str, general1_name: str = "MajorDAFT", general2_name
                         
                         target_list = units_data if current_section == "UNITS" else structures_data
                         target_list.append((u_type, u_x, u_y, u_owner))
+                
+                elif current_section == "RESOURCES":
+                    # Format: Type, X, Y
+                    parts = line.split(',')
+                    if len(parts) >= 3:
+                        r_type = parts[0].strip()
+                        r_x = float(parts[1].strip())
+                        r_y = float(parts[2].strip())
+                        resources_data.append((r_type, r_x, r_y))
 
     except FileNotFoundError:
         print(f"Erreur: Fichier scénario introuvable '{filepath}'", file=sys.stderr)
@@ -74,6 +87,10 @@ def load_scenario(filepath: str, general1_name: str = "MajorDAFT", general2_name
     
     # 1. Create Map
     game_map = Map(width, height)
+    
+    # Ajout des ressources comme obstacles
+    for r_type, r_x, r_y in resources_data:
+        game_map.add_obstacle(r_type, int(r_x), int(r_y))
     
     # 2. Setup Armies
     # We need generals. Passed as arguments or defaults.

@@ -33,9 +33,23 @@ class Engine:
         self.units_by_id: dict[int, Unit] = {}
 
         # Optimisation : Set des obstacles pour recherche O(1)
-        self.obstacle_set = set((x, y) for _, x, y in self.map.obstacles)
+        # On exclut 'Tree' pour permettre aux unités de passer à travers (Demande User)
+        self.obstacle_set = set((x, y) for t, x, y in self.map.obstacles if t != "Tree")
 
         for army in self.armies:
+            # === Initialisation des Stats de départ ===
+            # Sauvegarder l'état initial pour les stats de fin de partie
+            # car les unités mortes sont retirées de army.units
+            army.initial_count = len(army.units)
+            army.initial_total_hp = sum(u.max_hp for u in army.units)
+            
+            # Breakdown par type d'unité
+            breakdown = {}
+            for u in army.units:
+                name = u.__class__.__name__
+                breakdown[name] = breakdown.get(name, 0) + 1
+            army.initial_units_breakdown = breakdown
+            
             for unit in army.units:
                 if unit.unit_id in self.units_by_id:
                     raise ValueError(f"Erreur: ID d'unité {unit.unit_id} dupliqué.")
@@ -84,7 +98,7 @@ class Engine:
                     self.paused = True # Le pas-à-pas force la pause après
                     step_once = True
                 elif command == "quick_save":
-                    # F11 - Sauvegarde rapide
+                    # F11 - Sauvegarde rapide (Requis par le PDF)
                     # Import local pour éviter l'import circulaire
                     from utils.serialization import save_game
                     os.makedirs("saves", exist_ok=True)
@@ -612,7 +626,7 @@ class Engine:
         # Import local pour éviter les imports circulaires
         from core.unit import Wonder
         
-        # Verification destruction des Wonders
+        # Vérification de la destruction des Wonders (Condition prioritaire selon PDF)
         for army_idx, army in enumerate(self.armies):
             enemy_idx = 1 - army_idx  # L'autre armée
             
