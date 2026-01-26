@@ -1,6 +1,6 @@
 # Medieval Battle Simulator
 
-Simulateur de batailles en temps reel (RTS) avec differentes strategies.
+Simulateur de batailles en temps reel (RTS) avec differentes strategies, développé en Python.
 
 ## Installation
 
@@ -11,39 +11,39 @@ pip install -r requirements.txt
 
 ---
 
-## Commandes Principales
+## Guide des Commandes CLI
 
-L'interface en ligne de commande (CLI) permet de lancer tous les modes de jeu.
+L'interface en ligne de commande (CLI) permet de lancer tous les modes de jeu via `python main.py`.
 
-### 1. Partie Rapide (Mode Play)
-Pour voir une bataille entre deux generaux :
+### 1. Partie Rapide (Play)
+Lancer une bataille rapide entre deux généraux.
 ```bash
 python main.py play [OPTIONS]
 ```
 **Options :**
-- `-u <UnitType>` : Choisir le type d'unité (ex: `-u Knight`, `-u Pikeman`...).
+- `-u <UnitType>` : Choisir le type d'unité (ex: `-u Knight`, `-u Pikeman`...); (défaut: Knight).
 - `-n <Nombre>` : Nombre d'unités par armée (défaut: 10).
-- `-ai <Gen1> <Gen2>` : Choisir les généraux (ex: `-ai MajorDAFT ColonelKAISER`).
-- `-t` : Mode Terminal (ASCII) au lieu de la vue 2.5D.
-- `--map-size 60x60` : Taille de la carte.
+- `-ai <Gen1> <Gen2>` : Choisir les généraux (ex: `-ai MajorDAFT ColonelKAISER`); (défaut: MajorDAFT vs MajorDAFT).
+- `-t` : Mode Terminal (ASCII) au lieu de la vue 2.5D (défaut: vue 2.5D).
+- `--map-size 60x60` : Taille de la carte (défaut: 120x120).
 
-### 2. Bataille Personnalisée (Mode Run)
-Lancer un scénario spécifique (Fichier `.scen`, `.map` ou `.py`).
+### 2. Lancer un Scénario (Run)
+Exécuter un scénario spécifique depuis un fichier `.scen`, `.map` ou `.py`.
 ```bash
 python main.py run <ScenarioFile> <AI1> <AI2> [-t]
 ```
 **Exemple :**
 ```bash
-python main.py run scenarios/compliance_test.scen MajorDAFT ColonelKAISER
+python main.py run scenarios/mega_battle.scen MajorDAFT ColonelKAISER
 ```
 
-### 3. Tournoi Automatique
-Faites s'affronter plusieurs generaux sur plusieurs scenarios.
+### 3. Tournoi Automatique (Tourney)
+Faire s'affronter plusieurs généraux sur plusieurs scénarios et générer un rapport HTML.
 ```bash
-battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-na]
+python main.py tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-na]
 ```
 **Options :**
-- `-G` : Generaux a combattre (defaut: tous disponibles).
+- `-G` : Généraux à combattre (défaut: tous disponibles).
 - `-S` : Scénarios `.scen` ou `.map` (défaut: tous dans `scenarios/` et `maps/`).
 - `-N` : Nombre de rounds par matchup (défaut: 10).
 - `-na` : Désactiver l'alternance des positions (joueur 0/1).
@@ -52,28 +52,71 @@ battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-na]
 ```bash
 python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map -N 4
 ```
-Le rapport HTML `tournament_report.html` contient :
-- Score global par general (% victoires)
-- Matrice General vs General
-- Matchups detailles par scenario
-- Performance General vs Scenario
 
+### 4. Scénario Lanchester (Lanchester)
+Tester la loi de Lanchester (N unités vs 2N unités).
+Visualisez la bataille en temps réel et obtenez automatiquement un graphique des pertes en fin de partie.
 
-### 4. Analyse Lanchester (Plot)
-Testez la loi de Lanchester (N unités vs 2N unités) et générez un graphique de performance.
 ```bash
-python main.py plot <AI> win_rate <Scenario> "<Range>"
+python main.py lanchester <UnitType> <N> [-t]
 ```
 **Exemple :**
 ```bash
-python main.py plot MajorDAFT win_rate scenarios/1v1.map "range(10, 100, 10)"
+python main.py lanchester Knight 10
+(Génère le fichier `lanchester_run_knight.png`)
+```
+
+### 5. Graphiques de Performance (Plot)
+Générer un graphique de performance (win rate, dégâts...) en fonction d'une variable.
+```bash
+python main.py plot <AI> <plotter> <Scenario> "<Range>"
+```
+**Arguments :**
+- `<plotter>` : Type de graphique (`win_rate`, `damage`, `survival`).
+- `<Range>` : Variation (ex: `range(10, 100, 10)`).
+
+**Exemple :**
+```bash
+python main.py plot MajorDAFT win_rate scenarios/exemple.map "range(10, 100, 10)"
+```
+
+### 6. Entrainement RL (Train)
+Entraîner les agents avec l'apprentissage par renforcement.
+```bash
+python main.py train [OPTIONS]
+```
+**Options :**
+- `--episodes <N>` : Nombre d'épisodes (défaut: 500).
+- `--map-size <N>` : Taille de la carte (défaut: 80).
+- `--units <N>` : Nombre d'unités (défaut: 40).
+
+### 7. Match de Démonstration (Match)
+Lancer un match graphique pré-configuré (souvent utilisé pour les démos).
+```bash
+python main.py match [OPTIONS]
+```
+**Options :**
+- `--map-size <N>` : Dimension (défaut: 120).
+- `--units <N>` : Unités par équipe (défaut: 50).
+- `--maxturn <N>` : Limite de tours (-1 pour infini).
+
+### 8. Création de Contenu (Create)
+Générer des cartes et des armées pour vos scénarios.
+```bash
+python main.py create <type> <filename> [OPTIONS]
+```
+**Créer une carte :**
+```bash
+python main.py create map maps/new_map.map --width 80 --height 80 --noise 0.1
+```
+**Créer une armée :**
+```bash
+python main.py create army armies/my_army.txt --units "Knight:20,Archer:10"
 ```
 
 ---
 
 ## Contrôles (Interface Graphique)
-
-L'interface Pygame (Vue 2.5D) propose de nombreuses commandes pour naviguer et analyser la bataille.
 
 | Action | Touche / Souris |
 | :--- | :--- |
@@ -92,13 +135,16 @@ L'interface Pygame (Vue 2.5D) propose de nombreuses commandes pour naviguer et a
 
 ---
 
-## Format de Scénario (.scen)
+## Détails Techniques
 
-Le format unifié `.scen` permet de définir la carte, les unités et les bâtiments dans un seul fichier texte facile à éditer.
+### Création de Scénarios Personnalisés (.scen)
 
-**Structure du fichier :**
+Pour créer votre propre scénario :
+1. Créez un nouveau fichier texte avec l'extension `.scen` (ex: `mon_scenario.scen`).
+2. Ouvrez-le avec un éditeur de texte (Notepad, VS Code...).
+3. Respectez le format suivant :
+
 ```text
-SIZE: <Largeur> <Hauteur>
 SIZE: <Largeur> <Hauteur>
 UNITS:
 <Type>, <X>, <Y>, <ID_Joueur>
@@ -108,89 +154,40 @@ STRUCTURES:
 ...
 ```
 
-**Exemple :**
+**Unités disponibles :**
+`Knight`, `Pikeman`, `Crossbowman`.
+
+**Bâtiments disponibles :**
+`Castle`, `Wonder`.
+
+**ID Joueur :**
+- `0` : Armée 1 (Bleu / Haut-Gauche)
+- `1` : Armée 2 (Rouge / Bas-Droite)
+
+**Exemple Complet (copier-coller dans un fichier .scen) :**
 ```text
-SIZE: 60 60
+SIZE: 80 80
 UNITS:
-Knight, 10.5, 10.5, 0
-Pikeman, 12.0, 10.5, 0
-Knight, 50.5, 50.5, 1
+Knight, 10, 10, 0
+Pikeman, 12, 10, 0
+Archer, 15, 15, 0
+Knight, 70, 70, 1
+Pikeman, 68, 70, 1
 STRUCTURES:
-Castle, 5.0, 5.0, 0
-Wonder, 55.0, 55.0, 1
-```
-### 5. Entrainement (Mode Train)
-Entrainer les agents sur une carte generee proceduralement.
-```bash
-python main.py train [OPTIONS]
-```
-**Options :**
-- `--episodes <N>` : Nombre d'épisodes d'entraînement (défaut: 500).
-- `--map-size <N>` : Taille de la carte pour l'entraînement (défaut: 80).
-- `--units <N>` : Nombre d'unités par équipe pour l'entraînement (défaut: 40).
-
-**Exemple:**
-```bash
-python main.py train --episodes 1000 --map-size 80 --units 40
+Castle, 5, 5, 0
+Wonder, 75, 75, 1
 ```
 
-### 6. Match de Demonstration (Mode Match)
-Lancer un match graphique (GUI).
-```bash
-python main.py match [OPTIONS]
-```
-**Options :**
-- `--map-size <N>` : Dimension de la carte (défaut: 120).
-- `--units <N>` : Nombre d'unités par équipe (défaut: 50).
-- `--maxturn <N>` : Limite de tours de jeu (-1 pour infini, défaut: 2000).
-
-**Exemple :**
-```bash
-python main.py match --map-size 150 --units 100 --maxturn -1
-```
-
-### 7. Creation de Contenu (Mode Create)
-Generez des cartes et des armees pour vos scenarios.
-```bash
-battle create <type> <filename> [OPTIONS]
-```
-**Options pour `map` :**
-- `--width`, `--height` : Dimensions (défaut: 60x60).
-- `--noise` : Facteur de bruit pour le terrain (0.0-1.0).
-
-**Options pour `army` :**
-- `--general` : Strategie a utiliser (defaut: MajorDAFT).
-- `--units` : Liste et nombre d'unités (ex: "Knight:10,Pikeman:5").
-- `--id` : ID de l'équipe (0 ou 1).
-
-**Exemple :**
-```bash
-python main.py create map maps/new_map.map --width 80 --height 80
-python main.py create army armies/my_army.txt --units "Knight:20,Archer:10"
-```
-
----
-
-## Outils de Développement
-
-### Verification de la strategie (Verify Kaiser)
-Un script de test pour verifier la superiorite strategique de ColonelKAISER.
-```bash
-python scripts/verify_kaiser.py
-```
-
----
-
-## Structure du Projet
+## Architecture du Projet
 
 - **`main.py`** : Point d'entrée principal (CLI).
-- **`core/`** : Cœur de la simulation.
-  - `engine.py` : Boucle principale et règles du jeu.
-  - `map.py`, `unit.py`, `army.py` : Modèles de données.
-- **`view/`** : Gestion de l'affichage.
-  - `gui_view.py` : Vue isométrique Pygame avec zoom et caméra.
-  - `terminal_view.py` : Vue ASCII pour le débogage.
-- **`ai/`** : Strategies des generaux.
-- **`scenarios/`** : Fichiers de définition des batailles (`.scen`, `.map`).
-- **`assets/`** : Ressources graphiques (Sprites).
-- **`utils/`** : Outils de chargement et de génération aléatoire.
+- **`core/`** : Moteur de jeu (`engine.py`), modèles (`unit.py`, `map.py`).
+- **`view/`** : Système de rendu (`gui_view.py`, `terminal_view.py`).
+- **`ai/`** : Logique des agents et stratégies.
+- **`scenarios/`** : Fichiers de configuration de batailles.
+- **`assets/`** : Sprites et ressources graphiques.
+- **`utils/`** : Générateurs et utilitaires.
+
+
+
+Pour les détails de la vue terminal, voir le fichier TERMINAL_VIEW_README.md

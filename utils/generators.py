@@ -14,7 +14,7 @@ def generate_map_file(filename: str, width: int, height: int, noise_level: float
         
         # GRID section removed (flat map)
             
-    print(f"✅ Carte créée : {filename}")
+    print(f"Carte créée : {filename}")
 
 def generate_army_file(filename: str, general_name: str, units_config: Dict[str, int], map_size: Tuple[int, int], army_id: int) -> None:
     """
@@ -45,4 +45,4 @@ def generate_army_file(filename: str, general_name: str, units_config: Dict[str,
                 y = random.uniform(y_min, y_max)
                 f.write(f"{unit_type}, {x:.2f}, {y:.2f}\n")
                 
-    print(f"✅ Armée créée : {filename}")
+    print(f"Armée créée : {filename}")

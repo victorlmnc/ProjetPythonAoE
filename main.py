@@ -521,7 +521,7 @@ def run_plot(args):
 
 def run_lanchester(args):
     """
-    Execute un scenario Lanchester.
+    Execute un scenario Lanchester et affiche le graphique a la fin.
     """
     print("--- Test de Lanchester ---")
     print(f"Unite: {args.unit_type}")
@@ -546,14 +546,74 @@ def run_lanchester(args):
     engine = Engine(game_map, army1, army2)
 
     # Choix de la vue
-    view = None
+    inner_view = None
     if args.terminal:
-        view = TerminalView(engine.map)
+        inner_view = TerminalView(engine.map)
     else:
-        view = PygameView(engine.map, [army1, army2])
+        inner_view = PygameView(engine.map, [army1, army2])
+
+    # Wrapper pour collecter les stats
+    class StatsWrapper:
+        def __init__(self, view_obj):
+            self.view = view_obj
+            self.history = {'t': [], 'a1': [], 'a2': []}
+
+        def display(self, armies, t, paused, speed=1.0):
+            # Enregistrement à chaque frame affichée
+            if not paused:
+                self.history['t'].append(t)
+                self.history['a1'].append(sum(1 for u in armies[0].units if u.is_alive))
+                self.history['a2'].append(sum(1 for u in armies[1].units if u.is_alive))
+            return self.view.display(armies, t, paused, speed)
+
+        def __getattr__(self, name):
+            return getattr(self.view, name)
+
+    wrapper = StatsWrapper(inner_view)
 
     speed = 1 if args.terminal else 2
-    engine.run_game(max_turns=args.max_turns, view=view, logic_speed=speed)
+    engine.run_game(max_turns=args.max_turns, view=wrapper, logic_speed=speed)
+
+    # Génération du graphique à la fin
+    print("\nGénération du graphique de bataille (Pertes)...")
+    try:
+        import matplotlib.pyplot as plt
+        
+        history = wrapper.history
+        if not history['t']:
+            print("Pas de données collectées (durée trop courte ou pause).")
+            return
+
+        # Calcul des pertes cumulées
+        initial_a1 = args.N
+        initial_a2 = 2 * args.N
+        
+        # Pertes = Initial - Vivants
+        casualties_a1 = [initial_a1 - x for x in history['a1']]
+        casualties_a2 = [initial_a2 - x for x in history['a2']]
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(history['t'], casualties_a1, 'b-', label=f'Pertes Armée 1 (Total: {args.N})')
+        plt.plot(history['t'], casualties_a2, 'r-', label=f'Pertes Armée 2 (Total: {2*args.N})')
+        
+        plt.xlabel('Temps (s)')
+        plt.ylabel('Pertes cumulées')
+        plt.title(f"Attrition Lanchester - {args.unit_type} ({args.N} vs {2*args.N})")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        
+        # Sauvegarder
+        output_path = f"lanchester_run_{args.unit_type.lower()}.png"
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        print(f"Graphique sauvegardé: {output_path}")
+        
+        # Afficher
+        plt.show()
+
+    except ImportError:
+        print("Erreur: matplotlib manquant.")
+    except Exception as e:
+        print(f"Erreur lors de la génération du graphique: {e}")
 
 
 def run_legacy_battle(args):

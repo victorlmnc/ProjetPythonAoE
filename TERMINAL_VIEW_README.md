@@ -96,18 +96,3 @@ saves/snapshot_time_Xs_YYYYMMDD_HHMMSS.html
 ```
 
 Où X est le temps écoulé en secondes depuis le début du jeu.
-
-## Exemples de jeu
-
-### Observer une bataille
-1. Lancez le jeu avec `-t` pour le mode terminal
-2. Utilisez ZQSD pour explorer la carte
-3. Appuyez sur P pour pauser à tout moment
-4. Appuyez sur TAB pour voir les détails complets
-
-### Analyser les dégâts
-1. Pausez le jeu (P)
-2. Appuyez sur TAB pour ouvrir l'HTML
-3. Inspectez les HP de chaque unité
-4. Reprenez avec P
-

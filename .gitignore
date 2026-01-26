@@ -35,7 +35,6 @@ saves/
 tournament_report.html
 lanchester_*.png
 *.sav
-*.scen
 
 # Test outputs and temporary logs
 test_output.txt
@@ -53,3 +52,6 @@ ProjetPython-1-20.pdf
 
 # Test directory (User requested cleanup)
 tests/
+
+SCRIPT_DEMO.md
+GUIDE_EXPLICATION_PROJET.md
