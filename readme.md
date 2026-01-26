@@ -1,6 +1,6 @@
-# MedievAIl - Battle GenerAIl Simulator
+# Medieval Battle Simulator
 
-Bienvenue dans **MedievAIl**, un simulateur de batailles épiques en temps réel (RTS) où des Intelligences Artificielles s'affrontent !
+Simulateur de batailles en temps reel (RTS) avec differentes strategies.
 
 ## Installation
 
@@ -16,7 +16,7 @@ pip install -r requirements.txt
 L'interface en ligne de commande (CLI) permet de lancer tous les modes de jeu.
 
 ### 1. Partie Rapide (Mode Play)
-Pour voir une bataille immédiate entre deux IAs par défaut :
+Pour voir une bataille entre deux generaux :
 ```bash
 python main.py play [OPTIONS]
 ```
@@ -38,12 +38,12 @@ python main.py run scenarios/compliance_test.scen MajorDAFT ColonelKAISER
 ```
 
 ### 3. Tournoi Automatique
-Faites s'affronter plusieurs IAs sur plusieurs scénarios pour déterminer le meilleur général.
+Faites s'affronter plusieurs generaux sur plusieurs scenarios.
 ```bash
 battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-na]
 ```
 **Options :**
-- `-G` : Généraux à combattre (défaut: tous les généraux disponibles).
+- `-G` : Generaux a combattre (defaut: tous disponibles).
 - `-S` : Scénarios `.scen` ou `.map` (défaut: tous dans `scenarios/` et `maps/`).
 - `-N` : Nombre de rounds par matchup (défaut: 10).
 - `-na` : Désactiver l'alternance des positions (joueur 0/1).
@@ -53,10 +53,10 @@ battle tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-na]
 python main.py tourney -G MajorDAFT ColonelKAISER -S maps/small.map -N 4
 ```
 Le rapport HTML `tournament_report.html` contient :
-- Score global par général (% victoires)
-- Matrice Général vs Général
-- Matchups détaillés par scénario
-- Performance Général vs Scénario
+- Score global par general (% victoires)
+- Matrice General vs General
+- Matchups detailles par scenario
+- Performance General vs Scenario
 
 
 ### 4. Analyse Lanchester (Plot)
@@ -99,9 +99,7 @@ Le format unifié `.scen` permet de définir la carte, les unités et les bâtim
 **Structure du fichier :**
 ```text
 SIZE: <Largeur> <Hauteur>
-GRID:
-0 0 1 0 ... (Élévation par tuile)
-...
+SIZE: <Largeur> <Hauteur>
 UNITS:
 <Type>, <X>, <Y>, <ID_Joueur>
 ...
@@ -121,8 +119,8 @@ STRUCTURES:
 Castle, 5.0, 5.0, 0
 Wonder, 55.0, 55.0, 1
 ```
-### 5. Entraînement IA (Mode Train)
-Entraîner les agents via l'apprentissage par renforcement (Reinforcement Learning) sur une carte générée procéduralement.
+### 5. Entrainement (Mode Train)
+Entrainer les agents sur une carte generee proceduralement.
 ```bash
 python main.py train [OPTIONS]
 ```
@@ -136,8 +134,8 @@ python main.py train [OPTIONS]
 python main.py train --episodes 1000 --map-size 80 --units 40
 ```
 
-### 6. Match de Démonstration (Mode Match)
-Lancer un match de démonstration graphique (GUI) utilisant les modèles RL préalablement entraînés.
+### 6. Match de Demonstration (Mode Match)
+Lancer un match graphique (GUI).
 ```bash
 python main.py match [OPTIONS]
 ```
@@ -151,8 +149,8 @@ python main.py match [OPTIONS]
 python main.py match --map-size 150 --units 100 --maxturn -1
 ```
 
-### 7. Création de Contenu (Mode Create)
-Générez facilement des cartes et des armées pour vos scénarios.
+### 7. Creation de Contenu (Mode Create)
+Generez des cartes et des armees pour vos scenarios.
 ```bash
 battle create <type> <filename> [OPTIONS]
 ```
@@ -161,7 +159,7 @@ battle create <type> <filename> [OPTIONS]
 - `--noise` : Facteur de bruit pour le terrain (0.0-1.0).
 
 **Options pour `army` :**
-- `--general` : IA à utiliser (défaut: MajorDAFT).
+- `--general` : Strategie a utiliser (defaut: MajorDAFT).
 - `--units` : Liste et nombre d'unités (ex: "Knight:10,Pikeman:5").
 - `--id` : ID de l'équipe (0 ou 1).
 
@@ -175,8 +173,8 @@ python main.py create army armies/my_army.txt --units "Knight:20,Archer:10"
 
 ## Outils de Développement
 
-### Vérification de l'IA (Verify Kaiser)
-Un script de test intensif pour vérifier la supériorité stratégique de ColonelKAISER.
+### Verification de la strategie (Verify Kaiser)
+Un script de test pour verifier la superiorite strategique de ColonelKAISER.
 ```bash
 python scripts/verify_kaiser.py
 ```
@@ -192,7 +190,7 @@ python scripts/verify_kaiser.py
 - **`view/`** : Gestion de l'affichage.
   - `gui_view.py` : Vue isométrique Pygame avec zoom et caméra.
   - `terminal_view.py` : Vue ASCII pour le débogage.
-- **`ai/`** : Intelligences Artificielles (Stratégies des généraux).
+- **`ai/`** : Strategies des generaux.
 - **`scenarios/`** : Fichiers de définition des batailles (`.scen`, `.map`).
 - **`assets/`** : Ressources graphiques (Sprites).
 - **`utils/`** : Outils de chargement et de génération aléatoire.

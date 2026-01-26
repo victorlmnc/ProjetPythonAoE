@@ -255,7 +255,7 @@ class Tournament:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedievAIl - Rapport de Tournoi</title>
+    <title>Battle - Rapport de Tournoi</title>
     <style>
         :root {
             --bg-dark: #1a1a2e;
@@ -339,7 +339,7 @@ class Tournament:
 </head>
 <body>
 <div class="container">
-    <h1>MedievAIl - Rapport de Tournoi</h1>
+    <h1>Rapport de Tournoi</h1>
 """]
         
         html.append(f'<p class="subtitle">Généré le {timestamp}</p>')

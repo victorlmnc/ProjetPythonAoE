@@ -31,9 +31,8 @@ else:
 
 class TerminalView:
     """
-    Gère l'affichage ASCII dans le terminal (Req 9.a).
-    Avec curses pour un rendu lisse sans cligotement.
-    Supporte les raccourcis clavier P (Pause), TAB (Snapshot HTML).
+    Affichage ASCII dans le terminal.
+    Supporte curses pour un rendu sans clignotement.
     """
     
     # Codes couleurs ANSI (fallback si curses non disponible)
@@ -136,13 +135,16 @@ class TerminalView:
                     return 'right'
                 elif key == 9:  # TAB
                     return 'tab'
-                elif key == 27:  # Échap
+                elif key == 27:  # Echap
                     return 'escape'
-                elif hasattr(curses, 'KEY_F9') and key == curses.KEY_F9:
+                elif key == 32:  # ESPACE
+                    return 'space'
+                # F-keys (codes curses: F1=265, F9=273, F11=275, F12=276)
+                elif key == 273:  # F9
                     return 'F9'
-                elif hasattr(curses, 'KEY_F11') and key == curses.KEY_F11:
+                elif key == 275:  # F11
                     return 'F11'
-                elif hasattr(curses, 'KEY_F12') and key == curses.KEY_F12:
+                elif key == 276:  # F12
                     return 'F12'
                 elif key >= 32 and key < 127:
                     return chr(key).lower()
@@ -195,7 +197,7 @@ class TerminalView:
         command = None
         scroll_speed = 1
         
-        if key == 'p':
+        if key == 'p' or key == 'space':
             command = "toggle_pause"
         elif key == '\t' or key == 'tab':
             self._generate_html_snapshot(armies, int(time_elapsed))
@@ -248,12 +250,13 @@ class TerminalView:
             self.stdscr.clear()
             term_height, term_width = self.stdscr.getmaxyx()
             
-            # Adapter dynamiquement les dimensions d'affichage à la taille du terminal
-            # Réserver 7 lignes pour: header(1) + controles(1) + position(1) + vide(1) + bordure_haut(1) + bordure_bas(1) + stats(1)
-            available_height = max(1, term_height - 7)
-            available_width = max(1, term_width - 2)  # -2 pour les bordures gauche et droite
+            # Adapter dynamiquement les dimensions d'affichage a la taille du terminal
+            # Reserver: header(1) + controles(1) + position(1) + bordure_haut(1) + bordure_bas(1) + stats(2) + marge(1) = 8 lignes
+            reserved_lines = 8
+            available_height = max(5, term_height - reserved_lines)
+            available_width = max(20, term_width - 4)  # -4 pour les bordures
             
-            # Mettre à jour les dimensions d'affichage max pour ce frame
+            # Limiter les dimensions d'affichage
             self.max_display_width = min(available_width, self.width)
             self.max_display_height = min(available_height, self.height)
             
@@ -266,8 +269,8 @@ class TerminalView:
             header = f"=== TEMPS {time_elapsed:.1f}s === [{status}] === x{speed_multiplier:.1f} ==="
             self.stdscr.addstr(0, 0, header[:term_width-1], curses.A_BOLD)
             
-            # Ligne 1: Contrôles
-            controls = "[P] Pause | [TAB] Infos | [ZQSD/Fleches] Scroll | [F9] Vue | [Esc] Quitter"
+            # Ligne 1: Controles
+            controls = "[P/ESPACE] Pause | [TAB] Infos | [ZQSD] Scroll | [F9] Vue GUI | [Esc] Quitter"
             self.stdscr.addstr(1, 0, controls[:term_width-1])
             
             # Ligne 2: Position et dimensions
@@ -326,8 +329,8 @@ class TerminalView:
                             pass
                 self.stdscr.addstr(map_start_y + 1 + iy, visible_width + 1, "|")
             
-            # Stats
-            stats_y = map_start_y + len(grid) + 3
+            # Stats - calcul de position securise
+            stats_y = min(map_start_y + visible_height + 2, term_height - 2)
             gen1 = armies[0].general.__class__.__name__
             gen2 = armies[1].general.__class__.__name__
             alive1 = self._count_alive(armies[0])
@@ -337,8 +340,9 @@ class TerminalView:
             total2 = getattr(armies[1], 'initial_count', len(armies[1].units))
             pct2 = (alive2 / total2 * 100) if total2 > 0 else 0
             
-            stats = f"Armée 1 [{gen1}]: {alive1}/{total1} ({pct1:.0f}%) | Armée 2 [{gen2}]: {alive2}/{total2} ({pct2:.0f}%)"
-            self.stdscr.addstr(stats_y, 0, stats[:term_width-1])
+            stats = f"[{gen1}]: {alive1}/{total1} ({pct1:.0f}%) | [{gen2}]: {alive2}/{total2} ({pct2:.0f}%)"
+            if stats_y < term_height:
+                self.stdscr.addstr(stats_y, 0, stats[:term_width-1])
             
             # Messages persistants
             msg_y = stats_y + 1
@@ -424,8 +428,7 @@ class TerminalView:
 
     def _generate_html_snapshot(self, armies: list[Army], time_seconds: int):
         """
-        Génère un fichier HTML instantané listant toutes les unités et leurs stats.
-        Requis par le PDF (touche TAB).
+        Genere un fichier HTML listant toutes les unites.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"saves/snapshot_time_{time_seconds}s_{timestamp}.html"
@@ -435,7 +438,7 @@ class TerminalView:
         html = [
             "<!DOCTYPE html>",
             "<html><head><meta charset='UTF-8'>",
-            f"<title>MedievAIl - État du jeu à {time_seconds}s</title>",
+            f"<title>Etat du jeu a {time_seconds}s</title>",
             "<style>",
             "* { box-sizing: border-box; }",
             "body { font-family: 'Segoe UI', 'Arial', sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #eee; padding: 20px; margin: 0; }",
@@ -461,7 +464,7 @@ class TerminalView:
             "</style>",
             "</head><body>",
             "<div class='container'>",
-            f"<h1>MedievAIl - État du jeu à {time_seconds}s</h1>",
+            f"<h1>Etat du jeu a {time_seconds}s</h1>",
             f"<p>Généré le {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
         ]
         
@@ -543,8 +546,8 @@ class TerminalView:
             pass
 
     def _get_unit_symbol(self, unit: Unit) -> str:
-        """Retourne une lettre selon le type d'unité (inspiré de AoE2).
-        Majuscules pour armée 1 (bleue), minuscules pour armée 2 (rouge).
+        """Retourne une lettre pour le type d'unite.
+        Majuscules pour armee 1, minuscules pour armee 2.
         """
         # Symboles de base (majuscules)
         if isinstance(unit, Knight): symbol = 'K'

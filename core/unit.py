@@ -14,7 +14,7 @@ DMG_PIERCE = "pierce"
 
 class Unit:
     """
-    Classe de base pour une unité avec stats AoE2 complètes + Gestion Cooldown (RTS).
+    Classe de base pour une unite avec stats et gestion du cooldown.
     """
     def __init__(self,
                  unit_id: int,
@@ -80,7 +80,7 @@ class Unit:
         self.last_pos: tuple[float, float] = pos
 
     def tick_animation(self, delta_ms: int):
-        """Avance l'animation interne de l'unité de delta_ms millisecondes."""
+        """Avance l'animation interne."""
         try:
             ms = int(delta_ms)
         except Exception:
@@ -157,18 +157,18 @@ class Unit:
         return f"{self.__class__.__name__}({self.unit_id}, HP:{self.current_hp}/{self.max_hp}, Pos:{pos_str})"
 
     def tick_cooldown(self, delta: float):
-        """Fait avancer le temps de rechargement."""
+        """Fait avancer le cooldown."""
         if self.current_cooldown > 0:
             self.current_cooldown -= delta
             if self.current_cooldown < 0:
                 self.current_cooldown = 0
 
     def can_act(self) -> bool:
-        """Vérifie si l'unité est prête à agir (attaque)."""
+        """Verifie si l'unite peut attaquer."""
         return self.current_cooldown <= 0
 
     def _calculate_distance(self, target_unit: 'Unit') -> float:
-        """ Calculates the distance between the edges of two units' hitboxes. """
+        """Distance entre les bords des hitboxes."""
         dist = math.sqrt(
             (self.pos[0] - target_unit.pos[0])**2 +
             (self.pos[1] - target_unit.pos[1])**2
@@ -176,7 +176,7 @@ class Unit:
         return max(0, dist - self.hitbox_radius - target_unit.hitbox_radius)
 
     def _center_squared_distance(self, target_unit: 'Unit') -> float:
-        """Returns squared distance between unit centers (avoid sqrt for comparisons)."""
+        """Distance au carre entre centres (evite sqrt)."""
         dx = self.pos[0] - target_unit.pos[0]
         dy = self.pos[1] - target_unit.pos[1]
         return dx * dx + dy * dy
@@ -200,8 +200,7 @@ class Unit:
 
     def calculate_damage(self, target_unit: 'Unit', game_map=None) -> int:
         """
-        Calcule les dégâts finaux infligés à une autre unité, en tenant compte
-        des bonus, de l'armure et de l'élévation.
+        Calcule les degats infliges, avec bonus, armure et elevation.
         """
         # 1. Calcul des bonus de dégâts
         total_bonus = sum(self.bonus_damage.get(cls, 0) for cls in target_unit.armor_classes)
@@ -212,21 +211,10 @@ class Unit:
         # 3. Calcul des dégâts de base
         base_damage = max(1, (self.attack_power + total_bonus) - target_armor)
 
-        # 4. Modificateur d'élévation
-        elevation_modifier = 1.0
-        if game_map:
-            attacker_elevation = game_map.get_elevation_at_pos(self.pos)
-            defender_elevation = game_map.get_elevation_at_pos(target_unit.pos)
-
-            if attacker_elevation > defender_elevation:
-                elevation_modifier = 1.25
-            elif attacker_elevation < defender_elevation:
-                elevation_modifier = 0.75
-
-        return int(base_damage * elevation_modifier)
+        return int(base_damage)
 
     def attack(self, target_unit: 'Unit', game_map=None):
-        """Tente d'attaquer la cible si à portée et rechargé."""
+        """Attaque la cible si a portee et pret."""
         if self.can_attack(target_unit) and self.can_act():
             final_damage = self.calculate_damage(target_unit, game_map)
             logger = logging.getLogger(__name__)
@@ -262,7 +250,7 @@ class Unit:
                 except Exception:
                     pass
     def to_dict(self) -> dict:
-        """Sérialise l'unité en dictionnaire."""
+        """Serialise l'unite."""
         return {
             'type': self.__class__.__name__,
             'unit_id': self.unit_id,
@@ -276,8 +264,7 @@ class Unit:
     @staticmethod
     def from_dict(data: dict) -> 'Unit':
         """
-        Reconstruit une unité depuis un dictionnaire.
-        Factory method qui instancie la bonne sous-classe.
+        Reconstruit une unite depuis un dictionnaire.
         """
         # Import local pour éviter l'import circulaire
         from core.definitions import UNIT_CLASS_MAP
@@ -331,7 +318,7 @@ class Pikeman(Unit):
             armor_classes=["Infantry", "Spearman"],
             bonus_damage={"Cavalry": 22, "Elephant": 25},
             hitbox_radius=0.2,
-            reload_time=3.0 # Lent (cf PDF)
+            reload_time=3.0
         )
 
 class Crossbowman(Unit):
@@ -401,7 +388,7 @@ class Onager(Unit):
         self.splash_radius = 1.5
 
 class LightCavalry(Unit):
-    """Cavalerie légère - Rapide mais fragile, bon pour le harcèlement."""
+    """Cavalerie legere - rapide mais fragile."""
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
@@ -414,7 +401,7 @@ class LightCavalry(Unit):
         )
 
 class Scorpion(Unit):
-    """Machine de siège à projectiles perforants - Dégâts en ligne."""
+    """Machine de siege a projectiles."""
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
@@ -429,7 +416,7 @@ class Scorpion(Unit):
         self.pierce_targets = 3  # Nombre max de cibles traversées
 
 class CappedRam(Unit):
-    """Bélier amélioré - Très résistant aux projectiles, anti-bâtiment."""
+    """Belier ameliore - resistant aux projectiles."""
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
             unit_id=unit_id, army_id=army_id, pos=pos,
@@ -443,8 +430,7 @@ class CappedRam(Unit):
 
 class Trebuchet(Unit):
     """
-    Machine de siège à très longue portée - Doit se déployer pour attaquer.
-    Stats en mode déployé (packed = mobilité, unpacked = attaque).
+    Siege a longue portee - doit se deployer.
     """
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
@@ -462,8 +448,7 @@ class Trebuchet(Unit):
 
 class EliteWarElephant(Unit):
     """
-    Éléphant de guerre d'élite - Énorme, lent, dégâts de zone (piétinement).
-    Bonus contre les bâtiments.
+    Elephant de guerre - lent mais puissant avec degats de zone.
     """
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
@@ -481,8 +466,7 @@ class EliteWarElephant(Unit):
 
 class Monk(Unit):
     """
-    Moine - Peut soigner les unités alliées et convertir les ennemis.
-    Ne fait pas de dégâts directs.
+    Moine - soigne les allies et convertit les ennemis.
     """
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(
@@ -516,7 +500,7 @@ class Castle(Unit):
 
 class Wonder(Unit):
     """
-    Merveille - Condition de victoire. Sa destruction = défaite immédiate.
+    Merveille - sa destruction = defaite.
     """
     def __init__(self, unit_id: int, army_id: int, pos: tuple[float, float]):
         super().__init__(

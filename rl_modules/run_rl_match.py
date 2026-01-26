@@ -151,7 +151,7 @@ def generate_battle_report(engine, winner, init_s1, init_s2, army1, army2):
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>MedievAIl Battle Report</title>
+        <title>Battle Report</title>
         <style>
             body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; color: #333; margin: 0; padding: 20px; }}
             .container {{ max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
@@ -207,7 +207,7 @@ def generate_battle_report(engine, winner, init_s1, init_s2, army1, army2):
             </div>
 
             <div class="footer">
-                MedievAIl - RL Battle Simulator Report
+                Battle Simulator Report
             </div>
         </div>
     </body>

@@ -52,7 +52,7 @@ UNIT_DISPLAY_SCALE = 2.5
 class PygameView:
     def __init__(self, game_map: Map, armies: list = None):
         pygame.init()
-        pygame.display.set_caption("MedievAIl - Isometric View")
+        pygame.display.set_caption("Medieval Battle - Isometric View")
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
         self.map = game_map
@@ -94,7 +94,7 @@ class PygameView:
         self.scroll_x = 0
         self.scroll_y = 0
         
-        # --- Toggles UI (Req 12 PDF: F1-F4) ---
+        # Toggles UI (F1-F4)
         self.show_army_info = True      # F1: Infos générales
         self.show_hp_bars = True        # F2: Barres de vie
         self.show_minimap = True        # F3/M: Minimap
@@ -207,7 +207,7 @@ class PygameView:
         
         # Title
         title_font = pygame.font.SysFont('Arial', 48, bold=True)
-        title = title_font.render("MedievAIl", True, (255, 215, 100))
+        title = title_font.render("Medieval Battle", True, (255, 215, 100))
         self.screen.blit(title, (self.screen_w // 2 - title.get_width() // 2, self.screen_h // 2 - 100))
         
         # Subtitle
@@ -557,7 +557,7 @@ class PygameView:
         """Gère clavier/souris."""
         keys = pygame.key.get_pressed()
         
-        # Vitesse de scroll (Maj = rapide, Req 9 PDF)
+        # Vitesse de scroll (Maj = rapide)
         current_speed = self.scroll_speed_fast if (keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]) else self.scroll_speed
         
         # Déplacement Caméra (Flèches + ZQSD pour clavier français)
@@ -644,7 +644,7 @@ class PygameView:
                 if event.key == pygame.K_SPACE: return "toggle_pause"
                 if event.key == pygame.K_s: return "step"
                 
-                # --- Req 12 PDF: F1-F4 Toggle info armée ---
+                # F1-F4 Toggle info armee
                 # F1/F2 capturées par Windows -> alternatives: touches 1 et 2
                 if event.key == pygame.K_F1 or event.key == pygame.K_1: 
                     self.show_army_info = not self.show_army_info
@@ -655,16 +655,16 @@ class PygameView:
                 if event.key == pygame.K_F4 or event.key == pygame.K_4: 
                     self.show_unit_details = not self.show_unit_details
                 
-                # --- Req 11 PDF: M = toggle minimap ---
+                # M = toggle minimap
                 if event.key == pygame.K_m:
                     self.show_minimap = not self.show_minimap
                 
-                # --- Raccourcis F9, F11, F12 (Requis par le PDF) ---
+                # Raccourcis F9, F11, F12
                 if event.key == pygame.K_F9: return "switch_view"  # Basculer Terminal/Pygame
                 if event.key == pygame.K_F11: return "quick_save"  # Sauvegarde rapide
                 if event.key == pygame.K_F12: return "quick_load"  # Chargement rapide
 
-                # --- Req 10 (Variable Speed) ---
+                # Variable Speed
                 # Claviers portables: PageUp/PageDown (universel) + touches = et 0
                 if event.key in (pygame.K_KP_PLUS, pygame.K_PAGEUP, pygame.K_EQUALS): 
                     return "speed_up"
@@ -702,41 +702,24 @@ class PygameView:
                 tile = self.map.grid[x][y]
                 screen_x, screen_y = self.cart_to_iso(x, y)
 
-                # 1. Calcul de l'élévation (mise à l'échelle)
-                height_offset = 0
-                if tile.terrain_type != 'water':
-                    height_offset = round(tile.elevation * 2 * self.zoom)
-                    
-                base_y = screen_y - height_offset
+                screen_x, screen_y = self.cart_to_iso(x, y)
 
                 # 2. DESSIN DU FOND (GAZON ou COULEUR)
-                if self.grass_sprite and tile.terrain_type != 'water' and tile.elevation == 0:
+                if self.grass_sprite and tile.terrain_type != 'water':
                     sprite = self.grass_sprite
                     draw_x = screen_x - self.tile_half_w
                     draw_y = screen_y - self.tile_half_h
                     self.screen.blit(sprite, (draw_x, draw_y))
                 else:
-                    # Fallback : Dessin du losange par couleur d'élévation
-                    elev_idx = min(int(tile.elevation / 4), 4)
-                    color = TERRAIN_COLORS.get(elev_idx, TERRAIN_COLORS[0])
+                    # Fallback : Dessin du losange standard
+                    color = TERRAIN_COLORS.get(0) # Default green
                     points = [
-                        (screen_x, base_y - self.tile_half_h),
-                        (screen_x + self.tile_half_w, base_y),
-                        (screen_x, base_y + self.tile_half_h),
-                        (screen_x - self.tile_half_w, base_y)
+                        (screen_x, screen_y - self.tile_half_h),
+                        (screen_x + self.tile_half_w, screen_y),
+                        (screen_x, screen_y + self.tile_half_h),
+                        (screen_x - self.tile_half_w, screen_y)
                     ]
                     pygame.draw.polygon(self.screen, color, points)
-
-                # 3. Effet 3D (pour les tuiles colorées)
-                if height_offset > 0 and tile.terrain_type != 'water':
-                     color = TERRAIN_COLORS.get(min(int(tile.elevation / 4), 4), TERRAIN_COLORS[0])
-                     darker = (max(0, color[0]-40), max(0, color[1]-40), max(0, color[2]-40))
-                     pygame.draw.polygon(self.screen, darker, [
-                         (screen_x - self.tile_half_w, base_y),
-                         (screen_x, base_y + self.tile_half_h),
-                         (screen_x, screen_y + self.tile_half_h),
-                         (screen_x - self.tile_half_w, screen_y)
-                     ])
 
                 # 4. DESSIN DU SPRITE D'ARBRE
                 is_tree = (x, y) in obstacles_dict and obstacles_dict[(x,y)] == "Tree"
@@ -777,12 +760,9 @@ class PygameView:
                 continue
 
             tile = self.map.grid[ix][iy]
-            height_offset = 0
-            if tile.terrain_type != 'water':
-                height_offset = int(tile.elevation * 2 * self.zoom)
 
             screen_x, screen_y = self.cart_to_iso(x, y)
-            unit_draw_y = screen_y - height_offset
+            unit_draw_y = screen_y
 
             unit_class = unit.__class__
             sprites_for_unit = self.unit_sprites.get(unit_class)

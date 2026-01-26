@@ -32,15 +32,11 @@ def load_map_from_file(filepath: str) -> Map:
                     width, height = int(parts[0]), int(parts[1])
 
                 elif line.startswith("GRID:"):
+                    # On ignore la grille d'élévation
                     reading_grid = True
-                    grid_data = []
 
                 elif reading_grid:
-                    # Lecture des données de la grille d'élévation
-                    row = [int(e) for e in line.split()]
-                    if len(row) != width:
-                        raise ValueError(f"Ligne {line_number}: La largeur de la grille ne correspond pas à la taille attendue de {width}.")
-                    grid_data.append(row)
+                    pass
 
     except FileNotFoundError:
         print(f"Erreur: Fichier carte introuvable '{filepath}'", file=sys.stderr)
@@ -49,17 +45,8 @@ def load_map_from_file(filepath: str) -> Map:
         print(f"Erreur dans le fichier carte '{filepath}': {e}", file=sys.stderr)
         sys.exit(1)
 
-    if len(grid_data) != height:
-        raise ValueError(f"La hauteur de la grille ({len(grid_data)}) ne correspond pas à la taille attendue de {height}.")
-
     # Créer et peupler la carte
     game_map = Map(width, height)
-    for y in range(height):
-        for x in range(width):
-            elevation = grid_data[y][x]
-            tile = game_map.get_tile(x, y)
-            if tile:
-                tile.elevation = elevation
 
     print(f"Carte chargée: {width}x{height}.")
     return game_map

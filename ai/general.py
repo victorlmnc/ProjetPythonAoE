@@ -9,23 +9,17 @@ type Action = tuple[str, int, any]
 
 class General(abc.ABC):
     """
-    Classe de base abstraite pour une IA (req 3).
-    Doit implémenter 'decide_actions'.
+    Classe de base abstraite pour une IA.
     """
     def __init__(self, army_id: int):
         self.army_id = army_id
     
     @abc.abstractmethod
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
-        """
-        L'IA doit retourner une liste d'actions pour ses unités.
-        """
-        pass
+        """Retourne une liste d'actions pour les unites."""
 
     def find_closest_enemy(self, unit: Unit, enemy_units: list[Unit]) -> Optional[Unit]:
-        """
-        Une fonction utilitaire que les IA peuvent réutiliser.
-        """
+        """Trouve l'ennemi le plus proche."""
         closest_enemy = None
         min_dist_sq = float('inf')
 

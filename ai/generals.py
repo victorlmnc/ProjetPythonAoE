@@ -5,14 +5,11 @@ from core.unit import Unit
 import random
 import math
 
-# (req 3)
+# IA de base
 class CaptainBRAINDEAD(General):
     """
-    IA Niveau 0: Le bon capitaine revient d'une lobotomie réussie.
-    Il n'est pas en état de donner des ordres tactiques.
-    Les unités agissent individuellement : elles attaquent les ennemis
-    dans leur champ de vision (Line of Sight) et s'en approchent si besoin,
-    mais ne cherchent pas le combat si elles sont laissées seules.
+    IA niveau 0: les unites agissent individuellement.
+    Attaque uniquement les ennemis dans le champ de vision.
     """
     def decide_actions(self, current_map: Map, my_units: list[Unit], enemy_units: list[Unit]) -> list[Action]:
         actions = []
@@ -74,12 +71,8 @@ class MajorDAFT(General):
 
 class ColonelKAISER(General):
     """
-    IA Stratégique (Req 3).
-    - Évaluation des menaces (counters)
-    - Formations (archers derrière)
-    - Kiting pour les unités à distance
-    - Focus fire intelligent
-    - Cohésion: Les mêlées attendent les tireurs si trop éloignées
+    IA strategique avec evaluation des menaces, formations,
+    kiting pour les unites a distance, et focus fire.
     """
     # Constantes pour la configuration de l'IA
     KITING_RANGE_PERCENTAGE = 0.5  # Les unités à distance fuient si un ennemi est à 50% de leur portée
@@ -97,14 +90,14 @@ class ColonelKAISER(General):
         self.waiting_units: set[int] = set()  # IDs des unités actuellement en attente
 
     def _is_unit_in_combat(self, unit: Unit, enemy_units: list[Unit]) -> bool:
-        """Vérifie si une unité est en combat (ennemi à portée d'attaque)."""
+        """Verifie si une unite est en combat."""
         for enemy in enemy_units:
             if enemy.is_alive and unit.can_attack(enemy):
                 return True
         return False
 
     def _calculate_group_centroid(self, units: list[Unit]) -> tuple[float, float] | None:
-        """Calcule le centroïde d'un groupe d'unités."""
+        """Calcule le centre d'un groupe d'unites."""
         if not units:
             return None
         avg_x = sum(u.pos[0] for u in units) / len(units)
@@ -112,7 +105,7 @@ class ColonelKAISER(General):
         return (avg_x, avg_y)
 
     def _get_distance_to_ranged(self, melee_unit: Unit, ranged_units: list[Unit]) -> float | None:
-        """Calcule la distance entre une unité de mêlée et le centroïde des tireurs."""
+        """Distance entre une melee et le centre des tireurs."""
         ranged_centroid = self._calculate_group_centroid(ranged_units)
         if ranged_centroid is None:
             return None
@@ -122,10 +115,8 @@ class ColonelKAISER(General):
 
     def _should_melee_wait(self, melee_unit: Unit, ranged_units: list[Unit], enemy_units: list[Unit]) -> bool:
         """
-        Détermine si une unité de mêlée doit attendre les tireurs.
-        Utilise une hystérésis pour éviter l'oscillation:
-        - S'arrête quand distance > MELEE_WAIT_DISTANCE
-        - Reprend seulement quand distance < MELEE_RESUME_DISTANCE
+        Determine si une melee doit attendre les tireurs.
+        Utilise une hysteresis pour eviter l'oscillation.
         """
         if not ranged_units:
             self.waiting_units.discard(melee_unit.unit_id)
@@ -218,8 +209,7 @@ class ColonelKAISER(General):
 
     def _find_best_target(self, unit: Unit, enemy_units: list[Unit], enemy_lookup: dict, current_map: Map) -> Unit | None:
         """
-        Sélectionne la meilleure cible selon une heuristique de 'valeur'.
-        Score = (Dégâts infligés / Dégâts reçus) * Bonus de proximité * Bonus Kill
+        Selectionne la meilleure cible selon une heuristique.
         """
         best_target = None
         max_score = -1

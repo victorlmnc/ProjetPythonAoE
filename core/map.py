@@ -6,11 +6,8 @@ class Tile:
     """
     Représente une seule tuile sur la grille de la carte.
     """
-    def __init__(self, terrain_type: str = "plain", elevation: int = 0):
-        if not 0 <= elevation <= 16:
-            raise ValueError("L'élévation doit être comprise entre 0 et 16.")
+    def __init__(self, terrain_type: str = "plain"):
         self.terrain_type = terrain_type
-        self.elevation = elevation
         self.units: list[Unit] = []
 
 class Map:
@@ -35,12 +32,6 @@ class Map:
         if 0 <= x < self.width and 0 <= y < self.height:
             return self.grid[x][y]
         return None
-
-    def get_elevation_at_pos(self, pos: tuple[float, float]) -> int:
-        """Retourne l'élévation à une coordonnée de position donnée."""
-        x, y = int(pos[0]), int(pos[1])
-        tile = self.get_tile(x, y)
-        return tile.elevation if tile else 0
 
     def add_unit(self, unit: Unit):
         """Ajoute une unité à la grille en se basant sur sa position."""
@@ -139,8 +130,8 @@ class Map:
             for y in range(self.height):
                 tile = self.grid[x][y]
                 # Optimisation: ne sauvegarder que si non par défaut
-                if tile.terrain_type != "plain" or tile.elevation != 0:
-                     row.append({'x': x, 'y': y, 't': tile.terrain_type, 'e': tile.elevation})
+                if tile.terrain_type != "plain":
+                     row.append({'x': x, 'y': y, 't': tile.terrain_type})
             if row:
                 grid_data.extend(row)
         
@@ -163,7 +154,6 @@ class Map:
             x, y = tile_data['x'], tile_data['y']
             if 0 <= x < width and 0 <= y < height:
                 new_map.grid[x][y].terrain_type = tile_data.get('t', 'plain')
-                new_map.grid[x][y].elevation = tile_data.get('e', 0)
         
         new_map.obstacles = [tuple(obs) for obs in data.get('obstacles', [])]
         return new_map

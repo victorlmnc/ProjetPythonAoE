@@ -15,9 +15,8 @@ QUICK_SAVE_PATH = "saves/quicksave.sav"
 
 class Engine:
     """
-    Le moteur de jeu principal (req 5).
-    Gère la boucle de jeu, l'état du monde, et met à jour la
-    matrice creuse (la Map) avec les positions flottantes.
+    Moteur de jeu principal.
+    Gere la boucle de jeu, l'etat global, et les positions.
     """
     def __init__(self, map_instance: Map, army1: Army, army2: Army):
         self.map: Map = map_instance
@@ -46,10 +45,8 @@ class Engine:
     def run_game(self, max_turns: int = 2000, view: Optional[Any] = None, logic_speed: int = 2, quiet: bool = False):
         """
         Boucle principale du jeu.
-        logic_speed : Diviseur de frame.
-            - Avant: 15 (4 updates/sec)
-            - Maintenant: 2 (30 updates/sec) pour fluidité
-        quiet: Si True, supprime les messages console (pour mode tournoi)
+        logic_speed : diviseur de frame (2 = 30 updates/sec)
+        quiet: supprime les messages console
         """
         if not quiet:
             print(f"Debut de la partie sur une carte de {self.map.width}x{self.map.height}!")
@@ -87,7 +84,7 @@ class Engine:
                     self.paused = True # Le pas-à-pas force la pause après
                     step_once = True
                 elif command == "quick_save":
-                    # F11 - Sauvegarde rapide (Requis par le PDF)
+                    # F11 - Sauvegarde rapide
                     # Import local pour éviter l'import circulaire
                     from utils.serialization import save_game
                     os.makedirs("saves", exist_ok=True)
@@ -213,7 +210,7 @@ class Engine:
                 print("Egalite.")
 
     def _determine_unit_status(self, unit: Unit):
-        """Updates the status of a unit based on its state and surroundings."""
+        """Met a jour le statut d'une unite."""
         if not getattr(unit, 'is_alive', True):
             unit.statut = 'death'
             return
@@ -259,7 +256,7 @@ class Engine:
                     pass
 
     def _execute_actions(self, actions: list[Action], dt: float):
-        """Exécute les actions (Temps, Mouvements, Attaques)."""
+        """Execute les actions (Mouvements, Attaques)."""
 
         # 0. FAIRE AVANCER LE TEMPS (COOLDOWNS)
         # dt est le temps écoulé en secondes depuis la dernière update
@@ -353,7 +350,7 @@ class Engine:
                                 if other.is_alive and other != target and other.army_id != unit.army_id:
                                     other.take_damage(trample_dmg)
         
-        # 3. Actions spéciales des Moines (Heal / Conversion) - PDF Req 6
+        # Actions speciales des Moines (Heal / Conversion)
         for action_type, unit_id, data in actions:
             unit = self.units_by_id.get(unit_id)
             if not unit or not unit.is_alive:
@@ -390,7 +387,7 @@ class Engine:
             self._determine_unit_status(unit)
 
     def _handle_movement(self, unit: Unit, target_pos: tuple[float, float], dt: float):
-        """Calcule et applique le mouvement."""
+        """Calcule et applique le mouvement d'une unite."""
         old_pos = unit.pos
         # Conserver last_pos pour l'orientation des sprites
         try:
@@ -460,7 +457,7 @@ class Engine:
         self.map.update_unit_position(unit, old_pos, final_pos)
 
     def _is_colliding_with_obstacle(self, pos: tuple[float, float], radius: float) -> bool:
-        """Vérifie si une position chevauche un obstacle de la carte."""
+        """Verifie si une position est sur un obstacle."""
         min_x = int(pos[0] - radius)
         max_x = int(pos[0] + radius)
         min_y = int(pos[1] - radius)
@@ -473,7 +470,7 @@ class Engine:
         return False
 
     def _resolve_collisions(self, moving_unit: Unit, potential_pos: tuple[float, float]) -> tuple[float, float]:
-        """Gère le chevauchement avec une logique de glissement pour éviter les blocages en ligne."""
+        """Gere les collisions entre unites."""
         final_x, final_y = potential_pos
         nearby_units = self.map.get_nearby_units(moving_unit, search_radius=moving_unit.hitbox_radius + 2.0)
 
@@ -520,7 +517,7 @@ class Engine:
         
         return (final_x, final_y)
     def _reap_dead_units(self):
-        """Retire les unités mortes."""
+        """Retire les unites mortes du jeu."""
         # Si nous avons une vue (animations côté client), laisser la
         # durée de l'animation de mort s'écouler avant suppression.
         for unit_id in list(self.units_by_id.keys()):
@@ -575,7 +572,7 @@ class Engine:
                     pass
 
     def to_dict(self) -> dict:
-        """Sérialise le moteur de jeu entier."""
+        """Serialise le moteur de jeu."""
         return {
             'map': self.map.to_dict(),
             'army1': self.armies[0].to_dict(),
@@ -586,7 +583,7 @@ class Engine:
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Engine':
-        """Reconstruit le moteur de jeu."""
+        """Reconstruit le moteur depuis un dictionnaire."""
         # Note: L'ordre de reconstruction est important
         
         # 1. Map
@@ -608,15 +605,14 @@ class Engine:
 
     def _check_game_over(self) -> bool:
         """
-        Vérifie les conditions de fin de partie.
-        Conditions de victoire (PDF):
-        1. Destruction de la Merveille (Wonder) ennemie = Victoire immédiate
-        2. Élimination de toutes les unités ennemies
+        Verifie les conditions de fin:
+        1. Destruction de la Merveille ennemie
+        2. Elimination de toutes les unites
         """
         # Import local pour éviter les imports circulaires
         from core.unit import Wonder
         
-        # Vérification de la destruction des Wonders (Condition prioritaire selon PDF)
+        # Verification destruction des Wonders
         for army_idx, army in enumerate(self.armies):
             enemy_idx = 1 - army_idx  # L'autre armée
             

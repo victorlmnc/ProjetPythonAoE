@@ -4,8 +4,8 @@ from ai.general import General
 
 class Army:
     """
-    Représente une armée (req 4).
-    Contient une liste d'unités et le Général (IA) qui les commande.
+    Represente une armee.
+    Contient une liste d'unites et le General qui les commande.
     """
     def __init__(self, army_id: int, units: list[Unit], general: General):
         self.army_id: int = army_id

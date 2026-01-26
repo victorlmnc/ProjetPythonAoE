@@ -51,12 +51,7 @@ def load_scenario(filepath: str, general1_name: str = "MajorDAFT", general2_name
                     current_section = "STRUCTURES"
 
                 elif current_section == "GRID":
-                    row = [int(e) for e in line.split()]
-                    if len(row) != width:
-                         # Warning or Error? Let's implement robust read
-                         # If row is shorter, fill with 0? No, let's error for now to be safe.
-                         raise ValueError(f"Ligne {line_number}: Grid width mismatch.")
-                    elevation_data.append(row)
+                     pass
 
                 elif current_section == "UNITS" or current_section == "STRUCTURES":
                     # Format: Type, X, Y, Owner
@@ -77,19 +72,8 @@ def load_scenario(filepath: str, general1_name: str = "MajorDAFT", general2_name
         print(f"Erreur parsage '{filepath}': {e}", file=sys.stderr)
         sys.exit(1)
     
-    # Validation Grid
-    if elevation_data and len(elevation_data) != height:
-         # Fill with 0 if missing rows (or error)
-         print(f"Attention: Données d'élévation incomplètes. Remplissage avec 0.")
-         while len(elevation_data) < height:
-             elevation_data.append([0]*width)
-
     # 1. Create Map
     game_map = Map(width, height)
-    if elevation_data:
-        for y in range(height):
-            for x in range(width):
-                game_map.get_tile(x, y).elevation = elevation_data[y][x]
     
     # 2. Setup Armies
     # We need generals. Passed as arguments or defaults.

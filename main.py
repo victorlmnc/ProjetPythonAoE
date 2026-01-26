@@ -1,7 +1,7 @@
 # main.py
 """
-MedievAIl - Battle GenerAIl Simulator
-Point d'entrée CLI conforme au cahier des charges PDF.
+Medieval Battle Simulator
+Point d'entree CLI.
 
 Usage:
     battle run <scenario> <AI1> <AI2> [-t] [-d DATAFILE]
@@ -32,18 +32,17 @@ from utils.generators import generate_map_file, generate_army_file
 
 
 def load_game_from_save(filepath: str) -> Engine:
-    """Charge un moteur de jeu complet depuis une sauvegarde."""
+    """Charge une sauvegarde."""
     return load_game(filepath)
 
 
 def main(args: Optional[list[str]] = None):
     """
-    Point d'entrée principal de la simulation MedievAIl.
-    CLI conforme au format du PDF (Req 1).
+    Point d'entree principal.
     """
     parser = argparse.ArgumentParser(
         prog="battle",
-        description="MedievAIl - Battle GenerAIl Simulator",
+        description="Medieval Battle Simulator",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples d'utilisation:
@@ -233,10 +232,9 @@ Exemples d'utilisation:
 
 def run_battle(args):
     """
-    Exécute une bataille unique.
-    Format: battle run <scenario> <AI1> <AI2> [-t] [-d DATAFILE]
+    Execute une bataille.
     """
-    print("--- MedievAIl: Bataille ---")
+    print("--- Bataille ---")
     print(f"Scénario: {args.scenario}")
     print(f"Général 1: {args.AI1}")
     print(f"Général 2: {args.AI2}")
@@ -288,10 +286,10 @@ def run_battle(args):
             army1 = load_army_from_file(args.army1, army_id=0, general_name=args.AI1)
             army2 = load_army_from_file(args.army2, army_id=1, general_name=args.AI2)
 
-    # Cas 3: Scénario Python (.py)
+    # Cas 3: Scenario Python (.py)
     else:
-        # Scénario Python (.py) - Implémentation Req 3
-        print(f"Chargement du scénario Python: {args.scenario}")
+        # Scenario Python
+        print(f"Chargement du scenario Python: {args.scenario}")
         try:
             # Chargement dynamique du module
             spec = importlib.util.spec_from_file_location("scenario_module", args.scenario)
@@ -344,13 +342,12 @@ def run_battle(args):
 
 def run_tourney(args):
     """
-    Exécute un tournoi automatique.
-    Format: battle tourney [-G AI1 AI2...] [-S SCEN1...] [-N=10] [-na]
+    Execute un tournoi automatique.
     """
     import glob
 
     print("=" * 60)
-    print("MedievAIl: Tournoi Automatique")
+    print("Tournoi Automatique")
     print("=" * 60)
 
     # Auto-découverte des généraux si non spécifiés
@@ -409,12 +406,10 @@ def run_tourney(args):
 
 def run_plot(args):
     """
-    Génère des graphiques de performance Lanchester.
-    Format: battle plot <AI> <plotter> <scenario> <range>
-    Utilise eval() pour parser le range (conforme au PDF).
+    Genere des graphiques Lanchester.
     """
     print("=" * 60)
-    print("MedievAIl: Génération de Graphiques Lanchester")
+    print("Generation de Graphiques Lanchester")
     print("=" * 60)
     print(f"IA testée     : {args.AI}")
     print(f"Type de plot  : {args.plotter}")
@@ -526,11 +521,10 @@ def run_plot(args):
 
 def run_lanchester(args):
     """
-    Exécute un scénario de loi de Lanchester.
-    Format: battle lanchester <unit_type> <N> [-t]
+    Execute un scenario Lanchester.
     """
-    print("--- MedievAIl: Test de Lanchester ---")
-    print(f"Unité: {args.unit_type}")
+    print("--- Test de Lanchester ---")
+    print(f"Unite: {args.unit_type}")
     print(f"Configuration: {args.N} vs {2 * args.N}")
 
     unit_class = UNIT_CLASS_MAP.get(args.unit_type)
@@ -564,8 +558,7 @@ def run_lanchester(args):
 
 def run_legacy_battle(args):
     """
-    Mode legacy pour rétrocompatibilité.
-    Format: battle legacy --map X --army1 Y --army2 Z
+    Mode legacy.
     """
     print("--- Mode Legacy ---")
 
@@ -600,11 +593,10 @@ def run_legacy_battle(args):
 
 def run_play(args):
     """
-    Commande simplifiee pour lancer une partie rapidement.
-    Format: python main.py play [-t] [-u Knight] [-n 10] [-ai DAFT KAISER]
+    Lance une partie rapidement.
     """
     print("=" * 50)
-    print("MedievAIl - Partie Rapide")
+    print("Partie Rapide")
     print("=" * 50)
     print(f"Unites   : {args.count}x {args.units} par camp")
     print(f"IAs      : {args.generals[0]} vs {args.generals[1]}")
@@ -665,9 +657,7 @@ def run_play(args):
 
 
 def run_create(args):
-    """
-    Gère la commande 'battle create'.
-    """
+    """Gere la commande 'battle create'."""
     if args.create_type == "map":
         generate_map_file(args.filename, args.width, args.height, args.noise)
 

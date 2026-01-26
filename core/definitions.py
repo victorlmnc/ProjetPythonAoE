@@ -21,7 +21,7 @@ UNIT_CLASS_MAP = {
     "EliteSkirmisher": EliteSkirmisher,
     "CavalryArcher": CavalryArcher,
     "Onager": Onager,
-    # Nouvelles unités (Req PDF)
+    # Nouvelles unites
     "LightCavalry": LightCavalry,
     "Scorpion": Scorpion,
     "CappedRam": CappedRam,

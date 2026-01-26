@@ -123,14 +123,8 @@ class CustomPygameView(PygameView):
             # Tính toán tọa độ màn hình
             screen_x, screen_y = self.cart_to_iso(x, y)
 
-            # Tính độ cao địa hình (Elevation) để vẽ đúng độ cao
-            tile = self.map.grid[int(x)][int(y)]
-            height_offset = 0
-            if tile.terrain_type != 'water':
-                height_offset = int(tile.elevation * 2 * self.zoom)
-
             # draw_pos_y là tọa độ pixel tại "mặt đất" (chân unit)
-            draw_pos_y = screen_y - height_offset
+            draw_pos_y = screen_y
 
             # --- VẼ UNIT ---
             custom_img = self.get_unit_image(unit)

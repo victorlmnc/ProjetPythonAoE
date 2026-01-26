@@ -5,8 +5,7 @@ from engine import Engine
 
 def save_game(engine: Engine, filename: str):
     """
-    Sauvegarde l'état complet du moteur de jeu dans un fichier JSON (.json).
-    Remplace pickle pour sécurité (Req 12 patchée).
+    Sauvegarde l'etat complet du moteur de jeu dans un fichier JSON.
     """
     # Force extension .json if .sav is passed (migration)
     if filename.endswith(".sav"):
