@@ -73,29 +73,13 @@ python main.py lanchester <UnitType> <N> [-t]
 ```
 **Exemple :**
 ```bash
-python main.py lanchester Knight 50
+python main.py lanchester Knight 30
 ```
 (Génère automatiquementle fichier `lanchester_run_knight.png`)
 
 
 
-### 5. Graphiques de Performance (Plot)
-Générer un graphique de performance (win rate, dégâts...) en fonction d'une variable.
-```bash
-python main.py plot <AI> <plotter> <Scenario> "<Range>"
-```
-**Arguments :**
-- `<plotter>` : Type de graphique (`win_rate`, `damage`, `survival`).
-- `<Range>` : Variation (ex: `range(10, 100, 10)`).
-
-**Exemple :**
-```bash
-python main.py plot MajorDAFT win_rate scenarios/exemple.map "range(10, 100, 10)"
-```
-
-
-
-### 6. Entrainement RL (Train)
+### 5. Entrainement RL (Train)
 Entraîner les agents avec l'apprentissage par renforcement.
 ```bash
 python main.py train [OPTIONS]
@@ -107,7 +91,7 @@ python main.py train [OPTIONS]
 
 
 
-### 7. Match de Démonstration pour RL (Match)
+### 6. Match de Démonstration pour RL (Match)
 Lancer un match graphique pré-configuré.
 ```bash
 python main.py match [OPTIONS]
@@ -123,7 +107,7 @@ python python main.py match --map-size 120 --units 40 --maxturn -1
 
 
 
-### 8. Création de Contenu (Create)
+### 7. Création de Contenu (Create)
 Générer des cartes et des armées pour vos scénarios.
 ```bash
 python main.py create <type> <filename> [OPTIONS]
