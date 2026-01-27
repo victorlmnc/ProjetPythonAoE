@@ -270,7 +270,7 @@ class TerminalView:
             self.stdscr.addstr(0, 0, header[:term_width-1], curses.A_BOLD)
             
             # Ligne 1: Controles
-            controls = "[P/ESPACE] Pause | [TAB] Infos | [ZQSD] Scroll | [F9] Vue GUI | [Esc] Quitter"
+            controls = "[P/ESPACE] Pause | [TAB] Infos | [ZQSD] Scroll | [Esc] Quitter"
             self.stdscr.addstr(1, 0, controls[:term_width-1])
             
             # Ligne 2: Position et dimensions

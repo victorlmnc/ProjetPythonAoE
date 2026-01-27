@@ -30,6 +30,7 @@ python main.py play (+ [OPTIONS] si voulu)
 **Exemple complet avec options :**
 ```bash
 python main.py play -u Knight Pikeman Crossbowman -n 50 -ai MajorDAFT ColonelKAISER --map-size 80x80
+python main.py play -u Knight Pikeman Crossbowman -n 50 -ai MajorDAFT ColonelKAISER --map-size 80x80 -t
 ```
 
 
