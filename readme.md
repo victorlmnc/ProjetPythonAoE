@@ -59,7 +59,7 @@ python main.py tourney [-G AI1 AI2 ...] [-S SCENARIO1 SCENARIO2 ...] [-N=10] [-n
 
 **Exemple :**
 ```bash
-python main.py tourney -G MajorDAFT ColonelKAISER -S scenarios/mega_battle.scen -N 4
+python main.py tourney -G MajorDAFT ColonelKAISER -S scenarios/tourney_battle.scen -N 4
 ```
 
 

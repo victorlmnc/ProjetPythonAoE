@@ -391,7 +391,7 @@ def run_tourney(args):
     if args.army:
         print(f"Armee: {args.army}")
     else:
-        print("Armee: 10 Knights (defaut)")
+        print("\n")
     print("=" * 60)
 
     tournament = Tournament(
