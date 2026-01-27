@@ -11,7 +11,7 @@ from ai.general import General
 Action = tuple[str, int, Any]
 
 # Chemin par défaut pour les sauvegardes rapides (F11/F12)
-QUICK_SAVE_PATH = "saves/quicksave.sav"
+QUICK_SAVE_PATH = "saves/quicksave.json"
 
 class Engine:
     """
